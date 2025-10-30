@@ -19,8 +19,7 @@
 ## 编译和上传
 - 使用PlatformIO IDE或命令行进行编译和上传
 - 上传端口需根据实际连接情况在platformio.ini中配置
-- 命令行编译命令：`C:\Users\feng\.platformio\penv\Scripts\platformio.exe run`
-- 命令行上传命令：`C:\Users\feng\.platformio\penv\Scripts\platformio.exe run -t upload`
+
 
 ## 代码风格
 - 使用4个空格进行缩进
