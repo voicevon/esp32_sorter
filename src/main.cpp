@@ -1,69 +1,118 @@
 #include <Arduino.h>
-#include "encoder_module.h"
+#include "carriage_system.h"
+#include "diverter_controller.h"
+#include "sorter_controller.h"
+#include "system_integration_test.h"
 
-// 定义日志标签
-#define TAG "HELLO_WORLD"
+// 舵机引脚定义
+const int SERVO_PINS[NUM_DIVERTERS] = {
+    2,   // 分支器1舵机
+    4,   // 分支器2舵机
+    5,   // 分支器3舵机
+    18,  // 分支器4舵机
+    19   // 分支器5舵机
+};
 
-// 角度触发回调函数示例
-void angleReachedCallback() {
-  Serial.println("[角度触发] 达到目标角度！执行特定任务...");
-  // 在这里可以添加需要执行的任务代码
-  // 例如：控制电机、触发传感器读取、发送信号等
-}
+// 创建分拣控制器实例
+SorterController sorterController;
+
+// 测试模式标志
+bool testMode = true;
 
 void setup() {
   // 初始化串口通信
   Serial.begin(115200);
+  Serial.println("ESP32 Sorter 系统启动中...");
   
-  // 等待串口初始化完成
-  while (!Serial) {
-    ; // 对于Leonardo/Micro/Zero等板，需要等待串口连接
-  }
+  // 等待串口连接
+  delay(2000);
   
-  // 打印Hello World信息
-  Serial.println("ESP32 Sorter 项目初始化");
-  Serial.printf("[%s] ESP32 Chip ID: %08X\n", TAG, ESP.getEfuseMac());
-  Serial.printf("[%s] CPU frequency: %d MHz\n", TAG, getCpuFrequencyMhz());
-  Serial.printf("[%s] Flash size: %u MB\n", TAG, ESP.getFlashChipSize() / (1024 * 1024));
+  // 初始化分拣控制器
+  sorterController.initialize(SERVO_PINS);
   
-  // 初始化编码器模块
-  encoder.initialize();
+  // 运行自检
+  sorterController.runSelfTest();
   
-  // 设置角度触发点（例如90度）
-  encoder.setAngleTrigger(90, angleReachedCallback);
+  // 运行系统集成测试
+  runSystemIntegrationTest();
+  testSinglePointScannerSimulation();
   
-  Serial.println("系统初始化完成，开始运行...");
+  // 启动系统
+  sorterController.start();
+  
+  Serial.println("系统已准备就绪");
+  Serial.println("在测试模式下，将定期生成模拟直径数据并移动传输线");
 }
 
 void loop() {
-  // 检查是否需要执行角度触发回调
-  static bool lastTriggerState = false;
-  bool currentTriggerState = encoder.getTriggerState();
+  // 系统更新
+  sorterController.update();
   
-  if (currentTriggerState && !lastTriggerState) {
-    // 触发状态从false变为true，表示刚达到目标角度
-    angleReachedCallback();
-  }
-  lastTriggerState = currentTriggerState;
-  
-  // 每秒打印一次编码器状态
-  static unsigned long lastPrintTime = 0;
-  unsigned long currentTime = millis();
-  
-  if (currentTime - lastPrintTime >= 1000) {
-    lastPrintTime = currentTime;
+  if (testMode) {
+    // 测试模式：定期生成模拟直径数据
+    static unsigned long lastDataTime = 0;
+    static unsigned long lastMoveTime = 0;
+    const unsigned long DATA_INTERVAL = 3000; // 3秒生成一次数据
+    const unsigned long MOVE_INTERVAL = 1000; // 1秒移动一次
     
-    // 获取编码器信息
-    int32_t totalPulses = encoder.getPulseCount();
-    int32_t revolutions = encoder.getRevolutionCount();
-    uint16_t currentAngle = encoder.getCurrentAngle();
-    uint16_t pulsesInRev = encoder.getPulseInCurrentRevolution();
+    // 生成模拟直径数据
+    if (millis() - lastDataTime >= DATA_INTERVAL) {
+      lastDataTime = millis();
+      
+      // 生成随机直径 (3mm - 20mm)
+      float randomDiameter = 3.0 + random(0, 171) * 0.1; // 3.0到20.0的随机直径
+      
+      Serial.print("生成模拟直径数据: ");
+      Serial.println(randomDiameter);
+      
+      // 接收直径数据
+      sorterController.receiveDiameterData(randomDiameter);
+    }
     
-    // 打印编码器状态
-    Serial.printf("[%s] 编码器状态 - 时间: %lu ms\n", TAG, currentTime);
-    Serial.printf("[%s]   总脉冲数: %ld\n", TAG, totalPulses);
-    Serial.printf("[%s]   当前圈数: %ld\n", TAG, revolutions);
-    Serial.printf("[%s]   圈内脉冲: %u/%u\n", TAG, pulsesInRev, ENCODER_PPR - 1);
-    Serial.printf("[%s]   当前角度: %u度\n", TAG, currentAngle);
+    // 模拟移动传输线
+    if (millis() - lastMoveTime >= MOVE_INTERVAL) {
+      lastMoveTime = millis();
+      sorterController.moveOnePosition();
+    }
   }
+  
+  // 检查串口输入（可选：用于调试控制）
+  if (Serial.available() > 0) {
+    char command = Serial.read();
+    
+    switch (command) {
+      case 'r':
+      case 'R':
+        sorterController.reset();
+        break;
+      case 's':
+      case 'S':
+        sorterController.start();
+        break;
+      case 'p':
+      case 'P':
+        sorterController.stop();
+        break;
+      case 't':
+      case 'T':
+        testMode = !testMode;
+        Serial.print("测试模式：");
+        Serial.println(testMode ? "开启" : "关闭");
+        break;
+      case '1'...'5':
+        sorterController.testDiverter(command - '0');
+        break;
+      case '?':
+        Serial.println("命令帮助：");
+        Serial.println("  R - 重置系统");
+        Serial.println("  S - 启动系统");
+        Serial.println("  P - 停止系统");
+        Serial.println("  T - 切换测试模式");
+        Serial.println("  1-5 - 测试对应分支器");
+        Serial.println("  ? - 显示此帮助");
+        break;
+    }
+  }
+  
+  delay(50); // 小延迟确保系统稳定运行
 }

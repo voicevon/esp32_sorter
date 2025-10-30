@@ -1,15 +1,45 @@
 # ESP32 Sorter 项目
 
-这是一个使用PlatformIO和Arduino框架开发的ESP32项目，实现了基本的Hello World功能，作为项目的起点。
+这是一个基于ESP32开发的物料分拣系统，使用PlatformIO和Arduino框架开发。系统主要用于传输线上的物料分拣，通过直径数据对物料进行分类，并使用舵机控制的分支器将物料分配到不同通道。
 
 ## 项目功能
-- 启动时打印Hello World和ESP32芯片信息
-- 每秒循环打印一次Hello World
-- 展示ESP-IDF基本日志系统的使用
 
-## 环境搭建 - PlatformIO（推荐）
+- 31个传输线托架的环形管理系统
+- 5个分支器舵机控制（用于物料分配）
+- 单点扫描仪直径数据接收和处理
+- 基于物料直径的智能分类算法
+- 异常情况处理和系统自检功能
+- 集成测试模块，验证系统各组件功能
+- 串口命令控制，便于调试和监控
 
-### 方法一：VS Code + PlatformIO插件（推荐）
+## 项目架构
+
+- **Carriage**：表示传输线上的单个托架
+- **CarriageManager**：管理所有托架的状态和移动
+- **DiverterController**：控制5个分支器舵机的动作
+- **SorterController**：系统主控协调器，协调各组件工作
+
+## 目录结构
+
+```
+d:\Firmware\esp32_sorter\
+├── include/              # 头文件目录
+│   ├── carriage_system.h         # 传输系统相关头文件
+│   ├── diverter_controller.h     # 分支器控制头文件
+│   ├── sorter_controller.h       # 系统主控协调器头文件
+│   └── system_integration_test.h # 系统集成测试头文件
+├── src/                  # 源代码目录
+│   ├── carriage_system.cpp       # 传输系统实现
+│   ├── diverter_controller.cpp   # 分支器控制实现
+│   ├── sorter_controller.cpp     # 系统主控协调器实现
+│   ├── system_integration_test.cpp # 系统集成测试实现
+│   └── main.cpp                  # 主程序入口
+└── platformio.ini        # PlatformIO配置文件
+```
+
+## 环境搭建 - PlatformIO
+
+### 方法：VS Code + PlatformIO插件（推荐）
 
 1. **安装VS Code**
    - 从官网下载并安装：https://code.visualstudio.com/
@@ -26,19 +56,6 @@
    - 选择项目目录 `d:/Firmware/esp32_sorter`
    - PlatformIO会自动识别项目并加载相关配置
 
-### 方法二：命令行安装PlatformIO
-
-```bash
-# 安装Python（如果尚未安装）
-# 下载并安装Python: https://www.python.org/downloads/
-
-# 安装PlatformIO Core
-pip install -U platformio
-
-# 验证安装
-pio --version
-```
-
 ## USB驱动安装（ESP32连接）
 
 - ESP32开发板通常使用CP210x、CH340或FTDI芯片作为USB转串口芯片
@@ -48,41 +65,6 @@ pio --version
   - FTDI驱动：https://ftdichip.com/drivers/vcp-drivers/
 
 - 安装驱动后，在设备管理器中查看ESP32连接的COM端口号（如COM3）
-
-### 2. 配置环境变量
-
-#### 使用ESP-IDF Command Prompt（推荐）
-- 安装完成后，通过开始菜单找到并打开"ESP-IDF Command Prompt"
-- 这个命令提示符已经自动加载了所有必要的环境变量
-
-#### 在普通命令行中设置环境
-```powershell
-# 假设ESP-IDF安装在默认位置
-%userprofile%\esp\esp-idf\export.ps1  # PowerShell
-# 或
-%userprofile%\esp\esp-idf\export.bat   # 命令提示符(cmd.exe)
-```
-
-### 3. 验证ESP-IDF安装
-在正确配置环境变量的命令行中执行：
-```
-idf.py --version
-```
-应该能看到ESP-IDF的版本信息
-
-### 2. 配置环境变量
-
-#### Windows
-- 安装完成后，使用ESP-IDF Command Prompt
-- 或者在普通命令行中运行：
-```
-%userprofile%\.espressif\esp-idf\export.bat
-```
-
-#### Linux/MacOS
-```
-source ~/esp/esp-idf/export.sh
-```
 
 ## 使用PlatformIO构建和烧录项目
 
@@ -99,6 +81,49 @@ source ~/esp/esp-idf/export.sh
 3. **烧录项目**
    - 点击底部状态栏中的 → 图标（Upload）
    - 或按Ctrl+Alt+U键
+
+4. **监控串口输出**
+   - 点击底部状态栏中的 🔌 图标（Serial Monitor）
+   - 或按Ctrl+Alt+S键
+
+## 测试模式
+
+系统启动后会自动运行自检和集成测试，然后进入测试模式。在测试模式下：
+
+- 系统会生成模拟的直径数据
+- 控制传输线移动
+- 演示物料分类和分配过程
+
+## 串口命令控制
+
+可以通过串口监视器发送以下命令：
+
+- `start`: 启动系统
+- `stop`: 停止系统
+- `test`: 进入测试模式
+- `status`: 显示系统状态
+- `reset`: 重置系统
+
+## 代码风格规范
+
+- 使用4个空格进行缩进
+- 花括号使用K&R风格
+- 每行不超过100个字符
+- 添加必要的注释说明功能和参数
+- 类和函数使用驼峰命名法
+- 常量使用全大写和下划线
+
+## 调试
+
+- 使用Serial.println()进行基本调试
+- 系统配置了调试日志级别，可以在platformio.ini中调整
+- 禁止使用JTAG调试器进行调试
+
+## 故障排除
+
+- 如果构建失败，请检查include目录配置是否正确
+- 如果上传失败，请确认COM端口配置和USB连接
+- 如果系统运行异常，可以通过串口监视器查看调试信息   - 或按Ctrl+Alt+U键
 
 4. **监控串口输出**
    - 点击底部状态栏中的 ![Serial Monitor] 图标
