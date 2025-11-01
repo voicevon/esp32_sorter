@@ -1,118 +1,54 @@
 // 诊断器类实现文件
 #include "diagnostic_controller.h"
+#include "sorter_controller.h"
+#include "debug_module.h"
+// 直径分类阈值在carriage_system.h中定义，不需要重复定义
 
 DiagnosticController::DiagnosticController() {
   currentMode = MODE_NORMAL;
   pendingMode = MODE_NORMAL;
   modeChangePending = false;
-  lastButtonPressTime = 0;
-  lastButtonState = HIGH;
-  lastBlinkTime = 0;
+  debugModule = nullptr;
+  lastDataTime = 0;
+  lastMoveTime = 0;
+  showQueueStatus = false;
 }
 
-void DiagnosticController::initialize() {
-  // 初始化诊断器引脚
-  pinMode(MODE_BUTTON_PIN, INPUT_PULLUP); // 模式按钮，上拉输入
-  pinMode(STATUS_LED1_PIN, OUTPUT);      // 状态LED 1，输出
-  pinMode(STATUS_LED2_PIN, OUTPUT);      // 状态LED 2，输出
+void DiagnosticController::initialize(DebugModule& module) {
+  debugModule = &module;
   
   // 设置初始LED状态
-  updateStatusLEDs();
+  if (debugModule) {
+    debugModule->setSystemMode(currentMode);
+  }
   
-  Serial.println("诊断器初始化完成");
+  Serial.println("Diagnostic controller initialized");
 }
 
 void DiagnosticController::update() {
-  // 检查按钮状态
-  int currentButtonState = digitalRead(MODE_BUTTON_PIN);
-  unsigned long currentTime = millis();
+  // 检查DebugModule是否已初始化
+  if (!debugModule) return;
   
-  // 按钮去抖处理
-  if (currentButtonState != lastButtonState) {
-    lastButtonPressTime = currentTime;
-  }
+  // 更新DebugModule状态
+  debugModule->update();
   
-  // 如果按钮状态稳定且为按下状态
-  if (currentButtonState == LOW && 
-      (currentTime - lastButtonPressTime) > DEBOUNCE_DELAY && 
-      lastButtonState == HIGH) {
-    // 切换系统模式
+  // 检查按钮1是否被按下（模式切换）
+  if (debugModule->isButtonPressed(1)) {
     switchToNextMode();
-  }
-  
-  // 更新最后按钮状态
-  lastButtonState = currentButtonState;
-  
-  // 特殊处理测试模式的LED闪烁效果
-  if (currentMode == MODE_TEST) {
-    if (currentTime - lastBlinkTime >= BLINK_INTERVAL) {
-      lastBlinkTime = currentTime;
-      // 切换LED状态
-      digitalWrite(STATUS_LED1_PIN, !digitalRead(STATUS_LED1_PIN));
-      digitalWrite(STATUS_LED2_PIN, !digitalRead(STATUS_LED2_PIN));
-    }
-  }
-  // 如果模式改变但还未闪烁（非测试模式），更新LED显示
-  else if (modeChangePending) {
-    updateStatusLEDs();
+    debugModule->clearButtonStates();
   }
 }
 
-void DiagnosticController::updateStatusLEDs() {
-  switch (currentMode) {
-    case MODE_NORMAL:
-      // 正常模式: LED1灭, LED2灭
-      digitalWrite(STATUS_LED1_PIN, LOW);
-      digitalWrite(STATUS_LED2_PIN, LOW);
-      break;
-    case MODE_DEBUG_ENCODER:
-      // 编码器调试: LED1亮, LED2灭
-      digitalWrite(STATUS_LED1_PIN, HIGH);
-      digitalWrite(STATUS_LED2_PIN, LOW);
-      break;
-    case MODE_DEBUG_SCANNER:
-      // 扫描仪调试: LED1灭, LED2亮
-      digitalWrite(STATUS_LED1_PIN, LOW);
-      digitalWrite(STATUS_LED2_PIN, HIGH);
-      break;
-    case MODE_DEBUG_DIVERTER:
-      // 分支器调试: LED1亮, LED2亮
-      digitalWrite(STATUS_LED1_PIN, HIGH);
-      digitalWrite(STATUS_LED2_PIN, HIGH);
-      break;
-    case MODE_TEST:
-      // 测试模式: LED1亮, LED2灭（初始状态，闪烁在update中处理）
-      digitalWrite(STATUS_LED1_PIN, HIGH);
-      digitalWrite(STATUS_LED2_PIN, LOW);
-      lastBlinkTime = millis();
-      break;
-  }
-}
+
 
 void DiagnosticController::switchToNextMode() {
   // 计算下一个模式
-  pendingMode = static_cast<SystemMode>((currentMode + 1) % 5);
+  pendingMode = static_cast<SystemMode>((currentMode + 1) % 6); // 6种模式循环切换
   modeChangePending = true;
   
-  // 打印模式切换信息
-  Serial.print("[诊断器] 待切换到: ");
-  switch (pendingMode) {
-    case MODE_NORMAL:
-      Serial.println("正常工作模式");
-      break;
-    case MODE_DEBUG_ENCODER:
-      Serial.println("编码器调试模式");
-      break;
-    case MODE_DEBUG_SCANNER:
-      Serial.println("扫描仪调试模式");
-      break;
-    case MODE_DEBUG_DIVERTER:
-      Serial.println("分支器调试模式");
-      break;
-    case MODE_TEST:
-      Serial.println("测试模式");
-      break;
-  }
+  // 打印模式切换请求信息
+  Serial.print("[DIAGNOSTIC] Mode switch requested to: ");
+  Serial.println(getCurrentModeName());
 }
 
 SystemMode DiagnosticController::getCurrentMode() const {
@@ -128,32 +64,115 @@ void DiagnosticController::applyModeChange() {
     currentMode = pendingMode;
     modeChangePending = false;
     
-    // 更新LED显示
-    updateStatusLEDs();
+    // 更新DebugModule的LED显示
+    if (debugModule) {
+      debugModule->setSystemMode(currentMode);
+    }
     
     // 打印模式切换完成信息
-    Serial.print("[诊断器] 模式已切换为: ");
+    Serial.print("[DIAGNOSTIC] Mode switched to: ");
     Serial.println(getCurrentModeName());
   }
 }
 
-void DiagnosticController::switchModeExternally() {
-  switchToNextMode();
+void DiagnosticController::processCurrentMode(SorterController& sorterController) {
+  unsigned long currentTime = millis();
+  
+  switch (currentMode) {
+    case MODE_DIAGNOSE_ENCODER:
+      // 诊断编码器模式
+      if (currentTime - lastMoveTime > 1500) { // 1.5秒移动一次
+        lastMoveTime = currentTime;
+        sorterController.moveOnePosition();
+        Serial.println("[DIAGNOSTIC] Simulated encoder movement");
+      }
+      break;
+    
+    case MODE_DIAGNOSE_SCANNER:
+      // 诊断扫描仪模式
+      if (currentTime - lastDataTime > 2000) { // 2秒生成一次数据
+        lastDataTime = currentTime;
+        // 随机生成一个直径数据（5.0mm - 25.0mm）
+        float randomDiameter = 5.0f + random(0, 201) / 10.0f;
+        sorterController.receiveDiameterData(randomDiameter);
+        Serial.print("[DIAGNOSTIC] Generated random diameter: ");
+        Serial.print(randomDiameter);
+        Serial.println("mm");
+      }
+      break;
+    
+    case MODE_DIAGNOSE_DIVERTER:
+      // 诊断分支器模式
+      // 这里可以添加分支器测试的逻辑
+      Serial.println("[DIAGNOSTIC] Diverter diagnostic mode active");
+      break;
+    
+    case MODE_DIAGNOSE_CONVEYOR:
+      // 诊断传输线模式
+      if (currentTime - lastMoveTime > 1000) { // 1秒移动一次
+        lastMoveTime = currentTime;
+        sorterController.moveOnePosition();
+        Serial.println("[DIAGNOSTIC] Conveyor diagnostic - simulated movement");
+        // 打印传输线状态信息
+        sorterController.displayCarriageQueue();
+      }
+      break;
+    
+    case MODE_TEST:
+      // 测试模式
+      if (currentTime - lastDataTime > 3000) { // 3秒生成一次数据
+        lastDataTime = currentTime;
+        // 随机生成一个直径数据（5.0mm - 25.0mm）
+        float randomDiameter = 5.0f + random(0, 201) / 10.0f;
+        sorterController.receiveDiameterData(randomDiameter);
+        Serial.print("[TEST] Generated random diameter: ");
+        Serial.print(randomDiameter);
+        Serial.println("mm");
+      }
+      
+      if (currentTime - lastMoveTime > 1000) { // 1秒移动一次
+        lastMoveTime = currentTime;
+        sorterController.moveOnePosition();
+        Serial.println("[TEST] Simulated encoder movement");
+      }
+      
+      // 显示队列状态（每2秒切换一次）
+      if (currentTime % 2000 < 1000) {
+        if (!showQueueStatus) {
+          showQueueStatus = true;
+          sorterController.displayCarriageQueue();
+        }
+      } else {
+        showQueueStatus = false;
+      }
+      break;
+    
+    case MODE_NORMAL:
+    default:
+      // 正常模式下不需要特殊处理
+      break;
+  }
 }
+
+// 所有模式处理逻辑已移至processCurrentMode方法中
+
+
 
 String DiagnosticController::getCurrentModeName() const {
   switch (currentMode) {
     case MODE_NORMAL:
-      return "正常工作模式";
-    case MODE_DEBUG_ENCODER:
-      return "编码器调试模式";
-    case MODE_DEBUG_SCANNER:
-      return "扫描仪调试模式";
-    case MODE_DEBUG_DIVERTER:
-      return "分支器调试模式";
+      return "Normal";
+    case MODE_DIAGNOSE_ENCODER:
+      return "Diagnose Encoder";
+    case MODE_DIAGNOSE_SCANNER:
+      return "Diagnose Scanner";
+    case MODE_DIAGNOSE_DIVERTER:
+      return "Diagnose Diverter";
+    case MODE_DIAGNOSE_CONVEYOR:
+      return "Diagnose Conveyor";
     case MODE_TEST:
-      return "测试模式";
+      return "Test";
     default:
-      return "未知模式";
+      return "Unknown";
   }
 }

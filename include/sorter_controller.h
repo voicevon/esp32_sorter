@@ -2,14 +2,14 @@
 #define SORTER_CONTROLLER_H
 
 #include "carriage_system.h"
-#include "diverter_controller.h"
+#include "outlet_controller.h"
 
-// 默认分支点位置
-#define DEFAULT_DIVERGENCE_POINT_1 5
-#define DEFAULT_DIVERGENCE_POINT_2 10
-#define DEFAULT_DIVERGENCE_POINT_3 15
-#define DEFAULT_DIVERGENCE_POINT_4 20
-#define DEFAULT_DIVERGENCE_POINT_5 25
+// 默认出口位置
+#define DEFAULT_OUTLET_POINT_1 5
+#define DEFAULT_OUTLET_POINT_2 10
+#define DEFAULT_OUTLET_POINT_3 15
+#define DEFAULT_OUTLET_POINT_4 20
+#define DEFAULT_OUTLET_POINT_5 25
 
 // 编码器参数
 #define ENCODER_PULSES_PER_STEP 10  // 每移动一个索引位置的脉冲数
@@ -19,11 +19,11 @@
  */
 class SorterController {
 private:
-    CarriageManager carriageManager;      // 托架管理器
-    DiverterController diverterController; // 分支器控制器
-    uint8_t currentPosition;              // 当前传输线位置
-    int encoderCount;                     // 编码器计数
-    bool isRunning;                       // 系统运行状态
+    OutletController outletController; // 出口控制器
+    uint8_t currentPosition;          // 当前传输线位置
+    int encoderCount;                 // 编码器计数
+    bool isRunning;                   // 系统运行状态
+    bool activeOutlets[NUM_OUTLETS];  // 跟踪打开的出口
 
 public:
     /**
@@ -35,13 +35,13 @@ public:
      * 初始化系统
      * @param servoPins 舵机引脚数组
      */
-    void initialize(const int servoPins[NUM_DIVERTERS]);
+    void initialize(const int servoPins[NUM_OUTLETS]);
 
     /**
-     * 设置分支点位置
-     * @param positions 分支点位置数组
+     * 设置出口位置
+     * @param positions 出口位置数组
      */
-    void setDivergencePoints(const uint8_t positions[NUM_DIVERTERS]);
+    void setDivergencePoints(const uint8_t positions[NUM_OUTLETS]);
 
     /**
      * 从单点扫描仪接收直径数据
@@ -87,15 +87,20 @@ public:
     void runSelfTest();
 
     /**
-     * 测试特定分支器
-     * @param diverterIndex 分支器索引（1-5）
+     * 测试特定出口
+     * @param outletIndex 出口索引（1-5）
      */
-    void testDiverter(uint8_t diverterIndex);
+    void testOutlet(uint8_t outletIndex);
 
     /**
      * 模拟移动传输线一个位置
      */
     void moveOnePosition();
+    
+    /**
+     * 显示所有有效托架数据和队列状态（调试用）
+     */
+    void displayCarriageQueue();
 };
 
 #endif // SORTER_CONTROLLER_H

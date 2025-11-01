@@ -3,34 +3,22 @@
 #define DIAGNOSTIC_CONTROLLER_H
 
 #include <Arduino.h>
-#include "pins.h"
+#include "debug_module.h"
 
-// 系统工作模式定义
-enum SystemMode {
-  MODE_NORMAL = 0,       // 正常工作模式
-  MODE_DEBUG_ENCODER = 1, // 编码器调试模式
-  MODE_DEBUG_SCANNER = 2,  // 扫描仪调试模式
-  MODE_DEBUG_DIVERTER = 3, // 分支器调试模式
-  MODE_TEST = 4           // 测试模式
-};
+class SorterController;
+class DebugModule;
 
 class DiagnosticController {
 private:
   SystemMode currentMode;      // 当前工作模式
   SystemMode pendingMode;      // 待切换的工作模式
   bool modeChangePending;      // 模式切换标志
+  DebugModule* debugModule;    // 调试模块指针
   
-  // 按钮去抖参数
-  const unsigned long DEBOUNCE_DELAY = 50; // 按钮去抖延迟时间(毫秒)
-  unsigned long lastButtonPressTime;   // 上次按钮按下时间
-  int lastButtonState;                 // 上次按钮状态
-  
-  // 闪烁控制变量
-  unsigned long lastBlinkTime;          // 上次闪烁时间
-  const unsigned long BLINK_INTERVAL = 500; // 闪烁间隔500ms
-  
-  // 更新LED状态显示
-  void updateStatusLEDs();
+  // 模式处理相关变量
+  unsigned long lastDataTime;           // 上次生成数据时间
+  unsigned long lastMoveTime;           // 上次移动时间
+  bool showQueueStatus;                 // 队列状态显示标志
   
   // 切换工作模式的内部实现
   void switchToNextMode();
@@ -40,10 +28,13 @@ public:
   DiagnosticController();
   
   // 初始化诊断器
-  void initialize();
+  void initialize(DebugModule& debugModule);
   
   // 更新诊断器状态（应在主循环中调用）
   void update();
+  
+  // 处理当前工作模式
+  void processCurrentMode(SorterController& sorterController);
   
   // 获取当前工作模式
   SystemMode getCurrentMode() const;
@@ -53,9 +44,6 @@ public:
   
   // 应用待切换的工作模式
   void applyModeChange();
-  
-  // 通过外部命令切换到下一个模式
-  void switchModeExternally();
   
   // 获取当前模式的字符串描述
   String getCurrentModeName() const;
