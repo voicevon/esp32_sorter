@@ -4,7 +4,7 @@
 
 ## 项目功能
 
-- 31个传输线托架的环形管理系统
+- 31个传输线托盘的环形管理系统
 - 5个出口舵机控制（用于物料分配）
 - 单点扫描仪直径数据接收和处理
 - 基于物料直径的智能分类算法
@@ -14,7 +14,7 @@
 
 ## 项目架构
 
-- **CarriageSystem**：管理所有托架的状态和移动
+- **TraySystem**：管理所有托盘的状态和移动
 - **主函数控制逻辑**：系统主控协调器，协调各组件工作，包括出口控制
 
 ## 目录结构
@@ -22,14 +22,14 @@
 ```
 d:\Firmware\esp32_sorter\
 ├── include/              # 头文件目录
-│   ├── carriage_system.h         # 传输系统相关头文件
+│   ├── tray_system.h         # 传输系统相关头文件
 │   ├── sorter_controller.h       # 系统主控协调器头文件
 │   ├── outlet.h                  # 出口控制头文件
 │   ├── debug_module.h            # 调试模块头文件
 │   ├── diagnostic_controller.h   # 诊断控制器头文件
 │   └── system_integration_test.h # 系统集成测试头文件
 ├── src/                  # 源代码目录
-│   ├── carriage_system.cpp       # 传输系统实现
+│   ├── tray_system.cpp       # 传输系统实现
 │   ├── sorter_controller.cpp     # 系统主控协调器实现
 │   ├── diagnostic_controller.cpp # 诊断控制器实现
 │   ├── debug_module.cpp          # 调试模块实现

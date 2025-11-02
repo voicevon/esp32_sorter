@@ -10,4 +10,4 @@
 ## 3. 工作流程
 - 主函数管理系统模式切换
 - 在正常工作模式下，主循环调用Sorter::spin_Once()
-- Sorter类负责协调CarriageSystem、Outlet和Encoder的工作
+- Sorter类负责协调TraySystem、Outlet和Encoder的工作

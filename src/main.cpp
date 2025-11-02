@@ -1,18 +1,12 @@
 #include <Arduino.h>
 #include "pins.h"
 
-
-
-// 始终包含必要的头文件
+// 必要的头文件
 #include "outlet.h"
-
-
-// 正常工作模式所需的头文件
-#include "carriage_system.h"
-#include "system_integration_test.h"
 #include "simple_hmi.h"
 #include "encoder.h"
 #include "sorter.h"
+#include "tray_system.h"
 
 // 常量定义
 #define NUM_OUTLETS 5
@@ -38,11 +32,11 @@ bool modeChangePending = false;        // 模式切换标志
 unsigned long lastMoveTime = 0;        // 上次移动时间
 unsigned long lastDataTime = 0;        // 上次数据生成时间
 
-// 创建人机交互模块实例
-SimpleHMI simpleHMI;
+// 使用单例模式获取人机交互模块实例
+SimpleHMI* simpleHMI = SimpleHMI::getInstance();
 
-// 创建编码器实例
-Encoder encoder;
+// 使用单例模式获取Encoder实例
+Encoder* encoder = Encoder::getInstance();
 
 // 创建Sorter实例
 Sorter sorter;
@@ -64,14 +58,15 @@ void setup() {
   Serial.println("ESP32 Sorter system starting...");
   
   // 初始化人机交互模块
-  simpleHMI.initialize();
+  simpleHMI->initialize();
   
   // 等待串口连接
   delay(2000);
   
   // 初始化编码器
-  encoder.initialize();
-  encoder.enableDebug(true);
+  encoder->initialize();
+  
+  // 出口位置初始化已移至Sorter类的initialize方法中
   
   // 初始化Sorter
   sorter.initialize();
@@ -84,19 +79,27 @@ void setup() {
 
 
 void loop() {
-  // 更新人机交互模块状态
-  simpleHMI.spin_once();
-  
   // 检查主按钮是否被按下（模式切换）
-  if (simpleHMI.isButtonPressed(MASTER_BUTTON)) {
+  if (simpleHMI->isMasterButtonPressed()) {
     // 切换到下一个工作模式
     pendingMode = static_cast<SystemMode>((currentMode + 1) % 6); // 6种模式循环切换
     modeChangePending = true;
     
     // 打印模式切换请求信息
     Serial.print("[DIAGNOSTIC] Mode switch requested to: ");
+    // 临时保存当前模式，显示待切换的模式名称
+    SystemMode tempMode = currentMode;
+    currentMode = pendingMode;
     Serial.println(getCurrentModeName());
-    simpleHMI.clearButtonStates();
+    currentMode = tempMode; // 恢复原模式
+    // 注意：isMasterButtonPressed()方法会自动清除标志
+  }
+  
+  // 检查从按钮是否被按下（可用于其他功能扩展）
+  if (simpleHMI->isSlaveButtonPressed()) {
+    // 从按钮功能处理（当前未使用，可根据需要扩展）
+    Serial.println("[DIAGNOSTIC] Slave button pressed");
+    // 注意：isSlaveButtonPressed()方法会自动清除标志
   }
   
   // 检查是否有待处理的模式切换
@@ -107,17 +110,17 @@ void loop() {
     
     // 在外部控制LED状态以反映当前模式
     if (currentMode == MODE_NORMAL) {
-      simpleHMI.setLEDState(MASTER_LED, false);
-      simpleHMI.setLEDState(SLAVE_LED, false);
+      simpleHMI->setMasterLED(false);
+      simpleHMI->setSlaveLED(false);
     } else if (currentMode == MODE_DIAGNOSE_ENCODER) {
-      simpleHMI.setLEDState(MASTER_LED, true);
-      simpleHMI.setLEDState(SLAVE_LED, false);
+      simpleHMI->setMasterLED(true);
+      simpleHMI->setSlaveLED(false);
     } else if (currentMode == MODE_DIAGNOSE_SCANNER) {
-      simpleHMI.setLEDState(MASTER_LED, false);
-      simpleHMI.setLEDState(SLAVE_LED, true);
+      simpleHMI->setMasterLED(false);
+      simpleHMI->setSlaveLED(true);
     } else {
-      simpleHMI.setLEDState(MASTER_LED, true);
-      simpleHMI.setLEDState(SLAVE_LED, true);
+      simpleHMI->setMasterLED(true);
+      simpleHMI->setSlaveLED(true);
     }
     
     // 打印模式切换完成信息
@@ -125,46 +128,7 @@ void loop() {
     Serial.println(getCurrentModeName());
   }
   
-  // 在正常模式下调用Sorter的spin_Once()函数
-  if (currentMode == MODE_NORMAL) {
-    sorter.spin_Once();
-  }
-  
-  // 处理编码器状态
-  if (encoder.isReverseRotation()) {
-    Serial.println("[WARNING] Reverse rotation detected! System may need reset.");
-  }
-  
-  // 当不在正常模式时，根据不同模式执行相应的日志输出
-  if (currentMode != MODE_NORMAL) {
-    static unsigned long lastLogTime = 0;
-    unsigned long currentTime = millis();
-    
-    // 每秒输出一次模式信息，避免日志过于频繁
-    if (currentTime - lastLogTime > 1000) {
-      lastLogTime = currentTime;
-      
-      switch (currentMode) {
-        case MODE_DIAGNOSE_ENCODER:
-          Serial.println("[DIAGNOSTIC] Encoder diagnostic mode");
-          break;
-        case MODE_DIAGNOSE_SCANNER:
-          Serial.println("[DIAGNOSTIC] Scanner diagnostic mode");
-          break;
-        case MODE_DIAGNOSE_OUTLET:
-          Serial.println("[DIAGNOSTIC] Outlet diagnostic mode");
-          break;
-        case MODE_DIAGNOSE_CONVEYOR:
-          Serial.println("[DIAGNOSTIC] Conveyor diagnostic mode");
-          break;
-        case MODE_TEST:
-          Serial.println("[TEST] Test mode");
-          break;
-        default:
-          break;
-      }
-    }
-  }
+
   
   // 处理当前工作模式
   unsigned long currentTime = millis();
@@ -172,13 +136,24 @@ void loop() {
   switch (currentMode) {
     case MODE_DIAGNOSE_ENCODER:
       // 诊断编码器模式
-      Serial.println("[DIAGNOSTIC] Encoder diagnostic mode - reading real encoder values");
+      encoder->printout();
       break;
     
-    case MODE_DIAGNOSE_SCANNER:
-      // 诊断扫描仪模式
-      Serial.println("[DIAGNOSTIC] Scanner diagnostic mode");
+    case MODE_DIAGNOSE_SCANNER: {
+      // 诊断扫描仪模式 - 读取并打印扫描仪状态（仅状态变化时输出）
+      static bool lastScannerState = false;
+      int currentState = digitalRead(LASER_SCANNER_PIN);
+      
+      // 只在状态发生变化时输出日志
+      if (currentState != lastScannerState) {
+        lastScannerState = currentState;
+        Serial.print("[DIAGNOSTIC] Scanner state changed to: ");
+        Serial.println(currentState ? "HIGH" : "LOW");
+        
+
+      }
       break;
+    }
     
     case MODE_DIAGNOSE_OUTLET:
       // 诊断出口模式已在diagnosticLoop中处理
@@ -186,13 +161,10 @@ void loop() {
     
     case MODE_DIAGNOSE_CONVEYOR:
       // 诊断传输线模式
-      Serial.println("[DIAGNOSTIC] Conveyor diagnostic mode");
-      displayCarriageQueue();
       break;
     
     case MODE_TEST:
       // 测试模式
-      Serial.println("[TEST] Test mode");
       break;
     
     case MODE_NORMAL:

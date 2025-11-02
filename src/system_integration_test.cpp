@@ -1,57 +1,43 @@
 #include <Arduino.h>
-#include "carriage_system.h"
+#include "tray_system.h"
 
 /**
- * 系统集成测试函数
- * 此函数用于测试整个传输线待分配系统的功能
- * 包括单点扫描仪数据插入、数据移动、直径分类和舵机控制
+ * 运行系统集成测试
  */
 void runSystemIntegrationTest() {
     Serial.println("\n========== 开始系统集成测试 ==========");
     
+    // 创建托盘系统
+    TraySystem traySystem;
+    
     // 初始化出口位置
     Serial.println("\n初始化出口位置:");
-    uint8_t testOutletPositions[NUM_OUTLETS] = {5, 10, 15, 20, 25};
-    initializeDivergencePoints(testOutletPositions);
+    uint8_t testOutletPositions[5] = {5, 10, 15, 20, 25};
     
     // 添加测试数据
-    float testDiameters[] = {18.0, 13.5, 10.0, 7.5, 4.0};
-    for (int i = 0; i < sizeof(testDiameters) / sizeof(float); i++) {
-        addNewDiameterData(testDiameters[i]);
-        // 移动位置，模拟传输
-        if (i < sizeof(testDiameters) / sizeof(float) - 1) {
-            moveCarriagesData();
-        }
+    Serial.println("\n添加测试数据:");
+    for (int i = 0; i < 5; i++) {
+        int diameter = 5 + i * 2; // 5, 7, 9, 11, 13 mm
+        int scanCount = 50 + i * 10; // 50, 60, 70, 80, 90 次扫描
+        traySystem.addNewDiameterData(diameter, scanCount);
+        Serial.printf("  添加直径: %d mm, 扫描次数: %d\n", diameter, scanCount);
     }
     
-    // 显示当前队列状态
-    displayCarriageQueue();
+    // 显示当前托盘状态
+    traySystem.displayTrayQueue();
     
-    // 检查直径分类
-    Serial.println("\n测试直径分类逻辑:");
-    for (int i = 0; i < sizeof(testDiameters) / sizeof(float); i++) {
-        float diameter = testDiameters[i];
-        uint8_t outlet = determineOutlet(diameter);
-        Serial.print("  直径 ");
-        Serial.print(diameter);
-        Serial.print("mm -> 出口");
-        Serial.println(outlet);
+    // 测试移动托盘数据
+    Serial.println("\n测试移动托盘数据:");
+    for (int i = 0; i < 3; i++) {
+        traySystem.moveTraysData();
+        Serial.printf("  移动后托盘队列状态 (第%d次):\n", i + 1);
+        traySystem.displayTrayQueue();
     }
     
-    // 测试出口分配逻辑
-    Serial.println("\n测试出口分配逻辑:");
-    for (int i = 0; i < NUM_OUTLETS; i++) {
-        uint8_t position = testOutletPositions[i];
-        uint8_t outlet = checkAndExecuteAssignment(position);
-        Serial.print("  位置 ");
-        Serial.print(position);
-        Serial.print(": 需要激活出口 ");
-        Serial.println(outlet);
-    }
-    
-    // 重置测试
-    Serial.println("\n重置所有测试数据:");
-    resetAllCarriagesData();
+    // 测试重置功能
+    Serial.println("\n测试重置功能:");
+    traySystem.resetAllTraysData();
+    traySystem.displayTrayQueue();
     
     Serial.println("\n========== 系统集成测试完成 ==========");
 }
@@ -63,8 +49,11 @@ void runSystemIntegrationTest() {
 void testSinglePointScannerSimulation() {
     Serial.println("\n========== 单点扫描仪功能模拟测试 ==========");
     
+    // 创建CarriageSystem实例
+    TraySystem traySystem;
+    
     // 重置数据
-    resetAllCarriagesData();
+    traySystem.resetAllTraysData();
     
     // 模拟连续扫描多个芦笋
     Serial.println("\n模拟连续扫描6个芦笋:");
@@ -79,20 +68,20 @@ void testSinglePointScannerSimulation() {
         Serial.println("mm");
         
         // 添加到索引0位置
-        addNewDiameterData(currentDiameter);
+        traySystem.addNewDiameterData(currentDiameter, 100);  // 假设扫描次数为100
         
         // 打印当前索引0的直径信息
         Serial.print("  索引0位置: 直径 = ");
-        Serial.print(carriageDiameters[0]);
+        Serial.print(traySystem.getTrayDiameter(0));
         Serial.print("  有效 = ");
-        Serial.println(carriageDiameters[0] != INVALID_DIAMETER ? "是" : "否");
+        Serial.println(traySystem.getTrayDiameter(0) != -1 ? "是" : "否");
         
         // 小延迟模拟时间间隔
         delay(100);
     }
     
     // 显示当前队列状态
-    displayCarriageQueue();
+    traySystem.displayTrayQueue();
     
     Serial.println("\n========== 单点扫描仪功能模拟测试完成 ==========");
 }
