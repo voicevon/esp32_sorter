@@ -1,7 +1,5 @@
 #include <Arduino.h>
 #include "carriage_system.h"
-#include "outlet_controller.h"
-#include "sorter_controller.h"
 
 /**
  * 系统集成测试函数

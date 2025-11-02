@@ -1,11 +1,11 @@
 # ESP32 Sorter 项目
 
-这是一个基于ESP32开发的物料分拣系统，使用PlatformIO和Arduino框架开发。系统主要用于传输线上的物料分拣，通过直径数据对物料进行分类，并使用舵机控制的分支器将物料分配到不同通道。
+这是一个基于ESP32开发的物料分拣系统，使用PlatformIO和Arduino框架开发。系统主要用于传输线上的物料分拣，通过直径数据对物料进行分类，并使用舵机控制的出口将物料分配到不同通道。
 
 ## 项目功能
 
 - 31个传输线托架的环形管理系统
-- 5个分支器舵机控制（用于物料分配）
+- 5个出口舵机控制（用于物料分配）
 - 单点扫描仪直径数据接收和处理
 - 基于物料直径的智能分类算法
 - 异常情况处理和系统自检功能
@@ -14,10 +14,8 @@
 
 ## 项目架构
 
-- **Carriage**：表示传输线上的单个托架
-- **CarriageManager**：管理所有托架的状态和移动
-- **DiverterController**：控制5个分支器舵机的动作
-- **SorterController**：系统主控协调器，协调各组件工作
+- **CarriageSystem**：管理所有托架的状态和移动
+- **主函数控制逻辑**：系统主控协调器，协调各组件工作，包括出口控制
 
 ## 目录结构
 
@@ -25,13 +23,16 @@
 d:\Firmware\esp32_sorter\
 ├── include/              # 头文件目录
 │   ├── carriage_system.h         # 传输系统相关头文件
-│   ├── diverter_controller.h     # 分支器控制头文件
 │   ├── sorter_controller.h       # 系统主控协调器头文件
+│   ├── outlet.h                  # 出口控制头文件
+│   ├── debug_module.h            # 调试模块头文件
+│   ├── diagnostic_controller.h   # 诊断控制器头文件
 │   └── system_integration_test.h # 系统集成测试头文件
 ├── src/                  # 源代码目录
 │   ├── carriage_system.cpp       # 传输系统实现
-│   ├── diverter_controller.cpp   # 分支器控制实现
 │   ├── sorter_controller.cpp     # 系统主控协调器实现
+│   ├── diagnostic_controller.cpp # 诊断控制器实现
+│   ├── debug_module.cpp          # 调试模块实现
 │   ├── system_integration_test.cpp # 系统集成测试实现
 │   └── main.cpp                  # 主程序入口
 └── platformio.ini        # PlatformIO配置文件
