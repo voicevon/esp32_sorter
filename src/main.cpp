@@ -8,9 +8,6 @@
 #include "sorter.h"
 #include "tray_system.h"
 
-// 常量定义
-#define NUM_OUTLETS 5
-
 // 系统工作模式定义
 enum SystemMode {
   MODE_NORMAL = 0,            // 正常工作模式
@@ -27,10 +24,6 @@ enum SystemMode {
 SystemMode currentMode = MODE_NORMAL;  // 当前模式
 SystemMode pendingMode = MODE_NORMAL;  // 待切换模式
 bool modeChangePending = false;        // 模式切换标志
-
-// 时间相关变量
-unsigned long lastMoveTime = 0;        // 上次移动时间
-unsigned long lastDataTime = 0;        // 上次数据生成时间
 
 // 使用单例模式获取人机交互模块实例
 SimpleHMI* simpleHMI = SimpleHMI::getInstance();
@@ -156,7 +149,7 @@ void loop() {
     }
     
     case MODE_DIAGNOSE_OUTLET:
-      // 诊断出口模式已在diagnosticLoop中处理
+      // 诊断出口模式
       break;
     
     case MODE_DIAGNOSE_CONVEYOR:
@@ -169,7 +162,7 @@ void loop() {
     
     case MODE_NORMAL:
     default:
-      // 正常模式下的处理已移至主循环中的Sorter::spin_Once()调用
+      // 正常模式下，系统通过编码器相位变化触发Sorter的onPhaseChange方法
       break;
   }
 }

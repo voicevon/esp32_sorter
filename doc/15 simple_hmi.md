@@ -1,13 +1,20 @@
 # SimpleHMI类
 
 ## 1. 概述
-管理两组LED指示灯和两组按钮的硬件驱动模块。
+管理两组LED指示灯和两组按钮的硬件驱动模块，采用单例模式实现。
 
 ## 2. 公共接口
-- `initialize()`：初始化引脚和状态
-- `spin_once()`：处理按钮去抖逻辑
+- `static SimpleHMI* getInstance()`：获取单例实例
+- `void initialize()`：初始化引脚和状态
+- `bool isMasterButtonPressed()`：检查主按钮是否被按下并释放（自动清除标志）
+- `bool isSlaveButtonPressed()`：检查从按钮是否被按下并释放（自动清除标志）
+- `void clearMasterButtonFlag()`：手动清除主按钮标志
+- `void clearSlaveButtonFlag()`：手动清除从按钮标志
+- `void setMasterLED(bool on)`：设置主LED状态
+- `void setSlaveLED(bool on)`：设置从LED状态
 
 ## 3. 核心功能
-- 控制主/从LED指示灯
-- 检测主/从按钮输入
-- 实现按钮50ms去抖
+- 使用中断方式处理按钮输入
+- 实现按钮50ms去抖处理
+- 控制主/从LED指示灯状态
+- 通过标志位表示按钮按下并释放的事件

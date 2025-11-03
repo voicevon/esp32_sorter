@@ -1,9 +1,10 @@
 # Encoder类
 
 ## 1. 概述
-Encoder类提供位置跟踪和中断处理。相位范围0-199，实现编码器计数值的精确跟踪。
+Encoder类提供位置跟踪和中断处理，采用单例模式实现。相位范围0-199，实现编码器计数值的精确跟踪。
 
 ## 2. 公共接口
+- `static Encoder* getInstance()`：获取单例实例
 - `void initialize()`：初始化编码器引脚和中断
 - `int getCurrentPosition()`：获取当前逻辑位置（0-199）
 - `void setPhaseCallback(void* context, PhaseCallback callback)`：设置相位回调函数和上下文
@@ -19,3 +20,4 @@ Encoder类提供位置跟踪和中断处理。相位范围0-199，实现编码�
 ## 5. 核心功能
 - 提供0-199相位位置信息
 - 使用AB相双中断模式提高计数精度和抗干扰能力
+- 单例模式确保全局唯一实例

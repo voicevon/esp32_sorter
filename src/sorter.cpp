@@ -11,14 +11,10 @@ Sorter::Sorter() {
     encoder = Encoder::getInstance();
     running = false;
     
-    // 初始化出口状态
-    for (int i = 0; i < NUM_OUTLETS; i++) {
-        outletStates[i] = false;
-    }
+
 }
 
 void Sorter::initialize() {
-    // 初始化编码器（已经在main中初始化，这里可以跳过）
     // 初始化直径扫描仪
     scanner.initialize();
     
@@ -36,8 +32,6 @@ void Sorter::initialize() {
     
     // 设置编码器回调，将Sorter实例和静态回调函数连接到编码器
     encoder->setPhaseCallback(this, staticPhaseCallback);
-    
-    // 设置运行状态
 }
 
 // 初始化出口位置实现
@@ -60,15 +54,14 @@ void Sorter::initializeDivergencePoints(const uint8_t positions[NUM_OUTLETS]) {
 
 void Sorter::onPhaseChange(int phase) {
     // 根据编码器相位变化处理托盘数据
-        scanner.sample(phase);
-
+    scanner.sample(phase);
     
     // 检查是否到达扫描位置
     if (phase == 160) {
-        // 进入扫描范围。
+        // 进入扫描范围，重置扫描仪
         scanner.reset();
     }
-    else if (phase == 50){ // 扫描范围结束
+    else if (phase == 50) { // 扫描范围结束
         // 从传感器获取直径数据
         int diameter = scanner.getDiameter();
         int scanCount = scanner.getObjectCount();

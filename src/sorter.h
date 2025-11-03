@@ -28,28 +28,12 @@ private:
     TraySystem traySystem; // 托盘系统实例
     bool running;         // 运行状态标志
     uint8_t divergencePointIndices[NUM_OUTLETS]; // 出口位置数组
-    bool outletStates[NUM_OUTLETS]; // 出口状态数组
     
     // 静态回调函数，用于连接编码器相位变化
     static void staticPhaseCallback(void* context, int phase);
     
-    /**
-     * 控制出口开关
-     * @param outletIndex 出口索引
-     * @param open 是否打开
-     */
-    void controlOutlet(int outletIndex, bool open);
-    
     // 初始化出口位置
     void initializeDivergencePoints(const uint8_t positions[NUM_OUTLETS]);
-    
-    /**
-     * 根据直径值和扫描次数确定出口
-     * @param diameter 直径值
-     * @param scanCount 扫描次数
-     * @return 目标出口索引
-     */
-    int determineOutlet(int diameter, int scanCount = 1);
     
     // 检查并执行出口分配
     void PresetOutlets();
