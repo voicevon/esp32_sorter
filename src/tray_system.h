@@ -47,23 +47,9 @@ public:
     void displayTrayQueue();
     
     /**
-     * 设置托盘直径数据
-     * @param index 托盘索引
-     * @param diameter 直径值
-     */
-    void setTrayDiameter(int index, int diameter);
-    
-    /**
-     * 设置托盘扫描次数
-     * @param index 托盘索引
-     * @param scanCount 扫描次数
-     */
-    void setTrayScanCount(int index, int scanCount);
-    
-    /**
      * 获取托盘直径数据
      * @param index 托盘索引
-     * @return 直径值
+     * @return 直径值，无效返回0
      */
     int getTrayDiameter(int index) const;
     
@@ -75,15 +61,8 @@ public:
     int getTrayScanCount(int index) const;
     
     /**
-     * 检查托盘是否有有效数据
-     * @param index 托盘索引
-     * @return 是否有有效数据
-     */
-    bool isTrayValid(int index) const;
-    
-    /**
-     * 获取总托盘数量
-     * @return 总托盘数量
+     * 获取托盘总数
+     * @return 托盘总数
      */
     static uint8_t getTotalTrays();
     

@@ -10,8 +10,10 @@
 
 ## 2. 控制流程
 - 系统初始化各组件
-- 编码器触发相位变化时自动调用Sorter::onPhaseChange()
-- 根据不同相位执行相应的功能逻辑：
-  - 采样相位：调用DiameterScanner采样传感器数据
-  - 计算相位：计算物体直径并存储到TraySystem
-  - 分拣相位：控制Outlet执行分拣动作
+- 编码器触发相位变化时调用Sorter::onPhaseChange()，仅设置状态标志位
+- main.cpp中的loop()函数周期性调用sorter.spinOnce()
+- spinOnce()函数根据状态标志位执行相应的功能逻辑：
+  - 重置扫描仪状态
+  - 处理扫描数据并存储到TraySystem
+  - 预设出口状态
+  - 执行出口控制动作

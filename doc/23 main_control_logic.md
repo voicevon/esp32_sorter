@@ -9,9 +9,10 @@
 
 ## 3. 工作流程
 - 主函数通过SimpleHMI的按钮输入管理系统模式切换
-- 在MODE_NORMAL模式下，编码器触发相位变化时自动调用Sorter::onPhaseChange()
-- Sorter类根据不同相位协调TraySystem、Outlet和Encoder的工作：
-  - 初始化分流点位置
-  - 调用DiameterScanner进行数据采样
-  - 将直径数据存储到TraySystem
-  - 控制相应的Outlet执行分拣动作
+- 编码器触发相位变化时自动调用Sorter::onPhaseChange()，该方法仅设置相应的状态标志位
+- 主循环中周期性调用sorter.spinOnce()，无论当前处于何种模式
+- spinOnce()方法根据设置的标志位执行相应的功能：
+  - 重置扫描仪状态
+  - 处理扫描数据并存储到TraySystem
+  - 预设出口状态
+  - 执行出口控制动作

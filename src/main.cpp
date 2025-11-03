@@ -165,6 +165,9 @@ void loop() {
       // 正常模式下，系统通过编码器相位变化触发Sorter的onPhaseChange方法
       break;
   }
+  
+  // 处理编码器触发的任务（在所有模式下都执行）
+  sorter.spinOnce();
 }
 
 // 函数实现

@@ -49,6 +49,6 @@ public:
     
     // 调试信息打印方法
     void printout();
-};;
+};
 
 #endif // ENCODER_H

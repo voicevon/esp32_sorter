@@ -116,38 +116,8 @@ int TraySystem::getTrayScanCount(int index) const {
 }
 
 /**
- * 检查托盘是否有效实现
- */
-bool TraySystem::isTrayValid(int index) const {
-    if (index >= 0 && index < TOTAL_TRAYS) {
-        return trayDiameters[index] != INVALID_DIAMETER;
-    }
-    return false;
-}
-
-/**
  * 获取托盘总数实现
  */
 uint8_t TraySystem::getTotalTrays() {
     return TOTAL_TRAYS;
-}
-
-
-
-/**
- * 设置托盘直径数据实现
- */
-void TraySystem::setTrayDiameter(int index, int diameter) {
-    if (index >= 0 && index < TOTAL_TRAYS) {
-        trayDiameters[index] = diameter;
-    }
-}
-
-/**
- * 设置托盘扫描次数实现
- */
-void TraySystem::setTrayScanCount(int index, int scanCount) {
-    if (index >= 0 && index < TOTAL_TRAYS) {
-        trayScanCount[index] = scanCount;
-    }
 }

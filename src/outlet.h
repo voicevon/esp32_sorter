@@ -46,7 +46,7 @@ public:
     }
     
     // 设置预开状态
-    void PreOpen(bool state) {
+    void preOpen(bool state) {
         preOpenState = state;
     }
     

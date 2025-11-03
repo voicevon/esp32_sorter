@@ -5,8 +5,8 @@
 
 ## 2. 公共接口
 - `DiameterScanner()`：构造函数，初始化成员变量
-- `void initialize()`：初始化引脚和缓冲区
-- `void reset()`：重置状态和缓冲区
+- `void initialize()`：初始化引脚和状态变量
+- `void reset()`：重置状态变量和计数
 - `void sample(int phase)`：根据编码器相位采样传感器状态
 - `int getDiameter()`：获取计算的直径值（整数）
 - `int getObjectCount()`：获取统计的物体数量

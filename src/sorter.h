@@ -8,12 +8,14 @@
 
 class Sorter {
 public:
+    // 构造函数
     Sorter();
     
     // 初始化分拣系统
     void initialize();
     
-
+    // 主循环执行函数
+    void spinOnce();
     
     // 采样回调函数（供编码器调用，参数为相位）
     void onPhaseChange(int phase);
@@ -29,6 +31,12 @@ private:
     bool running;         // 运行状态标志
     uint8_t divergencePointIndices[NUM_OUTLETS]; // 出口位置数组
     
+    // 状态标志位（中断安全）
+    volatile bool resetScannerFlag;
+    volatile bool processScanDataFlag;
+    volatile bool executeOutletsFlag;
+    volatile bool resetOutletsFlag;
+    
     // 静态回调函数，用于连接编码器相位变化
     static void staticPhaseCallback(void* context, int phase);
     
@@ -36,7 +44,7 @@ private:
     void initializeDivergencePoints(const uint8_t positions[NUM_OUTLETS]);
     
     // 检查并执行出口分配
-    void PresetOutlets();
+    void presetOutlets();
 };
 
 #endif // SORTER_H

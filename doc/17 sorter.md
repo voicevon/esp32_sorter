@@ -6,7 +6,9 @@
 ## 2. 公共接口
 - `Sorter()`：构造函数，初始化成员变量
 - `void initialize()`：初始化分拣系统的所有组件
-- `void onPhaseChange(int phase)`：采样回调函数，供编码器调用，根据相位执行相应功能
+- `void onPhaseChange(int phase)`：采样回调函数，供编码器调用，仅设置状态标志位
+- `void presetOutlets()`：根据托盘数据预设出口状态，确定哪些出口需要打开
+- `void spinOnce()`：主循环执行函数，处理耗时操作，定期被main.cpp调用
 
 ## 3. 核心功能
 - 协调多个子系统工作：Encoder、Outlet、DiameterScanner和TraySystem
@@ -22,6 +24,7 @@
 - 包含托盘系统实例存储直径数据
 - 记录运行状态标志
 - 存储出口位置索引数组
+- 包含四个volatile状态标志位：resetScannerFlag、processScanDataFlag、executeOutletsFlag和resetOutletsFlag
 
 ## 5. 回调机制
 - `staticPhaseCallback`：静态回调函数，用于连接编码器相位变化事件

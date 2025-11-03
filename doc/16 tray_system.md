@@ -9,12 +9,9 @@
 - `void moveTraysData()`：移动所有托盘数据（索引值+1）
 - `void resetAllTraysData()`：重置所有直径数据
 - `void displayTrayQueue()`：显示所有有效直径数据和队列状态（调试用）
-- `void setTrayDiameter(int index, int diameter)`：设置托盘直径数据
-- `void setTrayScanCount(int index, int scanCount)`：设置托盘扫描次数
 - `int getTrayDiameter(int index) const`：获取托盘直径数据
 - `int getTrayScanCount(int index) const`：获取托盘扫描次数
-- `bool isTrayValid(int index) const`：检查托盘是否有有效数据
-- `static uint8_t getTotalTrays()`：获取总托盘数量
+- `static uint8_t getTotalTrays()`：获取托盘总数
 
 ## 3. 核心功能
 - 维护31个托盘的数据队列
