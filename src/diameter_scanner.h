@@ -6,9 +6,6 @@
 
 class DiameterScanner {
 private:
-    // 采样缓冲区大小
-    static const int SAMPLE_BUFFER_SIZE = 100;
-    
     // 引脚定义
     int scannerPin;
     

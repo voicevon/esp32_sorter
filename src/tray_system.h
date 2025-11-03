@@ -87,11 +87,7 @@ public:
      */
     static uint8_t getTotalTrays();
     
-    /**
-     * 获取无效直径值
-     * @return 无效直径值
-     */
-    static int getInvalidDiameter();
+
 };
 
 #endif // TRAY_SYSTEM_H

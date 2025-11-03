@@ -132,12 +132,7 @@ uint8_t TraySystem::getTotalTrays() {
     return TOTAL_TRAYS;
 }
 
-/**
- * 获取无效直径值实现
- */
-int TraySystem::getInvalidDiameter() {
-    return INVALID_DIAMETER;
-}
+
 
 /**
  * 设置托盘直径数据实现
