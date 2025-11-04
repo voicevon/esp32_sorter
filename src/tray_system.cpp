@@ -65,35 +65,7 @@ void TraySystem::resetAllTraysData() {
     }
     Serial.println("所有直径数据和扫描次数数据已重置");
 }
-/**
- * 显示托盘队列实现
- */
-void TraySystem::displayTrayQueue() {
-    Serial.println("\n[TRAY DEBUG] ========= 队列状态详情 =========");
-    Serial.println("[TRAY DEBUG] 有效直径数据列表:");
-    
-    bool hasValidData = false;
-    
-    // 显示所有有效直径数据
-    for (uint8_t i = 0; i < TOTAL_TRAYS; i++) {
-        if (trayDiameters[i] != INVALID_DIAMETER) {
-            hasValidData = true;
-            Serial.print("[TRAY DEBUG] - 位置 ");
-            Serial.print(i);
-            Serial.print(": 直径 = ");
-            Serial.print(trayDiameters[i]);
-            Serial.print(", 扫描次数 = ");
-            Serial.print(trayScanCount[i]);
-            Serial.println();
-        }
-    }
-    
-    if (!hasValidData) {
-        Serial.println("[TRAY DEBUG] - 当前没有有效直径数据");
-    }
-    
-    Serial.println("[TRAY DEBUG] ========= 队列状态结束 =========\n");
-}
+
 
 /**
  * 获取托盘直径数据实现

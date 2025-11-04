@@ -24,7 +24,8 @@ private:
     // 私有构造函数（单例模式）
     Encoder();
     
-    // 移除了triggerPhaseCallback方法，将实现直接放到调用处
+    // 触发相位回调的私有方法
+    void triggerPhaseCallback();
     
 public:
     // 静态成员用于中断处理和单例访问

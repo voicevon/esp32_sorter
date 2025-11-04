@@ -11,6 +11,9 @@ const int SERVO_PINS[5] = {
   5     // 出口5舵机
 };
 
+// 上料器舵机引脚
+const int RELOADER_SERVO_PIN = 15;  // 上料器舵机控制引脚
+
 // 人机交互模块引脚定义
 const int MODE_BUTTON_PIN = 27;    // 主按钮引脚 (Master Button)
 const int DIAGNOSTIC_BUTTON_PIN = 12; // 从按钮引脚 (Slave Button)

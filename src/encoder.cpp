@@ -104,11 +104,8 @@ void Encoder::handleAPhaseInterrupt() {
         // 更新lastCount
         instance->lastCount = instance->count;
         
-        // 直接内联triggerPhaseCallback的实现
-        if (instance->phaseCallback != nullptr) {
-            int currentPhase = instance->count % 4;
-            instance->phaseCallback(instance->phaseCallbackContext, currentPhase);
-        }
+        // 调用触发相位回调的方法
+        instance->triggerPhaseCallback();
     }
 }
 
@@ -145,11 +142,8 @@ void Encoder::handleBPhaseInterrupt() {
         // 更新lastCount
         instance->lastCount = instance->count;
         
-        // 直接内联triggerPhaseCallback的实现
-        if (instance->phaseCallback != nullptr) {
-            int currentPhase = instance->count % 4;
-            instance->phaseCallback(instance->phaseCallbackContext, currentPhase);
-        }
+        // 调用触发相位回调的方法
+        instance->triggerPhaseCallback();
     }
 }
 
@@ -162,10 +156,18 @@ void Encoder::handleZPhaseInterrupt() {
     instance->count = 0;
     instance->lastCount = 0;
     
-    // 直接内联triggerPhaseCallback的实现
-    if (instance->phaseCallback != nullptr) {
-        int currentPhase = instance->count % 4;
-        instance->phaseCallback(instance->phaseCallbackContext, currentPhase);
+    // 调用触发相位回调的方法
+    instance->triggerPhaseCallback();
+}
+
+/**
+ * 私有方法：触发相位回调
+ * 避免代码重复，在A相、B相和Z相中断处理中被调用
+ */
+void Encoder::triggerPhaseCallback() {
+    if (phaseCallback != nullptr) {
+        int currentPhase = count % 4;
+        phaseCallback(phaseCallbackContext, currentPhase);
     }
 }
 

@@ -42,11 +42,6 @@ public:
     void resetAllTraysData();
     
     /**
-     * 显示所有有效直径数据和队列状态（调试用）
-     */
-    void displayTrayQueue();
-    
-    /**
      * 获取托盘直径数据
      * @param index 托盘索引
      * @return 直径值，无效返回0

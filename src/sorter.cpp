@@ -8,7 +8,8 @@
 
 Sorter::Sorter() : running(false),
                    resetScannerFlag(false), processScanDataFlag(false),
-                   executeOutletsFlag(false), resetOutletsFlag(false) {
+                   executeOutletsFlag(false), resetOutletsFlag(false),
+                   reloaderOpenFlag(false), reloaderCloseFlag(false) {
     // 构造函数初始化
     encoder = Encoder::getInstance();
 }
@@ -35,6 +36,12 @@ void Sorter::initialize() {
     
     // 初始化托盘系统
     traySystem.resetAllTraysData();
+    
+    // 初始化上料器舵机
+    reloaderServo.attach(RELOADER_SERVO_PIN);
+    // 初始化时关闭上料器
+    reloaderServo.write(RELOADER_CLOSE_ANGLE);
+    Serial.println("上料器已初始化并关闭");
     
     // 设置编码器回调，将Sorter实例和静态回调函数连接到编码器
     encoder->setPhaseCallback(this, staticPhaseCallback);
@@ -70,6 +77,14 @@ void Sorter::onPhaseChange(int phase) {
         executeOutletsFlag = true;
     } else if (phase == 3) {
         resetOutletsFlag = true;
+    } 
+    // 上料器特殊位置控制
+    else if (phase == 200) {
+        // 上料器开启位置
+        reloaderOpenFlag = true;
+    } else if (phase == 220) {
+        // 上料器关闭位置
+        reloaderCloseFlag = true;
     }
     
     // 检查所有出口位置
@@ -114,12 +129,29 @@ void Sorter::spinOnce() {
             outlets[i].execute();
         }
     }
+    
+    // 处理上料器控制
+    if (reloaderOpenFlag) {
+        reloaderOpenFlag = false;
+        // 内联实现上料器开启
+        reloaderServo.write(RELOADER_OPEN_ANGLE);
+        Serial.println("上料器已开启");
+    }
+    
+    if (reloaderCloseFlag) {
+        reloaderCloseFlag = false;
+        // 内联实现上料器关闭
+        reloaderServo.write(RELOADER_CLOSE_ANGLE);
+        Serial.println("上料器已关闭");
+    }
 }
 
 
 
 
 
+
+// 实现预设出口功能
 void Sorter::presetOutlets() {
     if (traySystem.getTrayScanCount(0) > 1){
         outlets[0].preOpen(true);

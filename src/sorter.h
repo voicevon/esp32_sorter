@@ -5,6 +5,11 @@
 #include "outlet.h"
 #include "diameter_scanner.h"
 #include "tray_system.h"
+#include <ESP32Servo.h>
+
+// 上料器舵机角度定义
+#define RELOADER_OPEN_ANGLE 90     // 上料器开启角度
+#define RELOADER_CLOSE_ANGLE 0     // 上料器关闭角度
 
 class Sorter {
 public:
@@ -30,12 +35,15 @@ private:
     TraySystem traySystem; // 托盘系统实例
     bool running;         // 运行状态标志
     uint8_t divergencePointIndices[NUM_OUTLETS]; // 出口位置数组
+    Servo reloaderServo;   // 上料器舵机实例
     
     // 状态标志位（中断安全）
     volatile bool resetScannerFlag;
     volatile bool processScanDataFlag;
     volatile bool executeOutletsFlag;
     volatile bool resetOutletsFlag;
+    volatile bool reloaderOpenFlag;    // 上料器开启标志
+    volatile bool reloaderCloseFlag;   // 上料器关闭标志
     
     // 静态回调函数，用于连接编码器相位变化
     static void staticPhaseCallback(void* context, int phase);
