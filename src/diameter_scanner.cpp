@@ -14,22 +14,26 @@ void DiameterScanner::initialize() {
     pinMode(scannerPin, INPUT);
     
     // 初始化状态
-    reset();
+    start();
     
     Serial.println("DiameterScanner initialized");
 }
 
-void DiameterScanner::reset() {
+void DiameterScanner::start() {
     // 重置所有状态变量
+    isScanning = true;
     highLevelCount = 0;
     objectCount = 0;
     lastSensorState = false;
     isSampling = false;
     calculatedDiameter = 0;
+    // Serial.println("[SCANNER] Reset");
 }
 
 void DiameterScanner::sample(int phase) {
     // 读取传感器状态
+    if (!isScanning) return;
+    
     bool currentState = (digitalRead(scannerPin) == HIGH);
     
     // 检测到物体（高电平）
@@ -42,8 +46,8 @@ void DiameterScanner::sample(int phase) {
             // 如果上一次是低电平（表示断开后又出现高电平），增加物体计数
             if (!lastSensorState) {
                 objectCount++;
-                Serial.print("[SCANNER] Object detected, count: ");
-                Serial.println(objectCount);
+                // Serial.print("[SCANNER] Object detected, count: ");
+                // Serial.println(objectCount);
             }
         }
         
@@ -60,9 +64,9 @@ void DiameterScanner::sample(int phase) {
             isSampling = false;
             
             // 输出调试信息
-            Serial.print("[SCANNER] Diameter calculated: ");
-            Serial.print(calculatedDiameter);
-            Serial.println(" units");
+            // Serial.print("[SCANNER] Diameter calculated: ");
+            // Serial.print(calculatedDiameter);
+            // Serial.println(" units");
         }
     }
     
@@ -70,7 +74,8 @@ void DiameterScanner::sample(int phase) {
     lastSensorState = currentState;
 }
 
-int DiameterScanner::getDiameter() {
+int DiameterScanner::ending_getDiameter() {
+    isScanning = false;
     return calculatedDiameter;
 }
 

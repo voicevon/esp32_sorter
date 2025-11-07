@@ -24,6 +24,16 @@ public:
     
     // 采样回调函数（供编码器调用，参数为相位）
     void onPhaseChange(int phase);
+    
+    // 上料器控制公共方法（用于测试模式）
+    void openReloader();
+    void closeReloader();
+    
+    // 出口控制公共方法（用于诊断模式）
+    void setOutletState(uint8_t outletIndex, bool open);
+    
+    // 获取出口数量的方法
+    uint8_t getOutletCount() const { return NUM_OUTLETS; }
 
     
 private:

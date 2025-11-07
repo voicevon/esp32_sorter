@@ -25,8 +25,8 @@ void TraySystem::addNewDiameterData(int diameter, int scanCount) {
     
     // 打印添加的新数据（调试信息）
     Serial.print("添加新数据到索引0: 直径 = ");
-    Serial.print(diameter);
-    Serial.print(", 扫描次数 = ");
+    Serial.print(float(diameter)/2.0);
+    Serial.print("mm, 扫描次数 = ");
     Serial.println(scanCount);
 }
 
@@ -52,7 +52,7 @@ void TraySystem::moveTraysData() {
         trayScanCount[i] = 0;
     }
     
-    Serial.println("所有直径数据已移动");
+    // Serial.println("所有直径数据已移动");
 }
 
 /**

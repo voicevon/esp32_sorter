@@ -24,8 +24,8 @@ const int STATUS_LED2_PIN = 13;    // 从LED引脚 (Slave LED)
 const int LASER_SCANNER_PIN = 32;  // 激光扫描仪信号输入引脚
 
 // 编码器引脚定义
-const int ENCODER_PIN_A = 21;   // 编码器A相引脚
-const int ENCODER_PIN_B = 19;   // 编码器B相引脚
+const int ENCODER_PIN_A = 19;   // 编码器A相引脚
+const int ENCODER_PIN_B = 21;   // 编码器B相引脚
 const int ENCODER_PIN_Z = 18;   // 编码器Z相（零位）引脚
 
 // 其他可能的系统引脚定义（可根据实际需要扩展）

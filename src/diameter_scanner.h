@@ -8,7 +8,7 @@ class DiameterScanner {
 private:
     // 引脚定义
     int scannerPin;
-    
+    bool isScanning;
     // 高电平采样计数
     int highLevelCount;
     
@@ -32,13 +32,13 @@ public:
     void initialize();
     
     // 重置状态和缓冲区
-    void reset();
+    void start();
     
     // 采样传感器状态（根据相位进行采样）
     void sample(int phase);
     
     // 获取计算的直径值（整数）
-    int getDiameter();
+    int ending_getDiameter();
     
     // 获取统计的物体数量
     int getObjectCount();

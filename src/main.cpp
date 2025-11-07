@@ -6,7 +6,6 @@
 #include "simple_hmi.h"
 #include "encoder.h"
 #include "sorter.h"
-#include "tray_system.h"
 
 // 系统工作模式定义
 enum SystemMode {
@@ -15,14 +14,15 @@ enum SystemMode {
   MODE_DIAGNOSE_SCANNER = 2,  // 诊断扫描仪模式
   MODE_DIAGNOSE_OUTLET = 3,   // 诊断出口模式
   MODE_DIAGNOSE_CONVEYOR = 4, // 诊断传输线模式
-  MODE_TEST = 5               // 测试模式
+  MODE_TEST = 5,              // 测试模式
+  MODE_TEST_RELOADER = 6      // 上料器测试模式（上了气模式）
 };
 
 // 全局变量定义
 
 // 模式相关变量
-SystemMode currentMode = MODE_NORMAL;  // 当前模式
-SystemMode pendingMode = MODE_NORMAL;  // 待切换模式
+SystemMode currentMode = MODE_NORMAL;  // 当前模式（修改为出口测试模式）
+SystemMode pendingMode = MODE_NORMAL;  // 待切换模式（与当前模式保持一致）
 bool modeChangePending = false;        // 模式切换标志
 
 // 使用单例模式获取人机交互模块实例
@@ -75,7 +75,7 @@ void loop() {
   // 检查主按钮是否被按下（模式切换）
   if (simpleHMI->isMasterButtonPressed()) {
     // 切换到下一个工作模式
-    pendingMode = static_cast<SystemMode>((currentMode + 1) % 6); // 6种模式循环切换
+    pendingMode = static_cast<SystemMode>((currentMode + 1) % 7); // 7种模式循环切换
     modeChangePending = true;
     
     // 打印模式切换请求信息
@@ -117,8 +117,8 @@ void loop() {
     }
     
     // 打印模式切换完成信息
-    Serial.print("[DIAGNOSTIC] Mode switched to: ");
-    Serial.println(getCurrentModeName());
+      Serial.print("[DIAGNOSTIC] Mode switched to: ");
+      Serial.println(getCurrentModeName());
   }
   
 
@@ -148,9 +148,42 @@ void loop() {
       break;
     }
     
-    case MODE_DIAGNOSE_OUTLET:
-      // 诊断出口模式
+    case MODE_DIAGNOSE_OUTLET: {
+      // 诊断出口模式 - 依次测试所有出口并循环
+      static unsigned long modeStartTime = 0;
+      static unsigned long lastOutletTime = 0;
+      static bool outletState = false;
+      static uint8_t currentOutlet = 0;
+      static uint8_t MAX_OUTLETS = 0;
+      
+      // 模式开始时初始化
+      if (modeStartTime == 0) {
+        modeStartTime = currentTime;
+        lastOutletTime = currentTime;
+        outletState = false;
+        currentOutlet = 0;
+        // 获取出口数量
+        MAX_OUTLETS = sorter.getOutletCount();
+        Serial.println("[DIAGNOSTIC] 诊断出口模式已启动 - 依次测试所有出口（0-" + String(MAX_OUTLETS - 1) + "）");
+      }
+      
+      // 每5秒切换一次状态
+      if (currentTime - lastOutletTime >= 5000) {
+        lastOutletTime = currentTime;
+        outletState = !outletState;
+        
+        // 当状态从关闭切换到打开时，移动到下一个出口
+        if (outletState) {
+          currentOutlet = (currentOutlet + 1) % MAX_OUTLETS;
+          Serial.print("[DIAGNOSTIC] 现在测试出口: ");
+          Serial.println(currentOutlet);
+        }
+        
+        // 使用公共方法控制当前出口
+        sorter.setOutletState(currentOutlet, outletState);
+      }
       break;
+    }
     
     case MODE_DIAGNOSE_CONVEYOR:
       // 诊断传输线模式
@@ -159,6 +192,45 @@ void loop() {
     case MODE_TEST:
       // 测试模式
       break;
+    
+    case MODE_TEST_RELOADER: {
+      // 上料器测试模式（上了气模式）
+      static unsigned long modeStartTime = 0;
+      static unsigned long lastReloaderTime = 0;
+      static bool reloaderState = false;
+      
+      // 模式开始时初始化
+      if (modeStartTime == 0) {
+        modeStartTime = currentTime;
+        lastReloaderTime = currentTime;
+        reloaderState = false;
+        Serial.println("[DIAGNOSTIC] 上料器测试模式（上了气模式）已启动");
+      }
+      
+      // 计算模式运行时间
+      unsigned long modeRunTime = currentTime - modeStartTime;
+      
+      // 前15秒，每5秒开关一次
+      if (modeRunTime <= 15000) {
+        if (currentTime - lastReloaderTime >= 5000) {
+          lastReloaderTime = currentTime;
+          reloaderState = !reloaderState;
+          if (reloaderState) {
+            sorter.openReloader();  // 使用公共方法开启上料器
+          } else {
+            sorter.closeReloader(); // 使用公共方法关闭上料器
+          }
+        }
+      } else {
+        // 15秒后，关闭并保持5秒
+        if (reloaderState) {
+          sorter.closeReloader();   // 使用公共方法确保关闭
+          reloaderState = false;
+          Serial.println("[DIAGNOSTIC] 15秒后，上料器已关闭并保持");
+        }
+      }
+      break;
+    }
     
     case MODE_NORMAL:
     default:
@@ -187,6 +259,8 @@ String getCurrentModeName() {
       return "传输线诊断模式";
     case MODE_TEST:
       return "测试模式";
+    case MODE_TEST_RELOADER:
+      return "上料器测试模式（上了气模式）";
     default:
       return "未知模式";
   }

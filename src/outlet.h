@@ -5,7 +5,7 @@
 #include <ESP32Servo.h>
 
 // 舵机控制参数
-#define SERVO_CLOSED_POSITION 90      // 关闭位置
+#define SERVO_CLOSED_POSITION 135      // 关闭位置
 #define SERVO_OPEN_POSITION 0         // 打开位置
 
 /**

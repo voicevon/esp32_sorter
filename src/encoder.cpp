@@ -166,7 +166,7 @@ void Encoder::handleZPhaseInterrupt() {
  */
 void Encoder::triggerPhaseCallback() {
     if (phaseCallback != nullptr) {
-        int currentPhase = count % 4;
+        int currentPhase = count % 200;
         phaseCallback(phaseCallbackContext, currentPhase);
     }
 }
