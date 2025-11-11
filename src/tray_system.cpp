@@ -23,11 +23,11 @@ void TraySystem::addNewDiameterData(int diameter, int scanCount) {
     trayDiameters[0] = diameter;
     trayScanCount[0] = scanCount;
     
-    // 打印添加的新数据（调试信息）
-    Serial.print("添加新数据到索引0: 直径 = ");
-    Serial.print(float(diameter)/2.0);
-    Serial.print("mm, 扫描次数 = ");
-    Serial.println(scanCount);
+    // 注释掉调试日志，根据需求不显示添加数据的信息
+    // Serial.print("添加新数据到索引0: 直径 = ");
+    // Serial.print(float(diameter)/2.0);
+    // Serial.print("mm, 扫描次数 = ");
+    // Serial.println(scanCount);
 }
 
 /**

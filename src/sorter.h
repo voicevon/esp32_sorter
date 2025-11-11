@@ -5,6 +5,7 @@
 #include "outlet.h"
 #include "diameter_scanner.h"
 #include "tray_system.h"
+#include "simple_hmi.h"
 #include <ESP32Servo.h>
 
 // 上料器舵机角度定义
@@ -40,6 +41,7 @@ private:
     static const uint8_t NUM_OUTLETS = 5;   // 固定安装的出口数量
     
     Encoder* encoder;      // 编码器实例指针（使用单例模式）
+    SimpleHMI* hmi;        // HMI实例指针（使用单例模式）
     Outlet outlets[NUM_OUTLETS];     // 5个出口数组
     DiameterScanner scanner;  // 直径扫描仪实例
     TraySystem traySystem; // 托盘系统实例

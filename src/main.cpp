@@ -101,20 +101,7 @@ void loop() {
     currentMode = pendingMode;
     modeChangePending = false;
     
-    // 在外部控制LED状态以反映当前模式
-    if (currentMode == MODE_NORMAL) {
-      simpleHMI->setMasterLED(false);
-      simpleHMI->setSlaveLED(false);
-    } else if (currentMode == MODE_DIAGNOSE_ENCODER) {
-      simpleHMI->setMasterLED(true);
-      simpleHMI->setSlaveLED(false);
-    } else if (currentMode == MODE_DIAGNOSE_SCANNER) {
-      simpleHMI->setMasterLED(false);
-      simpleHMI->setSlaveLED(true);
-    } else {
-      simpleHMI->setMasterLED(true);
-      simpleHMI->setSlaveLED(true);
-    }
+    // 移除模式LED控制，LED现在只用于显示出口状态
     
     // 打印模式切换完成信息
       Serial.print("[DIAGNOSTIC] Mode switched to: ");
