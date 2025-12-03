@@ -159,8 +159,7 @@ void Sorter::spinOnce() {
                     
                     if ((i == 1 && diameter > min) || 
                         (i > 1 && diameter > min && diameter <= max)) {
-                        Serial.print("预设出口");
-                        Serial.println(i);
+
                         outlets[i].preOpen(true);
                         anyOutletOpened = true;
                     } else {
@@ -178,7 +177,6 @@ void Sorter::spinOnce() {
         
         // 使用直接GPIO控制LED显示出口状态：两个LED都亮表示有出口打开
         if (anyOutletOpened) {
-            Serial.println("点亮LED");
             digitalWrite(STATUS_LED1_PIN, HIGH);
             digitalWrite(STATUS_LED2_PIN, HIGH);
         } else {
@@ -274,3 +272,4 @@ void Sorter::presetOutlets() {
         }
     }
 }
+

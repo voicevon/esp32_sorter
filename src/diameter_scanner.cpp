@@ -2,6 +2,7 @@
 
 DiameterScanner::DiameterScanner() : 
     scannerPin(LASER_SCANNER_PIN),
+    isScanning(false),
     highLevelCount(0),
     objectCount(0),
     lastSensorState(false),
