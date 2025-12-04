@@ -49,9 +49,7 @@ public:
     void clearMasterButtonFlag();
     void clearSlaveButtonFlag();
     
-    // 控制LED状态
-    void setMasterLED(bool on);
-    void setSlaveLED(bool on);
+
     
     // 中断处理函数需要访问私有成员
     friend void IRAM_ATTR masterButtonISR();

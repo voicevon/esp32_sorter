@@ -38,11 +38,11 @@ public:
 
     
 private:
-    static const uint8_t NUM_OUTLETS = 5;   // 固定安装的出口数量
+    static const uint8_t NUM_OUTLETS = 8;   // 固定安装的出口数量
     
     Encoder* encoder;      // 编码器实例指针（使用单例模式）
     SimpleHMI* hmi;        // HMI实例指针（使用单例模式）
-    Outlet outlets[NUM_OUTLETS];     // 5个出口数组
+    Outlet outlets[NUM_OUTLETS];     // 8个出口数组
     DiameterScanner scanner;  // 直径扫描仪实例
     TraySystem traySystem; // 托盘系统实例
     bool running;         // 运行状态标志

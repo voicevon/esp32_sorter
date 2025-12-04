@@ -126,14 +126,3 @@ void SimpleHMI::clearSlaveButtonFlag() {
     slaveButtonFlag = false;
 }
 
-// 控制LED状态 - 注释掉以避免与Sorter类中的LED控制冲突
-// LED现在仅由Sorter类控制，用于显示出口状态
-void SimpleHMI::setMasterLED(bool on) {
-    // 禁用HMI对LED的控制，避免与Sorter类冲突
-    // digitalWrite(masterLEDPin, on ? HIGH : LOW);
-}
-
-void SimpleHMI::setSlaveLED(bool on) {
-    // 禁用HMI对LED的控制，避免与Sorter类冲突
-    // digitalWrite(slaveLEDPin, on ? HIGH : LOW);
-}

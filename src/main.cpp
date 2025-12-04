@@ -6,17 +6,10 @@
 #include "simple_hmi.h"
 #include "encoder.h"
 #include "sorter.h"
+#include "oled.h"
 
-// 系统工作模式定义
-enum SystemMode {
-  MODE_NORMAL = 0,            // 正常工作模式
-  MODE_DIAGNOSE_ENCODER = 1,  // 诊断编码器模式
-  MODE_DIAGNOSE_SCANNER = 2,  // 诊断扫描仪模式
-  MODE_DIAGNOSE_OUTLET = 3,   // 诊断出口模式
-  MODE_DIAGNOSE_CONVEYOR = 4, // 诊断传输线模式
-  MODE_TEST = 5,              // 测试模式
-  MODE_TEST_RELOADER = 6      // 上料器测试模式（上了气模式）
-};
+// 引入系统工作模式定义
+#include "main.h"
 
 // 全局变量定义
 
@@ -30,6 +23,9 @@ SimpleHMI* simpleHMI = SimpleHMI::getInstance();
 
 // 使用单例模式获取Encoder实例
 Encoder* encoder = Encoder::getInstance();
+
+// 使用单例模式获取OLED实例
+OLED* oled = OLED::getInstance();
 
 // 创建Sorter实例
 Sorter sorter;
@@ -63,6 +59,9 @@ void setup() {
   
   // 初始化Sorter
   sorter.initialize();
+  
+  // 初始化OLED显示器
+  oled->initialize();
   
   Serial.println("System ready");
   Serial.println("当前模式: " + getCurrentModeName());
@@ -106,6 +105,9 @@ void loop() {
     // 打印模式切换完成信息
       Serial.print("[DIAGNOSTIC] Mode switched to: ");
       Serial.println(getCurrentModeName());
+    
+    // 显示模式变化信息到OLED
+    oled->displayModeChange(currentMode);
   }
   
 
@@ -181,7 +183,7 @@ void loop() {
       break;
     
     case MODE_TEST_RELOADER: {
-      // 上料器测试模式（上了气模式）
+      // 上料器测试模式（Feeder Test Mode）
       static unsigned long modeStartTime = 0;
       static unsigned long lastReloaderTime = 0;
       static bool reloaderState = false;
@@ -191,7 +193,7 @@ void loop() {
         modeStartTime = currentTime;
         lastReloaderTime = currentTime;
         reloaderState = false;
-        Serial.println("[DIAGNOSTIC] 上料器测试模式（上了气模式）已启动");
+        Serial.println("[DIAGNOSTIC] 上料器测试模式（Feeder Test Mode）已启动");
       }
       
       // 计算模式运行时间
@@ -227,6 +229,9 @@ void loop() {
   
   // 处理编码器触发的任务（在所有模式下都执行）
   sorter.spinOnce();
+  
+  // 更新OLED显示内容
+  oled->update(currentMode, sorter.getOutletCount());
 }
 
 // 函数实现
@@ -247,7 +252,7 @@ String getCurrentModeName() {
     case MODE_TEST:
       return "测试模式";
     case MODE_TEST_RELOADER:
-      return "上料器测试模式（上了气模式）";
+      return "上料器测试模式（Feeder Test Mode）";
     default:
       return "未知模式";
   }

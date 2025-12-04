@@ -44,9 +44,15 @@ void Sorter::initialize() {
     outlets[3].initialize(SERVO_PINS[3], 8, 10);
     // 出口4: 8mm≤直径≤10mm
     outlets[4].initialize(SERVO_PINS[4], 6, 8);
+    // 出口5: 6mm<直径≤8mm
+    outlets[5].initialize(SERVO_PINS[5], 4, 6);
+    // 出口6: 4mm<直径≤6mm
+    outlets[6].initialize(SERVO_PINS[6], 2, 4);
+    // 出口7: 直径≤4mm (4mm以下)
+    outlets[7].initialize(SERVO_PINS[7], 0, 2);
     
     // 初始化出口位置
-    uint8_t defaultDivergencePoints[NUM_OUTLETS] = {1, 3, 5, 7, 9};
+    uint8_t defaultDivergencePoints[NUM_OUTLETS] = {1, 3, 5, 7, 9, 11, 13, 15};
     initializeDivergencePoints(defaultDivergencePoints);
     
     // 初始化托盘系统

@@ -10,11 +10,9 @@
 - `bool isSlaveButtonPressed()`：检查从按钮是否被按下并释放（自动清除标志）
 - `void clearMasterButtonFlag()`：手动清除主按钮标志
 - `void clearSlaveButtonFlag()`：手动清除从按钮标志
-- `void setMasterLED(bool on)`：设置主LED状态
-- `void setSlaveLED(bool on)`：设置从LED状态
 
 ## 3. 核心功能
 - 使用中断方式处理按钮输入
 - 实现按钮50ms去抖处理
-- 控制主/从LED指示灯状态
 - 通过标志位表示按钮按下并释放的事件
+- LED控制已移至Sorter类，仅用于显示出口状态

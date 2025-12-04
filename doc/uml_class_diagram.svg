@@ -1,113 +1,116 @@
 <svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+  <!-- 柔和的深色背景 -->
+  <rect width="800" height="600" fill="#1a1a2e" />
+  
   <!-- 样式定义 -->
   <defs>
     <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill="black" />
+      <polygon points="0 0, 10 3.5, 0 7" fill="#4cc9f0" />
     </marker>
   </defs>
 
   <!-- 标题 -->
-  <text x="400" y="30" font-family="Arial" font-size="24" text-anchor="middle" font-weight="bold">ESP32 Sorter 系统类图</text>
+  <text x="400" y="30" font-family="Arial" font-size="24" text-anchor="middle" font-weight="bold" fill="#f72585">ESP32 Sorter 系统类图</text>
 
-  <!-- Sorter类 -->
-  <rect x="100" y="80" width="200" height="300" fill="white" stroke="black" stroke-width="2" rx="5" ry="5" />
-  <text x="200" y="110" font-family="Arial" font-size="18" text-anchor="middle" font-weight="bold">Sorter</text>
-  <line x1="100" y1="120" x2="300" y2="120" stroke="black" stroke-width="2" />
+  <!-- Sorter类 - 深蓝色 -->
+  <rect x="100" y="80" width="200" height="300" fill="#2d3748" stroke="#4cc9f0" stroke-width="2" rx="5" ry="5" />
+  <text x="200" y="110" font-family="Arial" font-size="18" text-anchor="middle" font-weight="bold" fill="#ffffff">Sorter</text>
+  <line x1="100" y1="120" x2="300" y2="120" stroke="#4cc9f0" stroke-width="2" />
   
   <!-- Sorter私有成员 -->
-  <text x="110" y="150" font-family="Arial" font-size="14" font-style="italic">- encoder: Encoder</text>
-  <text x="110" y="175" font-family="Arial" font-size="14" font-style="italic">- outlet1: Outlet</text>
-  <text x="110" y="195" font-family="Arial" font-size="14" font-style="italic">- outlet2: Outlet</text>
-  <text x="110" y="215" font-family="Arial" font-size="14" font-style="italic">- outlet3: Outlet</text>
-  <text x="110" y="235" font-family="Arial" font-size="14" font-style="italic">- outlet4: Outlet</text>
-  <text x="110" y="255" font-family="Arial" font-size="14" font-style="italic">- outlet5: Outlet</text>
-  <text x="110" y="275" font-family="Arial" font-size="14" font-style="italic">- isRunning: bool</text>
-  <text x="110" y="295" font-family="Arial" font-size="14" font-style="italic">- isInitialized: bool</text>
-  <line x1="100" y1="310" x2="300" y2="310" stroke="black" stroke-width="1" />
+  <text x="110" y="150" font-family="Arial" font-size="14" font-style="italic" fill="#a0aec0">- encoder: Encoder</text>
+  <text x="110" y="175" font-family="Arial" font-size="14" font-style="italic" fill="#a0aec0">- outlet1: Outlet</text>
+  <text x="110" y="195" font-family="Arial" font-size="14" font-style="italic" fill="#a0aec0">- outlet2: Outlet</text>
+  <text x="110" y="215" font-family="Arial" font-size="14" font-style="italic" fill="#a0aec0">- outlet3: Outlet</text>
+  <text x="110" y="235" font-family="Arial" font-size="14" font-style="italic" fill="#a0aec0">- outlet4: Outlet</text>
+  <text x="110" y="255" font-family="Arial" font-size="14" font-style="italic" fill="#a0aec0">- outlet5: Outlet</text>
+  <text x="110" y="275" font-family="Arial" font-size="14" font-style="italic" fill="#a0aec0">- isRunning: bool</text>
+  <text x="110" y="295" font-family="Arial" font-size="14" font-style="italic" fill="#a0aec0">- isInitialized: bool</text>
+  <line x1="100" y1="310" x2="300" y2="310" stroke="#4cc9f0" stroke-width="1" />
   
   <!-- Sorter公共接口 -->
-  <text x="110" y="330" font-family="Arial" font-size="14">+ Sorter()</text>
-  <text x="110" y="350" font-family="Arial" font-size="14">+ ~Sorter()</text>
-  <text x="110" y="370" font-family="Arial" font-size="14">+ initialize(): void</text>
-  <text x="110" y="390" font-family="Arial" font-size="14">+ spin_Once(): void</text>
-  <text x="110" y="410" font-family="Arial" font-size="14">+ start(): void</text>
-  <text x="110" y="430" font-family="Arial" font-size="14">+ stop(): void</text>
-  <text x="110" y="450" font-family="Arial" font-size="14">+ reset(): void</text>
-  <text x="110" y="470" font-family="Arial" font-size="14">+ receiveDiameterData(float): void</text>
+  <text x="110" y="330" font-family="Arial" font-size="14" fill="#ffffff">+ Sorter()</text>
+  <text x="110" y="350" font-family="Arial" font-size="14" fill="#ffffff">+ ~Sorter()</text>
+  <text x="110" y="370" font-family="Arial" font-size="14" fill="#ffffff">+ initialize(): void</text>
+  <text x="110" y="390" font-family="Arial" font-size="14" fill="#ffffff">+ spin_Once(): void</text>
+  <text x="110" y="410" font-family="Arial" font-size="14" fill="#ffffff">+ start(): void</text>
+  <text x="110" y="430" font-family="Arial" font-size="14" fill="#ffffff">+ stop(): void</text>
+  <text x="110" y="450" font-family="Arial" font-size="14" fill="#ffffff">+ reset(): void</text>
+  <text x="110" y="470" font-family="Arial" font-size="14" fill="#ffffff">+ receiveDiameterData(float): void</text>
 
-  <!-- Encoder类 -->
-  <rect x="400" y="80" width="200" height="220" fill="white" stroke="black" stroke-width="2" rx="5" ry="5" />
-  <text x="500" y="110" font-family="Arial" font-size="18" text-anchor="middle" font-weight="bold">Encoder</text>
-  <line x1="400" y1="120" x2="600" y2="120" stroke="black" stroke-width="2" />
+  <!-- Encoder类 - 绿色 -->
+  <rect x="400" y="80" width="200" height="220" fill="#2d6a4f" stroke="#48bb78" stroke-width="2" rx="5" ry="5" />
+  <text x="500" y="110" font-family="Arial" font-size="18" text-anchor="middle" font-weight="bold" fill="#ffffff">Encoder</text>
+  <line x1="400" y1="120" x2="600" y2="120" stroke="#48bb78" stroke-width="2" />
   
   <!-- Encoder私有成员 -->
-  <text x="410" y="145" font-family="Arial" font-size="12" font-style="italic">- count: long</text>
-  <text x="410" y="165" font-family="Arial" font-size="12" font-style="italic">- debugEnabled: bool</text>
-  <text x="410" y="185" font-family="Arial" font-size="12" font-style="italic">- reverseRotationDetected: bool</text>
-  <text x="410" y="205" font-family="Arial" font-size="12" font-style="italic">- callbacks[]: PositionCallback*</text>
-  <line x1="400" y1="220" x2="600" y2="220" stroke="black" stroke-width="1" />
+  <text x="410" y="145" font-family="Arial" font-size="12" font-style="italic" fill="#95d5b2">- count: long</text>
+  <text x="410" y="165" font-family="Arial" font-size="12" font-style="italic" fill="#95d5b2">- debugEnabled: bool</text>
+  <text x="410" y="185" font-family="Arial" font-size="12" font-style="italic" fill="#95d5b2">- reverseRotationDetected: bool</text>
+  <text x="410" y="205" font-family="Arial" font-size="12" font-style="italic" fill="#95d5b2">- callbacks[]: PositionCallback*</text>
+  <line x1="400" y1="220" x2="600" y2="220" stroke="#48bb78" stroke-width="1" />
   
   <!-- Encoder公共接口 -->
-  <text x="410" y="240" font-family="Arial" font-size="12">+ initialize(): void</text>
-  <text x="410" y="260" font-family="Arial" font-size="12">+ getPosition(): int</text>
-  <text x="410" y="280" font-family="Arial" font-size="12">+ enableDebug(bool): void</text>
-  <text x="410" y="300" font-family="Arial" font-size="12">+ isReverseRotation(): bool</text>
+  <text x="410" y="240" font-family="Arial" font-size="12" fill="#ffffff">+ initialize(): void</text>
+  <text x="410" y="260" font-family="Arial" font-size="12" fill="#ffffff">+ getPosition(): int</text>
+  <text x="410" y="280" font-family="Arial" font-size="12" fill="#ffffff">+ enableDebug(bool): void</text>
+  <text x="410" y="300" font-family="Arial" font-size="12" fill="#ffffff">+ isReverseRotation(): bool</text>
 
-  <!-- Outlet类 -->
-  <rect x="400" y="330" width="200" height="150" fill="white" stroke="black" stroke-width="2" rx="5" ry="5" />
-  <text x="500" y="360" font-family="Arial" font-size="18" text-anchor="middle" font-weight="bold">Outlet</text>
-  <line x1="400" y1="370" x2="600" y2="370" stroke="black" stroke-width="2" />
+  <!-- Outlet类 - 橙色 -->
+  <rect x="400" y="330" width="200" height="150" fill="#7f4f24" stroke="#ed8936" stroke-width="2" rx="5" ry="5" />
+  <text x="500" y="360" font-family="Arial" font-size="18" text-anchor="middle" font-weight="bold" fill="#ffffff">Outlet</text>
+  <line x1="400" y1="370" x2="600" y2="370" stroke="#ed8936" stroke-width="2" />
   
   <!-- Outlet私有成员 -->
-  <text x="410" y="395" font-family="Arial" font-size="12" font-style="italic">- servo: Servo</text>
-  <text x="410" y="415" font-family="Arial" font-size="12" font-style="italic">- pin: int</text>
-  <text x="410" y="435" font-family="Arial" font-size="12" font-style="italic">- isActive: bool</text>
-  <text x="410" y="455" font-family="Arial" font-size="12" font-style="italic">- isInitialized: bool</text>
-  <line x1="400" y1="470" x2="600" y2="470" stroke="black" stroke-width="1" />
+  <text x="410" y="395" font-family="Arial" font-size="12" font-style="italic" fill="#f6ad55">- servo: Servo</text>
+  <text x="410" y="415" font-family="Arial" font-size="12" font-style="italic" fill="#f6ad55">- pin: int</text>
+  <text x="410" y="435" font-family="Arial" font-size="12" font-style="italic" fill="#f6ad55">- isActive: bool</text>
+  <text x="410" y="455" font-family="Arial" font-size="12" font-style="italic" fill="#f6ad55">- isInitialized: bool</text>
+  <line x1="400" y1="470" x2="600" y2="470" stroke="#ed8936" stroke-width="1" />
   
   <!-- Outlet公共接口 -->
-  <text x="410" y="490" font-family="Arial" font-size="12">+ Outlet()</text>
-  <text x="410" y="510" font-family="Arial" font-size="12">+ initialize(int): void</text>
-  <text x="410" y="530" font-family="Arial" font-size="12">+ open(): void</text>
-  <text x="410" y="550" font-family="Arial" font-size="12">+ close(): void</text>
-  <text x="410" y="570" font-family="Arial" font-size="12">+ getIsActive(): bool</text>
+  <text x="410" y="490" font-family="Arial" font-size="12" fill="#ffffff">+ Outlet()</text>
+  <text x="410" y="510" font-family="Arial" font-size="12" fill="#ffffff">+ initialize(int): void</text>
+  <text x="410" y="530" font-family="Arial" font-size="12" fill="#ffffff">+ open(): void</text>
+  <text x="410" y="550" font-family="Arial" font-size="12" fill="#ffffff">+ close(): void</text>
+  <text x="410" y="570" font-family="Arial" font-size="12" fill="#ffffff">+ getIsActive(): bool</text>
 
-  <!-- SimpleHMI类 -->
-  <rect x="650" y="80" width="150" height="200" fill="white" stroke="black" stroke-width="2" rx="5" ry="5" />
-  <text x="725" y="110" font-family="Arial" font-size="16" text-anchor="middle" font-weight="bold">SimpleHMI</text>
-  <line x1="650" y1="120" x2="800" y2="120" stroke="black" stroke-width="2" />
+  <!-- SimpleHMI类 - 紫色 -->
+  <rect x="650" y="80" width="150" height="200" fill="#4a148c" stroke="#9f7aea" stroke-width="2" rx="5" ry="5" />
+  <text x="725" y="110" font-family="Arial" font-size="16" text-anchor="middle" font-weight="bold" fill="#ffffff">SimpleHMI</text>
+  <line x1="650" y1="120" x2="800" y2="120" stroke="#9f7aea" stroke-width="2" />
   
   <!-- SimpleHMI私有成员 -->
-  <text x="660" y="140" font-family="Arial" font-size="10" font-style="italic">- masterButtonPin: int</text>
-  <text x="660" y="155" font-family="Arial" font-size="10" font-style="italic">- slaveButtonPin: int</text>
-  <text x="660" y="170" font-family="Arial" font-size="10" font-style="italic">- masterLEDPin: int</text>
-  <text x="660" y="185" font-family="Arial" font-size="10" font-style="italic">- slaveLEDPin: int</text>
-  <line x1="650" y1="200" x2="800" y2="200" stroke="black" stroke-width="1" />
+  <text x="660" y="140" font-family="Arial" font-size="10" font-style="italic" fill="#c77dff">- masterButtonPin: int</text>
+  <text x="660" y="155" font-family="Arial" font-size="10" font-style="italic" fill="#c77dff">- slaveButtonPin: int</text>
+  <text x="660" y="170" font-family="Arial" font-size="10" font-style="italic" fill="#c77dff">- masterLEDPin: int</text>
+  <text x="660" y="185" font-family="Arial" font-size="10" font-style="italic" fill="#c77dff">- slaveLEDPin: int</text>
+  <line x1="650" y1="200" x2="800" y2="200" stroke="#9f7aea" stroke-width="1" />
   
   <!-- SimpleHMI公共接口 -->
-  <text x="660" y="220" font-family="Arial" font-size="10">+ SimpleHMI()</text>
-  <text x="660" y="235" font-family="Arial" font-size="10">+ initialize(): void</text>
-  <text x="660" y="250" font-family="Arial" font-size="10">+ spin_once(): void</text>
-  <text x="660" y="265" font-family="Arial" font-size="10">+ isButtonPressed(Button): bool</text>
-  <text x="660" y="280" font-family="Arial" font-size="10">+ setLEDState(LED, bool): void</text>
-  <text x="660" y="295" font-family="Arial" font-size="10">+ clearButtonStates(): void</text>
+  <text x="660" y="220" font-family="Arial" font-size="10" fill="#ffffff">+ SimpleHMI()</text>
+  <text x="660" y="235" font-family="Arial" font-size="10" fill="#ffffff">+ initialize(): void</text>
+  <text x="660" y="250" font-family="Arial" font-size="10" fill="#ffffff">+ spin_once(): void</text>
+  <text x="660" y="265" font-family="Arial" font-size="10" fill="#ffffff">+ isButtonPressed(Button): bool</text>
+  <text x="660" y="280" font-family="Arial" font-size="10" fill="#ffffff">+ setLEDState(LED, bool): void</text>
+  <text x="660" y="295" font-family="Arial" font-size="10" fill="#ffffff">+ clearButtonStates(): void</text>
 
   <!-- 关联关系 -->
-  <line x1="300" y1="150" x2="400" y2="150" stroke="black" stroke-width="2" marker-end="url(#arrowhead)" />
-  <text x="350" y="145" font-family="Arial" font-size="12" text-anchor="middle">has-a</text>
+  <line x1="300" y1="150" x2="400" y2="150" stroke="#4cc9f0" stroke-width="2" marker-end="url(#arrowhead)" />
+  <text x="350" y="145" font-family="Arial" font-size="12" text-anchor="middle" fill="#ffffff">has-a</text>
   
-  <line x1="300" y1="180" x2="400" y2="500" stroke="black" stroke-width="2" marker-end="url(#arrowhead)" />
-  <text x="330" y="340" font-family="Arial" font-size="12" text-anchor="middle">has-a</text>
+  <line x1="300" y1="180" x2="400" y2="500" stroke="#4cc9f0" stroke-width="2" marker-end="url(#arrowhead)" />
+  <text x="330" y="340" font-family="Arial" font-size="12" text-anchor="middle" fill="#ffffff">has-a</text>
   
   <!-- 多重性标记 -->
-  <text x="300" y="180" font-family="Arial" font-size="12" text-anchor="end">1</text>
-  <text x="400" y="500" font-family="Arial" font-size="12" text-anchor="start">5</text>
+  <text x="300" y="180" font-family="Arial" font-size="12" text-anchor="end" fill="#ffffff">1</text>
+  <text x="400" y="500" font-family="Arial" font-size="12" text-anchor="start" fill="#ffffff">5</text>
 
   <!-- 图例 -->
-  <rect x="650" y="300" width="150" height="120" fill="white" stroke="black" stroke-width="1" rx="5" ry="5" />
-  <text x="725" y="325" font-family="Arial" font-size="14" text-anchor="middle" font-weight="bold">图例</text>
-  <text x="660" y="350" font-family="Arial" font-size="12">+ 公共成员</text>
-  <text x="660" y="375" font-family="Arial" font-size="12" font-style="italic">- 私有成员</text>
-  <line x1="660" y1="400" x2="720" y2="400" stroke="black" stroke-width="2" marker-end="url(#arrowhead)" />
-  <text x="730" y="404" font-family="Arial" font-size="12">关联关系</text>
+  <rect x="650" y="300" width="150" height="120" fill="#16213e" stroke="#4cc9f0" stroke-width="1" rx="5" ry="5" />
+  <text x="725" y="325" font-family="Arial" font-size="14" text-anchor="middle" font-weight="bold" fill="#ffffff">图例</text>
+  <text x="660" y="350" font-family="Arial" font-size="12" fill="#ffffff">+ 公共成员</text>
+  <text x="660" y="375" font-family="Arial" font-size="12" font-style="italic" fill="#a0aec0">- 私有成员</text>
+  <line x1="660" y1="400" x2="720" y2="400" stroke="#4cc9f0" stroke-width="2" marker-end="url(#arrowhead)" />
+  <text x="730" y="404" font-family="Arial" font-size="12" fill="#ffffff">关联关系</text>
 </svg>
