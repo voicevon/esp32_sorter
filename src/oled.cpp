@@ -13,6 +13,9 @@ extern Sorter sorter;
 // 私有构造函数实现
 OLED::OLED() : display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1) {
   lastUpdateTime = 0;
+  isTemporaryDisplayActive = false;
+  temporaryDisplayStartTime = 0;
+  temporaryDisplayDuration = 0;
 }
 
 // 获取单例实例
@@ -59,6 +62,12 @@ void OLED::initialize() {
 
 // 更新显示内容
 void OLED::update(SystemMode currentMode, uint8_t outletCount) {
+  // 检查临时显示是否活动，如果是则跳过常规更新
+  if (isTemporaryDisplayActive) {
+    checkTemporaryDisplayEnd();
+    return;
+  }
+  
   // 检查是否需要更新
   unsigned long currentTime = millis();
   if (currentTime - lastUpdateTime < UPDATE_INTERVAL) {
@@ -126,7 +135,11 @@ void OLED::displayModeChange(SystemMode newMode) {
   }
   
   display.display();
-  delay(1000); // 显示1秒
+  
+  // 启动临时显示计时（1秒）
+  isTemporaryDisplayActive = true;
+  temporaryDisplayStartTime = millis();
+  temporaryDisplayDuration = 1000;
 }
 
 // 显示出口状态变化
@@ -142,7 +155,11 @@ void OLED::displayOutletStatus(uint8_t outletIndex, bool isOpen) {
   display.println(isOpen ? F("Open") : F("Closed"));
   
   display.display();
-  delay(500); // 显示0.5秒
+  
+  // 启动临时显示计时（0.5秒）
+  isTemporaryDisplayActive = true;
+  temporaryDisplayStartTime = millis();
+  temporaryDisplayDuration = 500;
 }
 
 // 显示诊断信息
@@ -155,7 +172,11 @@ void OLED::displayDiagnosticInfo(const String& info) {
   display.println(info);
   
   display.display();
-  delay(1500); // 显示1.5秒
+  
+  // 启动临时显示计时（1.5秒）
+  isTemporaryDisplayActive = true;
+  temporaryDisplayStartTime = millis();
+  temporaryDisplayDuration = 1500;
 }
 
 // 绘制头部信息
@@ -205,6 +226,20 @@ void OLED::drawEncoderInfo() {
   display.setCursor(0, 22);
   display.print(F("Pos: "));
   display.println(encoder->getCurrentPosition());
+}
+
+// 检查临时显示是否结束
+void OLED::checkTemporaryDisplayEnd() {
+  if (!isTemporaryDisplayActive) return;
+  
+  unsigned long currentTime = millis();
+  if (currentTime - temporaryDisplayStartTime >= temporaryDisplayDuration) {
+    // 临时显示结束，重置状态
+    isTemporaryDisplayActive = false;
+    temporaryDisplayStartTime = 0;
+    temporaryDisplayDuration = 0;
+    // 临时显示结束后，下一次调用update()时会自动恢复常规显示
+  }
 }
 
 // 绘制出口信息

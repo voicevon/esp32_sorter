@@ -37,8 +37,8 @@ public:
     // 采样传感器状态（根据相位进行采样）
     void sample(int phase);
     
-    // 获取计算的直径值（整数）
-    int ending_getDiameter();
+    // 获取计算的直径值（整数）并停止扫描
+    int getDiameterAndStop();
     
     // 获取统计的物体数量
     int getObjectCount();

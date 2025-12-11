@@ -87,13 +87,13 @@ void Sorter::onPhaseChange(int phase) {
     // 在中断中只执行轻量级操作，设置标志位
     scanner.sample(phase);  // 这个操作必须在中断中执行
     
-    if (phase == 50) {
+    if (phase == 180) {
         resetScannerFlag = true;
-    } else if (phase == 160) {
+    } else if (phase == 100) {
         processScanDataFlag = true;
-    } else if (phase == 80) {
+    } else if (phase == 175) {
         executeOutletsFlag = true;
-    } else if (phase == 195) {
+    } else if (phase == 110) {
         resetOutletsFlag = true;
     } 
     // 上料器特殊位置控制
@@ -127,7 +127,7 @@ void Sorter::spinOnce() {
     if (processScanDataFlag) {
         processScanDataFlag = false;
         // 从传感器获取直径数据（单位为unit）
-        int rawDiameterUnit = scanner.ending_getDiameter();
+        int rawDiameterUnit = scanner.getDiameterAndStop();
         // 将unit转换为毫米（diameter_mm = rawDiameterUnit / 2）
         int diameter_mm = rawDiameterUnit / 2;
         int scanCount = scanner.getObjectCount();
@@ -136,7 +136,8 @@ void Sorter::spinOnce() {
         if (diameter_mm > 0) {
             Serial.print("原始值检测到: ");
             Serial.print(diameter_mm);
-            Serial.println("mm");
+            Serial.print("mm, 物体计数: ");
+            Serial.println(scanCount);
         }
         
         // 添加新的直径数据到托盘系统（使用毫米值）

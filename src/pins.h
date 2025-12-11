@@ -4,36 +4,36 @@
 
 // 舵机引脚定义 - 仅使用ESP32支持的舵机引脚
 const int SERVO_PINS[8] = {
-    2,    // 出口1舵机
-  4,    // 出口2舵机
-  16,   // 出口3舵机
-  17,   // 出口4舵机
-  5,    // 出口5舵机
+    13,   // 出口1舵机
+  12,   // 出口2舵机
+  14,   // 出口3舵机
+  27,   // 出口4舵机
+  26,   // 出口5舵机
   25,   // 出口6舵机
-  26,   // 出口7舵机
-  22    // 出口8舵机
+  33,   // 出口7舵机
+  32    // 出口8舵机
 };
 
 // 上料器舵机引脚
 const int RELOADER_SERVO_PIN = 15;  // 上料器舵机控制引脚
 
-// 人机交互模块引脚定义
-const int MODE_BUTTON_PIN = 27;    // 主按钮引脚 (Master Button)
-const int DIAGNOSTIC_BUTTON_PIN = 12; // 从按钮引脚 (Slave Button)
-const int STATUS_LED1_PIN = 14;    // 主LED引脚 (Master LED)
-const int STATUS_LED2_PIN = 13;    // 从LED引脚 (Slave LED)
+ // 人机交互模块引脚定义
+const int MODE_BUTTON_PIN = 0;     // 主按钮引脚 (Master Button) - 模式切换按钮
+const int DIAGNOSTIC_BUTTON_PIN = 5; // 从按钮引脚 (Slave Button)
+const int STATUS_LED1_PIN = 16;    // 主LED引脚 (Master LED)
+const int STATUS_LED2_PIN = 17;    // 从LED引脚 (Slave LED)
 
 // 激光扫描仪引脚
-const int LASER_SCANNER_PIN = 32;  // 激光扫描仪信号输入引脚
+const int LASER_SCANNER_PIN = 34;  // 激光扫描仪信号输入引脚
 
 // 编码器引脚定义
-const int ENCODER_PIN_A = 19;   // 编码器A相引脚
-const int ENCODER_PIN_B = 21;   // 编码器B相引脚
-const int ENCODER_PIN_Z = 18;   // 编码器Z相（零位）引脚
+const int ENCODER_PIN_A = 18;   // 编码器A相引脚
+const int ENCODER_PIN_B = 19;   // 编码器B相引脚
+const int ENCODER_PIN_Z = 21;   // 编码器Z相（零位）引脚
 
 // SSD1306 I2C显示器引脚定义
 const int OLED_SDA_PIN = 23;  // I2C数据引脚
-const int OLED_SCL_PIN = 24;  // I2C时钟引脚
+const int OLED_SCL_PIN = 22;  // I2C时钟引脚
 
 // 其他可能的系统引脚定义（可根据实际需要扩展）
 const int DEFAULT_SERIAL_BAUD = 115200;

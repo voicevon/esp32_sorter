@@ -6,7 +6,7 @@
 #include "simple_hmi.h"
 #include "encoder.h"
 #include "sorter.h"
-#include "oled.h"
+// #include "oled.h"  // 屏蔽OLED头文件
 
 // 引入系统工作模式定义
 #include "main.h"
@@ -25,7 +25,7 @@ SimpleHMI* simpleHMI = SimpleHMI::getInstance();
 Encoder* encoder = Encoder::getInstance();
 
 // 使用单例模式获取OLED实例
-OLED* oled = OLED::getInstance();
+// OLED* oled = OLED::getInstance();  // 屏蔽OLED实例
 
 // 创建Sorter实例
 Sorter sorter;
@@ -49,8 +49,7 @@ void setup() {
   // 初始化人机交互模块
   simpleHMI->initialize();
   
-  // 等待串口连接
-  delay(2000);
+  // 串口初始化完成后无需等待连接建立
   
   // 初始化编码器
   encoder->initialize();
@@ -61,7 +60,7 @@ void setup() {
   sorter.initialize();
   
   // 初始化OLED显示器
-  oled->initialize();
+  // oled->initialize();  // 屏蔽OLED初始化
   
   Serial.println("System ready");
   Serial.println("当前模式: " + getCurrentModeName());
@@ -107,7 +106,7 @@ void loop() {
       Serial.println(getCurrentModeName());
     
     // 显示模式变化信息到OLED
-    oled->displayModeChange(currentMode);
+    // oled->displayModeChange(currentMode);  // 屏蔽OLED模式显示
   }
   
 
@@ -231,7 +230,7 @@ void loop() {
   sorter.spinOnce();
   
   // 更新OLED显示内容
-  oled->update(currentMode, sorter.getOutletCount());
+  // oled->update(currentMode, sorter.getOutletCount());  // 屏蔽OLED更新
 }
 
 // 函数实现

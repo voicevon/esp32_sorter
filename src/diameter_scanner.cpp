@@ -75,7 +75,7 @@ void DiameterScanner::sample(int phase) {
     lastSensorState = currentState;
 }
 
-int DiameterScanner::ending_getDiameter() {
+int DiameterScanner::getDiameterAndStop() {
     isScanning = false;
     return calculatedDiameter;
 }

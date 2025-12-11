@@ -42,11 +42,17 @@ private:
   // 显示更新间隔（毫秒）
   const unsigned long UPDATE_INTERVAL = 500;
   
+  // 临时显示状态管理
+  bool isTemporaryDisplayActive;  // 是否正在显示临时信息
+  unsigned long temporaryDisplayStartTime;  // 临时显示开始时间
+  unsigned long temporaryDisplayDuration;  // 临时显示持续时间
+  
   // 私有方法
   void drawHeader();
   void drawSystemInfo(SystemMode currentMode);
   void drawEncoderInfo();
   void drawOutletInfo(uint8_t outletCount);
+  void checkTemporaryDisplayEnd();  // 检查临时显示是否结束
   
 public:
   // 单例模式的获取实例方法
