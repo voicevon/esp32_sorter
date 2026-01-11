@@ -35,6 +35,29 @@ public:
     
     // 获取出口数量的方法
     uint8_t getOutletCount() const { return NUM_OUTLETS; }
+    
+    // 设置直径扫描仪日志级别的方法（用于诊断模式）
+    void setScannerLogLevel(LoggerLevel level) {
+        scanner.setLogLevel(level);
+    }
+    
+    // 获取直径扫描仪物体计数的方法（用于诊断模式）
+    int getScannerObjectCount() const { return scanner.getObjectCount(); }
+    
+    // 获取直径扫描仪当前直径值的方法（用于诊断模式和正常模式）
+    int getScannerDiameter() const { return scanner.getDiameterAndStop(); }
+    
+    // 获取最新检测到的直径值（用于正常模式显示）
+    int getLatestDiameter() const;
+    
+    // 获取已识别的物体数量（用于正常模式显示）
+    int getIdentifiedCount() const { return scanner.getObjectCount(); }
+    
+    // 获取传送带前进的托架数量（用于正常模式显示）
+    int getTrayCount() const;
+    
+    // 获取分拣速度（根/小时）（用于正常模式显示）
+    int getSortingSpeed();
 
     
 private:
@@ -56,6 +79,10 @@ private:
     volatile bool resetOutletsFlag;
     volatile bool reloaderOpenFlag;    // 上料器开启标志
     volatile bool reloaderCloseFlag;   // 上料器关闭标志
+    
+    // 用于速度计算的变量
+    unsigned long lastSpeedCheckTime;  // 上次速度检查时间
+    int lastObjectCount;               // 上次物体计数
     
     // 静态回调函数，用于连接编码器相位变化
     static void staticPhaseCallback(void* context, int phase);

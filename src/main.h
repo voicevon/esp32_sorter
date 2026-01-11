@@ -7,9 +7,7 @@ enum SystemMode {
   MODE_DIAGNOSE_ENCODER = 1,  // 诊断编码器模式
   MODE_DIAGNOSE_SCANNER = 2,  // 诊断扫描仪模式
   MODE_DIAGNOSE_OUTLET = 3,   // 诊断出口模式
-  MODE_DIAGNOSE_CONVEYOR = 4, // 诊断传输线模式
-  MODE_TEST = 5,              // 测试模式
-  MODE_TEST_RELOADER = 6      // 上料器测试模式（Feeder Test Mode）
+  MODE_TEST_RELOADER = 4      // 上料器测试模式（Feeder Test Mode）
 };
 
 #endif // MAIN_H

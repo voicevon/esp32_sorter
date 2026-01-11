@@ -1,12 +1,11 @@
 #include <Arduino.h>
 #include "pins.h"
 
-// 必要的头文件
-#include "outlet.h"
+// #include "outlet.h"
 #include "simple_hmi.h"
 #include "encoder.h"
 #include "sorter.h"
-// #include "oled.h"  // 屏蔽OLED头文件
+#include "oled.h"
 
 // 引入系统工作模式定义
 #include "main.h"
@@ -25,7 +24,7 @@ SimpleHMI* simpleHMI = SimpleHMI::getInstance();
 Encoder* encoder = Encoder::getInstance();
 
 // 使用单例模式获取OLED实例
-// OLED* oled = OLED::getInstance();  // 屏蔽OLED实例
+OLED* oled = OLED::getInstance();
 
 // 创建Sorter实例
 Sorter sorter;
@@ -60,7 +59,7 @@ void setup() {
   sorter.initialize();
   
   // 初始化OLED显示器
-  // oled->initialize();  // 屏蔽OLED初始化
+  oled->initialize();
   
   Serial.println("System ready");
   Serial.println("当前模式: " + getCurrentModeName());
@@ -106,7 +105,7 @@ void loop() {
       Serial.println(getCurrentModeName());
     
     // 显示模式变化信息到OLED
-    // oled->displayModeChange(currentMode);  // 屏蔽OLED模式显示
+    oled->displayModeChange(currentMode);
   }
   
 
@@ -121,17 +120,41 @@ void loop() {
       break;
     
     case MODE_DIAGNOSE_SCANNER: {
-      // 诊断扫描仪模式 - 读取并打印扫描仪状态（仅状态变化时输出）
-      static bool lastScannerState = false;
-      int currentState = digitalRead(LASER_SCANNER_PIN);
+      // 诊断扫描仪模式 - 启用直径扫描仪的debug模式
+      static bool debugModeInitialized = false;
       
-      // 只在状态发生变化时输出日志
-      if (currentState != lastScannerState) {
-        lastScannerState = currentState;
-        Serial.print("[DIAGNOSTIC] Scanner state changed to: ");
-        Serial.println(currentState ? "HIGH" : "LOW");
-        
-
+      if (!debugModeInitialized) {
+        // 初始化debug模式
+        debugModeInitialized = true;
+        // 设置直径扫描仪的日志级别为DEBUG
+        sorter.setScannerLogLevel(LOG_LEVEL_DEBUG);
+        Serial.println("[DIAGNOSTIC] Scanner Debug Mode Activated - 乐高奥特曼debug模式");
+        Serial.println("[DIAGNOSTIC] 扫描仪将持续输出状态信息：");
+        Serial.println("[DIAGNOSTIC] ✗ = 检测到物体，· = 未检测到物体");
+        Serial.println("[DIAGNOSTIC] 开始扫描...");
+      }
+      
+      // 持续采样扫描仪状态（模拟编码器相位变化触发）
+      // 使用简单的循环来模拟采样过程
+      static unsigned long lastSampleTime = 0;
+      static int phase = 0;
+      unsigned long currentTime = millis();
+      
+      // 每10毫秒采样一次，模拟编码器的相位变化
+      if (currentTime - lastSampleTime >= 10) {
+        lastSampleTime = currentTime;
+        phase = (phase + 1) % 4; // 模拟4个相位
+        sorter.onPhaseChange(phase); // 调用采样方法
+      }
+      
+      // 定期输出当前的物体计数和直径值
+      static unsigned long lastStatusTime = 0;
+      if (currentTime - lastStatusTime >= 1000) { // 每秒输出一次状态
+        lastStatusTime = currentTime;
+        Serial.print("[DIAGNOSTIC] 当前物体计数: ");
+        Serial.print(sorter.getScannerObjectCount());
+        Serial.print(", 当前直径: ");
+        Serial.println(sorter.getScannerDiameter());
       }
       break;
     }
@@ -172,14 +195,6 @@ void loop() {
       }
       break;
     }
-    
-    case MODE_DIAGNOSE_CONVEYOR:
-      // 诊断传输线模式
-      break;
-    
-    case MODE_TEST:
-      // 测试模式
-      break;
     
     case MODE_TEST_RELOADER: {
       // 上料器测试模式（Feeder Test Mode）
@@ -230,7 +245,7 @@ void loop() {
   sorter.spinOnce();
   
   // 更新OLED显示内容
-  // oled->update(currentMode, sorter.getOutletCount());  // 屏蔽OLED更新
+  oled->update(currentMode, sorter.getOutletCount(), &sorter);
 }
 
 // 函数实现
@@ -246,10 +261,6 @@ String getCurrentModeName() {
       return "扫描仪诊断模式";
     case MODE_DIAGNOSE_OUTLET:
       return "出口诊断模式";
-    case MODE_DIAGNOSE_CONVEYOR:
-      return "传输线诊断模式";
-    case MODE_TEST:
-      return "测试模式";
     case MODE_TEST_RELOADER:
       return "上料器测试模式（Feeder Test Mode）";
     default:

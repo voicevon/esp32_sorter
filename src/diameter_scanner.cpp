@@ -7,7 +7,8 @@ DiameterScanner::DiameterScanner() :
     objectCount(0),
     lastSensorState(false),
     isSampling(false),
-    calculatedDiameter(0) {
+    calculatedDiameter(0),
+    logLevel(LOG_LEVEL_INFO) {
 }
 
 void DiameterScanner::initialize() {
@@ -54,9 +55,18 @@ void DiameterScanner::sample(int phase) {
         
         // 增加高电平计数
         highLevelCount++;
+        // 在debug模式下输出叉号
+        if (logLevel == LOG_LEVEL_DEBUG) {
+            Serial.print("✗");
+        } 
     }
     // 未检测到物体（低电平）
     else {
+        // 在debug模式下输出点号
+        if (logLevel == LOG_LEVEL_DEBUG) {
+            Serial.print("·");
+        }
+        
         // 结束采样并计算直径（直接使用高电平计数）
         if (isSampling) {
             calculatedDiameter = highLevelCount; // 直径 = 连续高电平个数
@@ -75,11 +85,18 @@ void DiameterScanner::sample(int phase) {
     lastSensorState = currentState;
 }
 
-int DiameterScanner::getDiameterAndStop() {
-    isScanning = false;
+int DiameterScanner::getDiameterAndStop() const {
     return calculatedDiameter;
 }
 
-int DiameterScanner::getObjectCount() {
+int DiameterScanner::getObjectCount() const {
     return objectCount;
+}
+
+void DiameterScanner::setLogLevel(LoggerLevel level) {
+    logLevel = level;
+}
+
+LoggerLevel DiameterScanner::getLogLevel() {
+    return logLevel;
 }

@@ -10,7 +10,8 @@
 Sorter::Sorter() : running(false),
                    resetScannerFlag(false), processScanDataFlag(false),
                    executeOutletsFlag(false), resetOutletsFlag(false),
-                   reloaderOpenFlag(false), reloaderCloseFlag(false) {
+                   reloaderOpenFlag(false), reloaderCloseFlag(false),
+                   lastSpeedCheckTime(0), lastObjectCount(0) {
     // 构造函数初始化 - 使用单例模式获取实例
     encoder = Encoder::getInstance();
     hmi = SimpleHMI::getInstance();
@@ -37,19 +38,19 @@ void Sorter::initialize() {
     // 出口0: 扫描次数>1
     outlets[0].initialize(SERVO_PINS[0]);
     // 出口1: 直径>15mm (15mm以上)
-    outlets[1].initialize(SERVO_PINS[1], 13, 255);
+    outlets[1].initialize(SERVO_PINS[1], 20,255 );
     // 出口2: 12mm<直径≤15mm
-    outlets[2].initialize(SERVO_PINS[2], 10, 13);
+    outlets[2].initialize(SERVO_PINS[2], 18, 20);
     // 出口3: 10mm<直径≤12mm
-    outlets[3].initialize(SERVO_PINS[3], 8, 10);
+    outlets[3].initialize(SERVO_PINS[3], 16, 18);
     // 出口4: 8mm≤直径≤10mm
-    outlets[4].initialize(SERVO_PINS[4], 6, 8);
+    outlets[4].initialize(SERVO_PINS[4], 14, 16);
     // 出口5: 6mm<直径≤8mm
-    outlets[5].initialize(SERVO_PINS[5], 4, 6);
+    outlets[5].initialize(SERVO_PINS[5], 12, 14);
     // 出口6: 4mm<直径≤6mm
-    outlets[6].initialize(SERVO_PINS[6], 2, 4);
+    outlets[6].initialize(SERVO_PINS[6], 10, 12);
     // 出口7: 直径≤4mm (4mm以下)
-    outlets[7].initialize(SERVO_PINS[7], 0, 2);
+    outlets[7].initialize(SERVO_PINS[7], 8, 10);
     
     // 初始化出口位置
     uint8_t defaultDivergencePoints[NUM_OUTLETS] = {1, 3, 5, 7, 9, 11, 13, 15};
@@ -151,7 +152,9 @@ void Sorter::spinOnce() {
         bool anyOutletOpened = false;
         for(int i = 0; i < NUM_OUTLETS; i++){
             // 检查出口是否满足打开条件并实际打开
-            if (i == 0 && traySystem.getTrayScanCount(0) > 1) {
+            // if (i == 0 && traySystem.getTrayScanCount(0) > 1) {
+            // if (i == 0 && traySystem.getTrayScanCount(0) < 6) {
+            if (false) {
                 Serial.println("预设出口0打开");
                 outlets[i].preOpen(true);
                 anyOutletOpened = true;
@@ -278,5 +281,40 @@ void Sorter::presetOutlets() {
             outlets[i].preOpen(false);
         }
     }
+}
+
+// 获取最新直径
+int Sorter::getLatestDiameter() const {
+    return traySystem.getTrayDiameter(0);
+}
+
+// 获取托架数量
+int Sorter::getTrayCount() const {
+    // 假设每40个编码器脉冲对应一个托架移动
+    const int pulsesPerTray = 40;
+    int encoderPosition = encoder->getCurrentPosition();
+    return encoderPosition / pulsesPerTray;
+}
+
+// 获取分拣速度
+int Sorter::getSortingSpeed() {
+    unsigned long currentTime = millis();
+    int currentCount = scanner.getObjectCount();
+    int countDiff = currentCount - lastObjectCount;
+    int timeDiff = currentTime - lastSpeedCheckTime;
+    
+    // 计算每小时的速度
+    int speed = 0;
+    if (timeDiff > 0) {
+        speed = (countDiff * 3600000) / timeDiff;
+    }
+    
+    // 更新时间和计数
+    if (timeDiff > 1000) { // 每秒更新一次
+        lastSpeedCheckTime = currentTime;
+        lastObjectCount = currentCount;
+    }
+    
+    return speed;
 }
 

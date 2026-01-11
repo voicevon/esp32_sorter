@@ -7,6 +7,7 @@
 #include <Adafruit_SSD1306.h>
 #include "pins.h"
 #include "main.h"
+#include "sorter.h"
 
 // SSD1306 I2C显示器引脚定义
 #define SCREEN_WIDTH 128
@@ -36,6 +37,9 @@ private:
   // SSD1306显示器对象
   Adafruit_SSD1306 display;
   
+  // 显示器是否可用的标识
+  bool isDisplayAvailable;
+  
   // 最后更新时间
   unsigned long lastUpdateTime;
   
@@ -58,11 +62,14 @@ public:
   // 单例模式的获取实例方法
   static OLED* getInstance();
   
+  // 检查显示器是否可用
+  bool isAvailable() const { return isDisplayAvailable; }
+  
   // 初始化OLED显示器
   void initialize();
   
   // 更新显示内容
-  void update(SystemMode currentMode, uint8_t outletCount);
+    void update(SystemMode currentMode, uint8_t outletCount, Sorter* sorter);
   
   // 显示模式变化信息
   void displayModeChange(SystemMode newMode);
