@@ -46,8 +46,7 @@ public:
     bool isSlaveButtonPressed();
     
     // 清除按钮标志（手动）
-    void clearMasterButtonFlag();
-    void clearSlaveButtonFlag();
+
     
 
     

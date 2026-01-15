@@ -51,8 +51,7 @@ public:
     // 输入相关方法
     bool isMasterButtonPressed();
     bool isSlaveButtonPressed();
-    void clearMasterButtonFlag();
-    void clearSlaveButtonFlag();
+
 };
 
 #endif // USER_INTERFACE_H

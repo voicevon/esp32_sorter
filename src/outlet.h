@@ -17,11 +17,11 @@ private:
     int pin;            // 舵机引脚
     bool initialized;   // 初始化标志
     bool preOpenState;  // 预开状态标志
-    int minDiameter;    // 最小直径
-    int maxDiameter;    // 最大直径
+    int matchDiameterMin;    // 匹配该出口的最小直径
+    int matchDiameterMax;    // 匹配该出口的最大直径
     
 public:
-    Outlet() : pin(-1), initialized(false), preOpenState(false), minDiameter(0), maxDiameter(0) {}
+    Outlet() : pin(-1), initialized(false), preOpenState(false), matchDiameterMin(0), matchDiameterMax(0) {}
     
     // 初始化出口
     void initialize(int servoPin, int minD = 0, int maxD = 0) {
@@ -30,19 +30,19 @@ public:
             servo.attach(pin);
             servo.write(SERVO_CLOSED_POSITION);
             initialized = true;
-            minDiameter = minD;
-            maxDiameter = maxD;
+            matchDiameterMin = minD;
+            matchDiameterMax = maxD;
         }
     }
     
-    // 获取最小直径
-    int getMinDiameter() const {
-        return minDiameter;
+    // 获取匹配的最小直径
+    int getMatchDiameterMin() const {
+        return matchDiameterMin;
     }
     
-    // 获取最大直径
-    int getMaxDiameter() const {
-        return maxDiameter;
+    // 获取匹配的最大直径
+    int getMatchDiameterMax() const {
+        return matchDiameterMax;
     }
     
     // 设置预开状态

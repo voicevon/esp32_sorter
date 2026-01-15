@@ -69,12 +69,4 @@ bool UserInterface::isSlaveButtonPressed() {
     return hmi->isSlaveButtonPressed();
 }
 
-// 清除主按钮标志
-void UserInterface::clearMasterButtonFlag() {
-    hmi->clearMasterButtonFlag();
-}
 
-// 清除从按钮标志
-void UserInterface::clearSlaveButtonFlag() {
-    hmi->clearSlaveButtonFlag();
-}

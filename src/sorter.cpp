@@ -132,7 +132,7 @@ void Sorter::spinOnce() {
         int rawDiameterUnit = scanner.getDiameterAndStop();
         // 将unit转换为毫米（diameter_mm = rawDiameterUnit / 2）
         int diameter_mm = rawDiameterUnit / 2;
-        int scanCount = scanner.getObjectCount();
+        int scanCount = scanner.getTotalObjectCount();
         
         // 当直径不为0时显示原始检测数据
         if (diameter_mm > 0) {
@@ -165,8 +165,8 @@ void Sorter::spinOnce() {
                 // 确保调整后的索引在有效范围内
                 if (adjustedPosition >= 0 && adjustedPosition < traySystem.getTotalTrays()) {
                     int diameter = traySystem.getTrayDiameter(adjustedPosition);
-                    int min = outlets[i].getMinDiameter();
-                    int max = outlets[i].getMaxDiameter();
+                    int min = outlets[i].getMatchDiameterMin();
+                    int max = outlets[i].getMatchDiameterMax();
                     
                     if ((i == 1 && diameter > min) || 
                         (i > 1 && diameter > min && diameter <= max)) {
@@ -260,8 +260,8 @@ void Sorter::presetOutlets() {
     for (uint8_t i = 1; i < NUM_OUTLETS; i++) {
         // 修改：将出口位置索引减1，因为实际托盘计数从1开始
         int outletPosition = divergencePointIndices[i] - 1;
-        int min = outlets[i].getMinDiameter();
-        int max = outlets[i].getMaxDiameter();
+        int min = outlets[i].getMatchDiameterMin();
+        int max = outlets[i].getMatchDiameterMax();
         
         // 确保调整后的索引在有效范围内
         if (outletPosition >= 0 && outletPosition < traySystem.getTotalTrays()) {
@@ -300,7 +300,7 @@ int Sorter::getTrayCount() const {
 // 获取分拣速度
 int Sorter::getSortingSpeed() {
     unsigned long currentTime = millis();
-    int currentCount = scanner.getObjectCount();
+    int currentCount = scanner.getTotalObjectCount();
     int countDiff = currentCount - lastObjectCount;
     int timeDiff = currentTime - lastSpeedCheckTime;
     
@@ -322,7 +322,7 @@ int Sorter::getSortingSpeed() {
 // 获取分拣速度（根/秒）
 int Sorter::getSortingSpeedPerSecond() {
     unsigned long currentTime = millis();
-    int currentCount = scanner.getObjectCount();
+    int currentCount = scanner.getTotalObjectCount();
     int countDiff = currentCount - lastObjectCount;
     int timeDiff = currentTime - lastSpeedCheckTime;
     
@@ -338,7 +338,7 @@ int Sorter::getSortingSpeedPerSecond() {
 // 获取分拣速度（根/分钟）
 int Sorter::getSortingSpeedPerMinute() {
     unsigned long currentTime = millis();
-    int currentCount = scanner.getObjectCount();
+    int currentCount = scanner.getTotalObjectCount();
     int countDiff = currentCount - lastObjectCount;
     int timeDiff = currentTime - lastSpeedCheckTime;
     
@@ -351,8 +351,16 @@ int Sorter::getSortingSpeedPerMinute() {
     return speed;
 }
 
+String Sorter::getIOStatus() {
+    return scanner.getIOStatus();
+}
+
 void Sorter::displayIOStatus() {
     scanner.displayIOStatus();
+}
+
+String Sorter::getRawDiameters() {
+    return scanner.getRawDiameters();
 }
 
 void Sorter::displayRawDiameters() {
@@ -382,7 +390,7 @@ DisplayData Sorter::getDisplayData(SystemMode currentMode, int normalSubMode, in
     data.sortingSpeedPerHour = getSortingSpeed();
     
     // 设置统计信息
-    data.identifiedCount = scanner.getObjectCount();
+    data.identifiedCount = scanner.getTotalObjectCount();
     data.trayCount = getTrayCount();
     
     // 设置直径信息

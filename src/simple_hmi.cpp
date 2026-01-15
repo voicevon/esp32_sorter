@@ -117,12 +117,5 @@ bool SimpleHMI::isSlaveButtonPressed() {
     return result;
 }
 
-// 清除按钮标志（手动）
-void SimpleHMI::clearMasterButtonFlag() {
-    masterButtonFlag = false;
-}
 
-void SimpleHMI::clearSlaveButtonFlag() {
-    slaveButtonFlag = false;
-}
 

@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include "pins.h"
 
 // #include "outlet.h"
 #include "user_interface.h"
@@ -41,7 +40,7 @@ Encoder* encoder = Encoder::getInstance();
 Sorter sorter;
 
 // 函数声明
-String getCurrentModeName();
+String getModeName(SystemMode mode);
 
 
 
@@ -70,7 +69,7 @@ void setup() {
   sorter.initialize();
   
   Serial.println("System ready");
-  Serial.println("当前模式: " + getCurrentModeName());
+  Serial.println("当前模式: " + getModeName(currentMode));
   Serial.println("使用模式按钮切换不同的调试/测试模式");
 }
 
@@ -88,7 +87,7 @@ void handleMasterButton() {
     // 临时保存当前模式，显示待切换的模式名称
     SystemMode tempMode = currentMode;
     currentMode = pendingMode;
-    Serial.println(getCurrentModeName());
+    Serial.println(getModeName(currentMode));
     currentMode = tempMode; // 恢复原模式
     // 注意：isMasterButtonPressed()方法会自动清除标志
   }
@@ -180,7 +179,7 @@ void handleModeChange() {
     
     // 打印模式切换完成信息
     Serial.print("[DIAGNOSTIC] Mode switched to: ");
-    Serial.println(getCurrentModeName());
+    Serial.println(getModeName(currentMode));
     
     // 显示模式变化信息到OLED
     userInterface->displayModeChange(currentMode);
@@ -442,9 +441,9 @@ void loop() {
 
 // 函数实现
 
-String getCurrentModeName() {
-  // 获取当前模式名称
-  switch (currentMode) {
+String getModeName(SystemMode mode) {
+  // 获取指定模式名称
+  switch (mode) {
     case MODE_NORMAL:
       return "正常模式";
     case MODE_DIAGNOSE_ENCODER:

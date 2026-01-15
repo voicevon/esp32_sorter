@@ -19,8 +19,8 @@ private:
     // 高电平采样计数（每个扫描点）
     int highLevelCounts[4];
     
-    // 统计次数（计算实际物体数量）
-    int objectCount;
+    // 统计次数（计算实际物体数量）- 每个扫描点一个计数器
+    int objectCount[4];
     
     // 上一次的传感器状态（每个扫描点）
     bool lastSensorStates[4];
@@ -28,8 +28,11 @@ private:
     // 是否正在采样（每个扫描点）
     bool isSampling[4];
     
+    // 上一次的传感器上升沿状态（用于检测物体通过）
+    bool lastRisingEdge[4];
+    
     // 计算得到的直径值（整数）
-    int calculatedDiameter;
+    int nominalDiameter;
     
     // 日志级别
     LoggerLevel logLevel;
@@ -51,7 +54,10 @@ public:
     int getDiameterAndStop() const;
     
     // 获取统计的物体数量
-    int getObjectCount() const;
+    int getObjectCount(int index) const;
+    
+    // 获取所有扫描点的物体数量总和
+    int getTotalObjectCount() const;
     
     // 设置日志级别
     void setLogLevel(LoggerLevel level);
@@ -59,8 +65,14 @@ public:
     // 获取日志级别
     LoggerLevel getLogLevel();
     
+    // 获取IO状态（用于诊断模式子模式1）
+    String getIOStatus();
+    
     // 显示IO状态（用于诊断模式子模式1）
     void displayIOStatus();
+    
+    // 获取原始直径值（用于诊断模式子模式2）
+    String getRawDiameters();
     
     // 显示原始直径值（用于诊断模式子模式2）
     void displayRawDiameters();

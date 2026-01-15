@@ -43,7 +43,7 @@ public:
     }
     
     // 获取直径扫描仪物体计数的方法（用于诊断模式）
-    int getScannerObjectCount() const { return scanner.getObjectCount(); }
+    int getScannerObjectCount() const { return scanner.getTotalObjectCount(); }
     
     // 获取直径扫描仪当前直径值的方法（用于诊断模式和正常模式）
     int getScannerDiameter() const { return scanner.getDiameterAndStop(); }
@@ -52,7 +52,7 @@ public:
     int getLatestDiameter() const;
     
     // 获取已识别的物体数量（用于正常模式显示）
-    int getIdentifiedCount() const { return scanner.getObjectCount(); }
+    int getIdentifiedCount() const { return scanner.getTotalObjectCount(); }
     
     // 获取传送带前进的托架数量（用于正常模式显示）
     int getTrayCount() const;
@@ -66,8 +66,14 @@ public:
     // 获取分拣速度（根/分钟）（用于正常模式显示）
     int getSortingSpeedPerMinute();
     
+    // 获取IO状态（用于诊断模式子模式1）
+    String getIOStatus();
+    
     // 显示IO状态（用于诊断模式子模式1）
     void displayIOStatus();
+    
+    // 获取原始直径值（用于诊断模式子模式2）
+    String getRawDiameters();
     
     // 显示原始直径值（用于诊断模式子模式2）
     void displayRawDiameters();
