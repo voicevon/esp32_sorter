@@ -23,8 +23,14 @@ const int DIAGNOSTIC_BUTTON_PIN = 5; // 从按钮引脚 (Slave Button)
 const int STATUS_LED1_PIN = 16;    // 主LED引脚 (Master LED)
 const int STATUS_LED2_PIN = 17;    // 从LED引脚 (Slave LED)
 
-// 激光扫描仪引脚
-const int LASER_SCANNER_PIN = 34;  // 激光扫描仪信号输入引脚
+// 激光扫描仪引脚（4个扫描点）
+const int LASER_SCANNER_PINS[4] = {36, 35, 34, 39};  // 激光扫描仪信号输入引脚
+
+// 激光扫描仪权重系数（用于补偿芦笋锥形形状）
+const float LASER_SCANNER_WEIGHTS[4] = {1.01, 1.02, 1.05, 1.15};
+
+// 激光扫描仪最小有效直径（单位：unit，1毫米=2个unit）
+const int LASER_SCANNER_MIN_DIAMETER = 6;  // 3毫米
 
 // 编码器引脚定义
 const int ENCODER_PIN_A = 21;   // 编码器A相引脚

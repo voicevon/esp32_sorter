@@ -16,6 +16,7 @@ private:
     // 核心状态变量
     long count;                      // 编码器计数值
     long lastCount;                  // 上次计数值，用于检测变化
+    volatile bool positionChanged;  // 位置变化标志（用于OLED显示）
     
     // 回调函数指针和上下文
     PhaseCallback phaseCallback;  // 相位回调
@@ -42,6 +43,12 @@ public:
     
     // 获取当前逻辑位置
     int getCurrentPosition();
+    
+    // 检查位置是否变化
+    bool hasPositionChanged() const { return positionChanged; }
+    
+    // 重置位置变化标志
+    void resetPositionChanged() { positionChanged = false; }
     
     // 中断处理函数
     static void handleAPhaseInterrupt();  // A相中断

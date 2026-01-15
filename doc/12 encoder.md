@@ -8,6 +8,8 @@ Encoder类提供位置跟踪和中断处理，采用单例模式实现。相位�
 - `void initialize()`：初始化编码器引脚和中断
 - `int getCurrentPosition()`：获取当前逻辑位置（0-199）
 - `void setPhaseCallback(void* context, PhaseCallback callback)`：设置相位回调函数和上下文
+- `bool hasPositionChanged() const`：检查位置是否变化
+- `void resetPositionChanged()`：重置位置变化标志
 - `void printout()`：打印调试信息
 
 ## 3. 中断处理

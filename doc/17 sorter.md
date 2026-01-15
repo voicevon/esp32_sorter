@@ -9,6 +9,20 @@
 - `void onPhaseChange(int phase)`：采样回调函数，供编码器调用，仅设置状态标志位
 - `void presetOutlets()`：根据托盘数据预设出口状态，确定哪些出口需要打开
 - `void spinOnce()`：主循环执行函数，处理耗时操作，定期被main.cpp调用
+- `int getLatestDiameter() const`：获取最新检测到的直径值（用于正常模式显示）
+- `int getTrayCount() const`：获取传送带前进的托架数量（用于正常模式显示）
+- `int getSortingSpeed()`：获取分拣速度（根/小时）（用于正常模式显示）
+- `int getSortingSpeedPerSecond()`：获取分拣速度（根/秒）（用于正常模式显示）
+- `int getSortingSpeedPerMinute()`：获取分拣速度（根/分钟）（用于正常模式显示）
+- `void openReloader()`：打开上料器舵机（用于测试模式）
+- `void closeReloader()`：关闭上料器舵机（用于测试模式）
+- `void setOutletState(uint8_t outletIndex, bool open)`：设置出口状态（用于诊断模式）
+- `uint8_t getOutletCount() const`：获取出口数量
+- `void setScannerLogLevel(LoggerLevel level)`：设置直径扫描仪日志级别（用于诊断模式）
+- `int getScannerObjectCount() const`：获取直径扫描仪物体计数（用于诊断模式）
+- `int getScannerDiameter() const`：获取直径扫描仪当前直径值（用于诊断模式和正常模式）
+- `void displayIOStatus()`：显示IO状态（用于诊断模式子模式1）
+- `void displayRawDiameters()`：显示原始直径值（用于诊断模式子模式2）
 
 ## 3. 核心功能
 - 协调多个子系统工作：Encoder、Outlet、DiameterScanner、TraySystem和上料器
@@ -20,7 +34,7 @@
 
 ## 4. 内部结构
 - 使用编码器单例模式获取位置信息
-- 维护5个出口对象数组
+- 维护8个出口对象数组
 - 包含直径扫描仪实例进行物体测量
 - 包含托盘系统实例存储直径数据
 - 包含上料器舵机实例控制物料上料

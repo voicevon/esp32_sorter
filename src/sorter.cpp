@@ -4,6 +4,7 @@
 #include "tray_system.h"
 #include <Arduino.h>
 #include <cstddef>
+#include "oled.h"
 
 
 
@@ -316,5 +317,80 @@ int Sorter::getSortingSpeed() {
     }
     
     return speed;
+}
+
+// 获取分拣速度（根/秒）
+int Sorter::getSortingSpeedPerSecond() {
+    unsigned long currentTime = millis();
+    int currentCount = scanner.getObjectCount();
+    int countDiff = currentCount - lastObjectCount;
+    int timeDiff = currentTime - lastSpeedCheckTime;
+    
+    // 计算每秒的速度
+    int speed = 0;
+    if (timeDiff > 0) {
+        speed = (countDiff * 1000) / timeDiff;
+    }
+    
+    return speed;
+}
+
+// 获取分拣速度（根/分钟）
+int Sorter::getSortingSpeedPerMinute() {
+    unsigned long currentTime = millis();
+    int currentCount = scanner.getObjectCount();
+    int countDiff = currentCount - lastObjectCount;
+    int timeDiff = currentTime - lastSpeedCheckTime;
+    
+    // 计算每分钟的速度
+    int speed = 0;
+    if (timeDiff > 0) {
+        speed = (countDiff * 60000) / timeDiff;
+    }
+    
+    return speed;
+}
+
+void Sorter::displayIOStatus() {
+    scanner.displayIOStatus();
+}
+
+void Sorter::displayRawDiameters() {
+    scanner.displayRawDiameters();
+}
+
+// 获取显示数据（用于 UserInterface）
+DisplayData Sorter::getDisplayData(SystemMode currentMode, int normalSubMode, int encoderSubMode, int outletSubMode) {
+    DisplayData data;
+    
+    // 设置系统模式信息
+    data.currentMode = currentMode;
+    data.outletCount = NUM_OUTLETS;
+    
+    // 设置子模式信息
+    data.normalSubMode = normalSubMode;
+    data.encoderSubMode = encoderSubMode;
+    data.outletSubMode = outletSubMode;
+    
+    // 设置编码器信息
+    data.encoderPosition = encoder->getCurrentPosition();
+    data.encoderPositionChanged = encoder->hasPositionChanged();
+    
+    // 设置分拣速度信息
+    data.sortingSpeedPerSecond = getSortingSpeedPerSecond();
+    data.sortingSpeedPerMinute = getSortingSpeedPerMinute();
+    data.sortingSpeedPerHour = getSortingSpeed();
+    
+    // 设置统计信息
+    data.identifiedCount = scanner.getObjectCount();
+    data.trayCount = getTrayCount();
+    
+    // 设置直径信息
+    data.latestDiameter = getLatestDiameter();
+    
+    // 设置出口测试模式信息（默认没有打开的出口）
+    data.openOutlet = 255;
+    
+    return data;
 }
 

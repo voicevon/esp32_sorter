@@ -13,20 +13,20 @@ enum LoggerLevel {
 
 class DiameterScanner {
 private:
-    // 引脚定义
-    int scannerPin;
+    // 引脚定义（4个扫描点）
+    int scannerPins[4];
     bool isScanning;
-    // 高电平采样计数
-    int highLevelCount;
+    // 高电平采样计数（每个扫描点）
+    int highLevelCounts[4];
     
     // 统计次数（计算实际物体数量）
     int objectCount;
     
-    // 上一次的传感器状态
-    bool lastSensorState;
+    // 上一次的传感器状态（每个扫描点）
+    bool lastSensorStates[4];
     
-    // 是否正在采样
-    bool isSampling;
+    // 是否正在采样（每个扫描点）
+    bool isSampling[4];
     
     // 计算得到的直径值（整数）
     int calculatedDiameter;
@@ -58,6 +58,12 @@ public:
     
     // 获取日志级别
     LoggerLevel getLogLevel();
+    
+    // 显示IO状态（用于诊断模式子模式1）
+    void displayIOStatus();
+    
+    // 显示原始直径值（用于诊断模式子模式2）
+    void displayRawDiameters();
 };
 
 #endif // DIAMETER_SCANNER_H

@@ -7,7 +7,7 @@
 #include <Adafruit_SSD1306.h>
 #include "pins.h"
 #include "main.h"
-#include "sorter.h"
+#include "display_data.h"
 
 // SSD1306 I2C显示器引脚定义
 #define SCREEN_WIDTH 128
@@ -51,10 +51,13 @@ private:
   unsigned long temporaryDisplayStartTime;  // 临时显示开始时间
   unsigned long temporaryDisplayDuration;  // 临时显示持续时间
   
+  // 诊断模式显示状态管理
+  bool isDiagnosticModeActive;  // 是否处于诊断模式显示状态
+  
   // 私有方法
   void drawHeader();
   void drawSystemInfo(SystemMode currentMode);
-  void drawEncoderInfo();
+  void drawEncoderInfo(int encoderPosition);
   void drawOutletInfo(uint8_t outletCount);
   void checkTemporaryDisplayEnd();  // 检查临时显示是否结束
   
@@ -69,7 +72,7 @@ public:
   void initialize();
   
   // 更新显示内容
-    void update(SystemMode currentMode, uint8_t outletCount, Sorter* sorter);
+  void update(const DisplayData& data);
   
   // 显示模式变化信息
   void displayModeChange(SystemMode newMode);
@@ -78,7 +81,13 @@ public:
   void displayOutletStatus(uint8_t outletIndex, bool isOpen);
   
   // 显示诊断信息
-  void displayDiagnosticInfo(const String& info);
+  void displayDiagnosticInfo(const String& title, const String& info);
+  
+  // 显示出口测试模式图形
+  void displayOutletTestGraphic(uint8_t outletCount, uint8_t openOutlet, int subMode);
+  
+  // 重置诊断模式显示标志（用于切换出MODE_DIAGNOSE_SCANNER模式时）
+  void resetDiagnosticMode();
 };
 
 #endif // OLED_H

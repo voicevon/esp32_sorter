@@ -10,6 +10,7 @@ Encoder* Encoder::instance = nullptr;
 Encoder::Encoder() {
     count = 0;
     lastCount = 0;
+    positionChanged = false;
     
     // 初始化回调函数指针为nullptr
     phaseCallback = nullptr;
@@ -104,6 +105,9 @@ void Encoder::handleAPhaseInterrupt() {
         // 更新lastCount
         instance->lastCount = instance->count;
         
+        // 设置位置变化标志
+        instance->positionChanged = true;
+        
         // 调用触发相位回调的方法
         instance->triggerPhaseCallback();
     }
@@ -142,6 +146,9 @@ void Encoder::handleBPhaseInterrupt() {
         // 更新lastCount
         instance->lastCount = instance->count;
         
+        // 设置位置变化标志
+        instance->positionChanged = true;
+        
         // 调用触发相位回调的方法
         instance->triggerPhaseCallback();
     }
@@ -155,6 +162,9 @@ void Encoder::handleZPhaseInterrupt() {
     // Z相中断时直接重置计数值
     instance->count = 0;
     instance->lastCount = 0;
+    
+    // 设置位置变化标志
+    instance->positionChanged = true;
     
     // 调用触发相位回调的方法
     instance->triggerPhaseCallback();

@@ -7,6 +7,7 @@
 #include "tray_system.h"
 #include "simple_hmi.h"
 #include <ESP32Servo.h>
+#include "display_data.h"
 
 // 上料器舵机角度定义
 #define RELOADER_OPEN_ANGLE 90     // 上料器开启角度
@@ -58,6 +59,21 @@ public:
     
     // 获取分拣速度（根/小时）（用于正常模式显示）
     int getSortingSpeed();
+    
+    // 获取分拣速度（根/秒）（用于正常模式显示）
+    int getSortingSpeedPerSecond();
+    
+    // 获取分拣速度（根/分钟）（用于正常模式显示）
+    int getSortingSpeedPerMinute();
+    
+    // 显示IO状态（用于诊断模式子模式1）
+    void displayIOStatus();
+    
+    // 显示原始直径值（用于诊断模式子模式2）
+    void displayRawDiameters();
+    
+    // 获取显示数据（用于 UserInterface）
+    DisplayData getDisplayData(SystemMode currentMode, int normalSubMode = 0, int encoderSubMode = 0, int outletSubMode = 0);
 
     
 private:
