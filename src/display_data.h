@@ -25,7 +25,7 @@ struct DisplayData {
     
     // 统计信息
     int identifiedCount;      // 已识别的物体数量
-    int trayCount;           // 托架数量
+    int transportedTrayCount; // 已经输送的托架数量
     
     // 直径信息
     int latestDiameter;      // 最新直径值
@@ -46,7 +46,7 @@ struct DisplayData {
         sortingSpeedPerMinute(0),
         sortingSpeedPerHour(0),
         identifiedCount(0),
-        trayCount(0),
+        transportedTrayCount(0),
         latestDiameter(0),
         openOutlet(255) {}
 };

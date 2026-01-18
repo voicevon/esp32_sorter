@@ -16,12 +16,12 @@ private:
     Servo servo;        // 舵机对象
     int pin;            // 舵机引脚
     bool initialized;   // 初始化标志
-    bool preOpenState;  // 预开状态标志
+    bool readyToOpenState;  // 准备打开状态标志
     int matchDiameterMin;    // 匹配该出口的最小直径
     int matchDiameterMax;    // 匹配该出口的最大直径
     
 public:
-    Outlet() : pin(-1), initialized(false), preOpenState(false), matchDiameterMin(0), matchDiameterMax(0) {}
+    Outlet() : pin(-1), initialized(false), readyToOpenState(false), matchDiameterMin(0), matchDiameterMax(0) {}
     
     // 初始化出口
     void initialize(int servoPin, int minD = 0, int maxD = 0) {
@@ -45,15 +45,15 @@ public:
         return matchDiameterMax;
     }
     
-    // 设置预开状态
-    void preOpen(bool state) {
-        preOpenState = state;
+    // 设置准备打开状态
+    void setReadyToOpen(bool state) {
+        readyToOpenState = state;
     }
     
-    // 执行出口控制（根据预开状态）
+    // 执行出口控制（根据准备打开状态）
     void execute() {
         if (initialized) {
-            if (preOpenState) {
+            if (readyToOpenState) {
                 servo.write(SERVO_OPEN_POSITION);
             } else {
                 servo.write(SERVO_CLOSED_POSITION);

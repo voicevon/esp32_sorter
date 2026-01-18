@@ -45,6 +45,7 @@ public:
     void displayOutletStatus(uint8_t outletIndex, bool isOpen);
     void displayDiagnosticInfo(const String& title, const String& info);
     void displayOutletTestGraphic(uint8_t outletCount, uint8_t openOutlet, int subMode);
+    void displayScannerEncoderValues(const int* risingValues, const int* fallingValues);
     void resetDiagnosticMode();
     bool isDisplayAvailable() const;
     

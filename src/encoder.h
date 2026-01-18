@@ -47,6 +47,9 @@ public:
     // 检查位置是否变化
     bool hasPositionChanged() const { return positionChanged; }
     
+    // 获取原始计数值
+    long getRawCount() const { return count; }
+    
     // 中断处理函数
     static void handleAPhaseInterrupt();  // A相中断
     static void handleBPhaseInterrupt();  // B相中断

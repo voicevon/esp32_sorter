@@ -12,17 +12,17 @@ void IRAM_ATTR masterButtonISR() {
         bool currentState = digitalRead(SimpleHMI::getInstance()->masterButtonPin) == LOW;
         
         // 检测按钮状态变化
-        if (currentState != SimpleHMI::getInstance()->masterButtonPressed) {
+        if (currentState != SimpleHMI::getInstance()->masterButtonDownState) {
             // 保存旧状态用于判断
-            bool wasPressed = SimpleHMI::getInstance()->masterButtonPressed;
+            bool wasPressed = SimpleHMI::getInstance()->masterButtonDownState;
             
             // 更新状态
-            SimpleHMI::getInstance()->masterButtonPressed = currentState;
+            SimpleHMI::getInstance()->masterButtonDownState = currentState;
             SimpleHMI::getInstance()->lastMasterDebounceTime = currentTime;
             
             // 只有当按钮从按下状态变为释放状态时，才认为是完整的按下事件
             if (!currentState && wasPressed) {
-                SimpleHMI::getInstance()->masterButtonFlag = true;
+                SimpleHMI::getInstance()->masterButtonClickFlag = true;
             }
         }
     }
@@ -35,17 +35,17 @@ void IRAM_ATTR slaveButtonISR() {
         bool currentState = digitalRead(SimpleHMI::getInstance()->slaveButtonPin) == LOW;
         
         // 检测按钮状态变化
-        if (currentState != SimpleHMI::getInstance()->slaveButtonPressed) {
+        if (currentState != SimpleHMI::getInstance()->slaveButtonDownState) {
             // 保存旧状态用于判断
-            bool wasPressed = SimpleHMI::getInstance()->slaveButtonPressed;
+            bool wasPressed = SimpleHMI::getInstance()->slaveButtonDownState;
             
             // 更新状态
-            SimpleHMI::getInstance()->slaveButtonPressed = currentState;
+            SimpleHMI::getInstance()->slaveButtonDownState = currentState;
             SimpleHMI::getInstance()->lastSlaveDebounceTime = currentTime;
             
             // 只有当按钮从按下状态变为释放状态时，才认为是完整的按下事件
             if (!currentState && wasPressed) {
-                SimpleHMI::getInstance()->slaveButtonFlag = true;
+                SimpleHMI::getInstance()->slaveButtonClickFlag = true;
             }
         }
     }
@@ -57,10 +57,10 @@ SimpleHMI::SimpleHMI() :
     slaveButtonPin(DIAGNOSTIC_BUTTON_PIN),
     masterLEDPin(STATUS_LED1_PIN),
     slaveLEDPin(STATUS_LED2_PIN),
-    masterButtonFlag(false),
-    slaveButtonFlag(false),
-    masterButtonPressed(false),
-    slaveButtonPressed(false),
+    masterButtonClickFlag(false),
+    slaveButtonClickFlag(false),
+    masterButtonDownState(false),
+    slaveButtonDownState(false),
     lastMasterDebounceTime(0),
     lastSlaveDebounceTime(0)
 {
@@ -90,8 +90,8 @@ void SimpleHMI::initialize() {
     digitalWrite(slaveLEDPin, LOW);
     
     // 初始化按钮状态
-    masterButtonPressed = digitalRead(masterButtonPin) == LOW;
-    slaveButtonPressed = digitalRead(slaveButtonPin) == LOW;
+    masterButtonDownState = digitalRead(masterButtonPin) == LOW;
+    slaveButtonDownState = digitalRead(slaveButtonPin) == LOW;
     
     // 注册中断处理函数（改变状态触发，而不仅仅是下降沿）
     attachInterrupt(digitalPinToInterrupt(masterButtonPin), masterButtonISR, CHANGE);
@@ -100,19 +100,19 @@ void SimpleHMI::initialize() {
 
 // 检查按钮状态（通过中断标志）- 自动清除标志
 bool SimpleHMI::isMasterButtonPressed() {
-    bool result = masterButtonFlag;
+    bool result = masterButtonClickFlag;
     // 自动清除标志，确保每个按钮事件只被处理一次
     if (result) {
-        masterButtonFlag = false;
+        masterButtonClickFlag = false;
     }
     return result;
 }
 
 bool SimpleHMI::isSlaveButtonPressed() {
-    bool result = slaveButtonFlag;
+    bool result = slaveButtonClickFlag;
     // 自动清除标志，确保每个按钮事件只被处理一次
     if (result) {
-        slaveButtonFlag = false;
+        slaveButtonClickFlag = false;
     }
     return result;
 }

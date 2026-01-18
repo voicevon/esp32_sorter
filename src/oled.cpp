@@ -4,6 +4,29 @@
 // 系统名称
 String systemName = "Feng's AS-L9";
 
+// 比较两个DisplayData对象是否相等
+bool operator==(const DisplayData& lhs, const DisplayData& rhs) {
+  return lhs.currentMode == rhs.currentMode &&
+         lhs.outletCount == rhs.outletCount &&
+         lhs.normalSubMode == rhs.normalSubMode &&
+         lhs.encoderSubMode == rhs.encoderSubMode &&
+         lhs.outletSubMode == rhs.outletSubMode &&
+         lhs.encoderPosition == rhs.encoderPosition &&
+         lhs.encoderPositionChanged == rhs.encoderPositionChanged &&
+         lhs.sortingSpeedPerSecond == rhs.sortingSpeedPerSecond &&
+         lhs.sortingSpeedPerMinute == rhs.sortingSpeedPerMinute &&
+         lhs.sortingSpeedPerHour == rhs.sortingSpeedPerHour &&
+         lhs.identifiedCount == rhs.identifiedCount &&
+         lhs.transportedTrayCount == rhs.transportedTrayCount &&
+         lhs.latestDiameter == rhs.latestDiameter &&
+         lhs.openOutlet == rhs.openOutlet;
+}
+
+// 比较两个DisplayData对象是否不相等
+bool operator!=(const DisplayData& lhs, const DisplayData& rhs) {
+  return !(lhs == rhs);
+}
+
 // 初始化静态实例指针
 OLED* OLED::instance = nullptr;
 
@@ -15,6 +38,16 @@ OLED::OLED() : display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1) {
   temporaryDisplayDuration = 0;
   isDiagnosticModeActive = false;  // 初始化诊断模式标志
   isDisplayAvailable = false; // 初始化时假设显示器不可用
+  
+  // 初始化上一次显示的DisplayData
+  lastDisplayData = DisplayData();
+  
+  // 初始化扫描仪编码器值显示状态管理变量
+  for (int i = 0; i < 4; i++) {
+    lastRisingValues[i] = 0;
+    lastFallingValues[i] = 0;
+  }
+  isFirstScannerDisplay = true;
 }
 
 // 获取单例实例
@@ -87,8 +120,24 @@ void OLED::update(const DisplayData& data) {
     return;
   }
   
+  // 检查数据是否发生变化
+  bool dataChanged = (data != lastDisplayData);
+  
+  // 对于编码器诊断模式，只在位置变化时更新
+  if (data.currentMode == MODE_DIAGNOSE_ENCODER && !data.encoderPositionChanged) {
+    dataChanged = false;
+  }
+  
+  // 如果数据没有变化，则不更新显示
+  if (!dataChanged) {
+    return;
+  }
+  
   // 更新时间戳
   lastUpdateTime = currentTime;
+  
+  // 更新上一次显示的数据
+  lastDisplayData = data;
   
   // 清屏
   display.clearDisplay();
@@ -96,91 +145,116 @@ void OLED::update(const DisplayData& data) {
   // 绘制头部信息
   drawHeader();
   
-  // 根据不同模式显示不同内容
-  if (data.currentMode == MODE_NORMAL) {
-    // 正常模式：根据子模式显示不同信息
-    display.setCursor(0, 12);
-    display.setTextSize(1);
-    
-    if (data.normalSubMode == 0) {
-      // 子模式0：统计信息
-      // 第一行：每秒多少根
-      display.print(F("Speed: "));
-      display.print(data.sortingSpeedPerSecond);
-      display.println(F(" /s"));
-      
-      // 第二行：每分钟多少根
-      display.print(F("Speed: "));
-      display.print(data.sortingSpeedPerMinute);
-      display.println(F(" /m"));
-      
-      // 第三行：每小时多少根
-      display.print(F("Speed: "));
-      display.print(data.sortingSpeedPerHour);
-      display.println(F(" /h"));
-      
-      // 第四行：空格
-      display.println();
-      
-      // 第五行：已识别数量和托架数量
-      display.print(F("Items: "));
-      display.print(data.identifiedCount);
-      display.print(F(" | Trays: "));
-      display.println(data.trayCount);
-    } else {
-      // 子模式1：最新直径
-      // 第一行：最新直径（名义直径）
-      display.print(F("Diameter: "));
-      display.print(data.latestDiameter);
-      display.println(F(" mm"));
-      
-      // 第二行：显示说明
-      display.println(F("Nominal Diameter"));
-      
-      // 第三行：显示空行
-      display.println();
-    }
-  } else if (data.currentMode == MODE_DIAGNOSE_ENCODER) {
-    // 编码器诊断模式：根据子模式显示不同信息
-    display.setCursor(0, 12);
-    display.setTextSize(1);
-    
-    if (data.encoderSubMode == 0) {
-      // 子模式0：显示编码器位置（只在位置变化时更新）
-      if (data.encoderPositionChanged) {
-        display.print(F("Encoder Pos: "));
-        display.println(data.encoderPosition);
-      }
-    } else {
-      // 子模式1：显示相位变化信息（只在相位变化时更新）
-      if (data.encoderPositionChanged) {
-        display.print(F("Phase: "));
-        display.println(data.encoderPosition);
-      }
-    }
-  } else if (data.currentMode == MODE_DIAGNOSE_OUTLET) {
-    // 出口测试模式：根据子模式显示不同信息
-    display.setCursor(0, 12);
-    display.setTextSize(1);
-    
-    if (data.outletSubMode == 0) {
-      // 子模式0：轮巡降落（常态打开，偶尔闭合）
-      display.println(F("Outlet Test:"));
-      display.println(F("Mode 0: Open"));
-    } else {
-      // 子模式1：轮巡上升（常态闭合，偶尔打开）
-      display.println(F("Outlet Test:"));
-      display.println(F("Mode 1: Close"));
-    }
-  } else {
-    // 非正常模式和非编码器诊断模式和非出口测试模式：保持原有显示
-    drawSystemInfo(data.currentMode);
-    drawEncoderInfo(data.encoderPosition);
-    drawOutletInfo(data.outletCount);
+  // 根据不同模式调用对应的显示方法
+  switch (data.currentMode) {
+    case MODE_NORMAL:
+      displayNormalMode(data);
+      break;
+    case MODE_DIAGNOSE_ENCODER:
+      displayEncoderDiagnosticMode(data);
+      break;
+    case MODE_DIAGNOSE_OUTLET:
+      displayOutletDiagnosticMode(data);
+      break;
+    default:
+      displayOtherModes(data);
+      break;
   }
   
   // 显示内容
   display.display();
+}
+
+// 显示正常模式
+void OLED::displayNormalMode(const DisplayData& data) {
+  // 正常模式：根据子模式显示不同信息
+  display.setCursor(0, 12);
+  display.setTextSize(1);
+  
+  if (data.normalSubMode == 0) {
+    // 子模式0：统计信息
+    // 第一行：每秒多少根
+    display.print(F("Speed: "));
+    display.print(data.sortingSpeedPerSecond);
+    display.println(F(" /s"));
+    
+    // 第二行：每分钟多少根
+    display.print(F("Speed: "));
+    display.print(data.sortingSpeedPerMinute);
+    display.println(F(" /m"));
+    
+    // 第三行：每小时多少根
+    display.print(F("Speed: "));
+    display.print(data.sortingSpeedPerHour);
+    display.println(F(" /h"));
+    
+    // 第四行：空格
+    display.println();
+    
+    // 第五行：已识别数量和托架数量
+    display.print(F("Items: "));
+    display.print(data.identifiedCount);
+    display.print(F(" | Transported Trays: "));
+    display.println(data.transportedTrayCount);
+  } else {
+    // 子模式1：最新直径
+    // 第一行：最新直径（名义直径）
+    display.print(F("Diameter: "));
+    display.print(data.latestDiameter);
+    display.println(F(" mm"));
+    
+    // 第二行：显示说明
+    display.println(F("Nominal Diameter"));
+    
+    // 第三行：显示空行
+    display.println();
+  }
+}
+
+// 显示编码器诊断模式
+void OLED::displayEncoderDiagnosticMode(const DisplayData& data) {
+  // 编码器诊断模式：根据子模式显示不同信息
+  display.setCursor(0, 12);
+  display.setTextSize(1);
+  
+  if (data.encoderSubMode == 0) {
+    // 子模式0：显示编码器位置（只在位置变化时更新）
+    if (data.encoderPositionChanged) {
+      display.print(F("Encoder Pos: "));
+      display.println(data.encoderPosition);
+    }
+  } else {
+    // 子模式1：显示相位变化信息（只在相位变化时更新）
+    if (data.encoderPositionChanged) {
+      display.print(F("Phase: "));
+      display.println(data.encoderPosition);
+    }
+  }
+}
+
+// 显示出口诊断模式
+void OLED::displayOutletDiagnosticMode(const DisplayData& data) {
+  // 出口测试模式：根据子模式显示不同信息
+  display.setCursor(0, 12);
+  display.setTextSize(1);
+  
+  if (data.outletSubMode == 0) {
+    // 子模式0：轮巡降落（常态打开，偶尔闭合）
+    display.println(F("Outlet Test:"));
+    display.println(F("Mode 0: Open"));
+  } else {
+    // 子模式1：轮巡上升（常态闭合，偶尔打开）
+    display.println(F("Outlet Test:"));
+    display.println(F("Mode 1: Close"));
+  }
+}
+
+// 显示其他模式
+void OLED::displayOtherModes(const DisplayData& data) {
+  // 非正常模式和非编码器诊断模式和非出口测试模式：保持原有显示
+  drawSystemInfo(data.currentMode);
+  drawEncoderInfo(data.encoderPosition);
+  drawOutletInfo(data.outletCount);
 }
 
 // 显示模式变化信息
@@ -194,6 +268,9 @@ void OLED::displayModeChange(SystemMode newMode) {
   if (newMode == MODE_DIAGNOSE_SCANNER || newMode == MODE_VERSION_INFO || newMode == MODE_DIAGNOSE_OUTLET) {
     isDiagnosticModeActive = false;
   }
+  
+  // 重置上一次显示的数据，确保下一次更新能检测到模式变化
+  lastDisplayData = DisplayData();
   
   display.clearDisplay();
   display.setCursor(0, 20);
@@ -441,6 +518,71 @@ void OLED::displayOutletTestGraphic(uint8_t outletCount, uint8_t openOutlet, int
 
   
   display.display();
+  
+  // 设置诊断模式标志为true，保持显示内容
+  isDiagnosticModeActive = true;
+}
+
+// 显示扫描仪编码器值
+void OLED::displayScannerEncoderValues(const int* risingValues, const int* fallingValues) {
+  // 检查显示器是否可用
+  if (!isDisplayAvailable) {
+    return;
+  }
+  
+  // 检查编码器值是否发生变化
+  bool dataChanged = false;
+  if (isFirstScannerDisplay) {
+    dataChanged = true;
+    isFirstScannerDisplay = false;
+  } else {
+    // 比较上升沿编码器值
+    for (int i = 0; i < 4; i++) {
+      if (risingValues[i] != lastRisingValues[i] || fallingValues[i] != lastFallingValues[i]) {
+        dataChanged = true;
+        break;
+      }
+    }
+  }
+  
+  // 只有当数据发生变化时才更新屏幕
+  if (dataChanged) {
+    display.clearDisplay();
+    display.setTextSize(1);
+    
+    // 显示标题
+    display.setCursor(0, 0);
+    display.println("Scanner positions");
+    display.println("-----------------");
+    
+    // 显示上升沿编码器值
+    display.setCursor(0, 20);
+    display.print("^:");
+    for (int i = 0; i < 4; i++) {
+      display.printf("%3d", risingValues[i]);
+      if (i < 3) {
+        display.print(" ");
+      }
+    }
+    
+    // 显示下降沿编码器值
+    display.setCursor(0, 35);
+    display.print("v:");
+    for (int i = 0; i < 4; i++) {
+      display.printf("%3d", fallingValues[i]);
+      if (i < 3) {
+        display.print(" ");
+      }
+    }
+    
+    display.display();
+    
+    // 更新上一次显示的编码器值
+    for (int i = 0; i < 4; i++) {
+      lastRisingValues[i] = risingValues[i];
+      lastFallingValues[i] = fallingValues[i];
+    }
+  }
   
   // 设置诊断模式标志为true，保持显示内容
   isDiagnosticModeActive = true;

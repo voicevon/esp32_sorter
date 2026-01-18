@@ -40,7 +40,7 @@
 - 包含上料器舵机实例控制物料上料
 - 记录运行状态标志
 - 存储出口位置索引数组
-- 包含六个volatile状态标志位：resetScannerFlag、processScanDataFlag、executeOutletsFlag、resetOutletsFlag、reloaderOpenFlag和reloaderCloseFlag
+- 包含六个volatile状态标志位：restartScanFlag、calculateDiameterFlag、executeOutletsFlag、resetOutletsFlag、reloaderOpenFlag和reloaderCloseFlag
 
 ## 5. 回调机制
 - `staticPhaseCallback`：静态回调函数，用于连接编码器相位变化事件

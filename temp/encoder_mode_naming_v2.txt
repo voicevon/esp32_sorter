@@ -1,0 +1,94 @@
+# encoderValueRecordingMode 命名建议（基于详细功能背景）
+
+## 功能详细背景
+该变量用于**诊断四个扫描点的安装位置误差**，具体功能：
+- 正常模式：进行直径测量采样
+- 诊断模式：**记录四个扫描点的上升沿和下降沿对应的编码器值**
+- 目的：对比四个扫描点的对齐情况（理论上应同时上升/下降），找出安装误差
+
+## 核心功能提炼
+- 记录**扫描边缘**（上升沿/下降沿）的**编码器位置**
+- 用于**诊断**和**校准**扫描点的**安装位置**
+- 是一种**特殊的工作模式**
+
+## 当前命名问题
+- `encoderValueRecordingMode`：仅描述了"记录编码器值"，未体现核心目的
+- 没有反映"边缘检测"、"位置校准"、"安装诊断"等关键信息
+
+## 命名建议（结合功能背景）
+
+### 1. `scanEdgeCalibrationMode`
+- **变量名**：scanEdgeCalibrationMode
+- **注释**：扫描边缘校准模式标志 - 记录扫描点上升/下降沿的编码器位置用于校准
+- **方法名**：enableScanEdgeCalibration() / disableScanEdgeCalibration()
+- **优势**：
+  - 明确表达"扫描边缘"（上升/下降沿）
+  - 直接点明"校准"目的
+  - 与功能完全匹配
+
+### 2. `sensorAlignmentMode`
+- **变量名**：sensorAlignmentMode
+- **注释**：传感器对齐模式标志 - 记录各扫描点边缘的编码器位置用于诊断对齐误差
+- **方法名**：enableSensorAlignment() / disableSensorAlignment()
+- **优势**：
+  - 强调"传感器对齐"这一核心目的
+  - 名称简洁明了
+  - 易于理解功能意图
+
+### 3. `edgePositionDiagnosticMode`
+- **变量名**：edgePositionDiagnosticMode
+- **注释**：边缘位置诊断模式标志 - 记录扫描边缘的编码器位置用于诊断安装误差
+- **方法名**：enableEdgePositionDiagnostic() / disableEdgePositionDiagnostic()
+- **优势**：
+  - 明确包含"边缘位置"和"诊断"两个核心概念
+  - 详细描述了功能和目的
+
+### 4. `scanPointAlignmentMode`
+- **变量名**：scanPointAlignmentMode
+- **注释**：扫描点对齐模式标志 - 记录各扫描点边缘的编码器位置用于对齐校准
+- **方法名**：enableScanPointAlignment() / disableScanPointAlignment()
+- **优势**：
+  - 直接提到"扫描点"，与硬件相关
+  - 明确"对齐"目的
+  - 简洁易记
+
+### 5. `calibrationRecordingMode`
+- **变量名**：calibrationRecordingMode
+- **注释**：校准记录模式标志 - 记录扫描边缘的编码器位置用于校准诊断
+- **方法名**：enableCalibrationRecording() / disableCalibrationRecording()
+- **优势**：
+  - 保留"记录"的功能描述
+  - 强调"校准"目的
+  - 名称简洁
+
+## 推荐选择
+
+### 首选：`scanEdgeCalibrationMode`
+**理由**：
+- 最全面地表达了核心功能：扫描（scan）、边缘检测（edge）、校准（calibration）
+- 直接点明了记录的是"扫描边缘"的位置
+- 明确了"校准"这一最终目的
+- 与用户描述的功能完全匹配
+
+### 备选：`sensorAlignmentMode`
+**理由**：
+- 更加简洁明了
+- 直接强调了"传感器对齐"这一核心目的
+- 易于理解和记忆
+
+## 代码修改示例
+```cpp
+// 变量定义
+volatile bool scanEdgeCalibrationMode;  // 扫描边缘校准模式标志 - 记录扫描点上升/下降沿的编码器位置用于校准
+
+// 控制方法
+void enableScanEdgeCalibration() { scanEdgeCalibrationMode = true; }
+void disableScanEdgeCalibration() { scanEdgeCalibrationMode = false; }
+
+// 使用示例
+if (scanEdgeCalibrationMode) {
+    scanner->recordEdgeEncoderValues(phase);  // 记录边缘编码器值用于校准
+} else {
+    scanner->sample(phase);  // 正常测量模式
+}
+```

@@ -62,8 +62,6 @@ int Encoder::getCurrentPosition() {
     return position;
 }
 
-
-
 /**
  * 设置相位回调
  */

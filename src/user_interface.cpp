@@ -49,7 +49,10 @@ void UserInterface::displayOutletTestGraphic(uint8_t outletCount, uint8_t openOu
     oled->displayOutletTestGraphic(outletCount, openOutlet, subMode);
 }
 
-// 重置诊断模式显示标志
+void UserInterface::displayScannerEncoderValues(const int* risingValues, const int* fallingValues) {
+    oled->displayScannerEncoderValues(risingValues, fallingValues);
+}
+
 void UserInterface::resetDiagnosticMode() {
     oled->resetDiagnosticMode();
 }

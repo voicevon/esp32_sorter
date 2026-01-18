@@ -1,0 +1,110 @@
+# 防止过度刷新的统一变量命名建议
+
+## 命名建议列表
+
+1. **needsRefresh**
+2. **hasDataChanged**
+3. **shouldUpdateDisplay**
+4. **refreshRequired**
+5. **displayUpdateNeeded**
+6. **dataHasChanged**
+
+## 详细分析与优缺点
+
+### 1. needsRefresh
+- **含义**：简洁地表达"需要刷新"的状态
+- **优点**：
+  - 名称非常简洁明了，易于理解
+  - 语法结构为动词+名词，符合变量命名习惯
+  - 能够准确传达变量的用途
+- **缺点**：
+  - 没有明确指出是"数据变化"导致需要刷新
+
+### 2. hasDataChanged
+- **含义**：明确表示"数据已经发生变化"的状态
+- **优点**：
+  - 非常具体，直接指出了刷新的原因（数据变化）
+  - 语法结构为动词+名词，清晰表达变量的用途
+  - 能够准确反映变量的逻辑状态
+- **缺点**：
+  - 相对较长
+
+### 3. shouldUpdateDisplay
+- **含义**：明确表示"应该更新显示"的状态
+- **优点**：
+  - 非常具体，直接指出了变量的用途（控制显示更新）
+  - 语法结构为动词+动词+名词，表达清晰
+- **缺点**：
+  - 较长，可能影响代码的可读性
+
+### 4. refreshRequired
+- **含义**：表示"刷新是必需的"的状态
+- **优点**：
+  - 简洁明了，表达了"需要刷新"的含义
+  - 语法结构为名词+形容词，符合变量命名习惯
+- **缺点**：
+  - 没有明确指出是"数据变化"导致需要刷新
+
+### 5. displayUpdateNeeded
+- **含义**：表示"显示更新是需要的"的状态
+- **优点**：
+  - 非常具体，直接指出了变量的用途（控制显示更新）
+  - 语法结构为名词+动词+形容词，表达清晰
+- **缺点**：
+  - 较长
+
+### 6. dataHasChanged
+- **含义**：与hasDataChanged类似，表示"数据已经发生变化"的状态
+- **优点**：
+  - 非常具体，直接指出了刷新的原因（数据变化）
+  - 语法结构为名词+动词+形容词，清晰表达变量的用途
+- **缺点**：
+  - 相对较长
+
+## 推荐选择
+
+### 最佳选择：hasDataChanged
+- **理由**：
+  - 最直接地表达了变量的核心逻辑（数据变化）
+  - 名称简洁而不失明确性
+  - 能够准确反映变量的用途和逻辑状态
+  - 适合在三个子模式中统一使用
+
+### 备选选择：needsRefresh
+- **理由**：
+  - 非常简洁，易于书写和阅读
+  - 能够准确传达"需要刷新"的含义
+  - 适合在对名称长度有要求的场景中使用
+
+## 使用示例
+
+以子模式0（IO状态检查）为例，使用hasDataChanged的实现：
+
+```cpp
+bool* ioStates = scanner->getIOStatusArray();
+
+// 生成状态字符串
+String status = "";
+for (int i = 0; i < 4; i++) {
+    status += String(ioStates[i] ? "H" : "L");
+    if (i < 3) {
+        status += " ";
+    }
+}
+
+// 检测数据变化
+bool hasDataChanged = (status != lastDisplayedStatus);
+lastDisplayedStatus = status;
+
+if (hasDataChanged) {
+    // 串口输出
+    Serial.print("IO Status: ");
+    Serial.println(status);
+    
+    // OLED显示
+    OLED* oled = OLED::getInstance();
+    if (oled->isAvailable()) {
+        oled->displayDiagnosticInfo("Scanner IO Status", status);
+    }
+}
+```

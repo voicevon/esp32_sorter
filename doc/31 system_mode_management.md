@@ -77,3 +77,22 @@
 **子模式说明**：
 - **子模式0（轮巡降落）**：常态打开，偶尔闭合，显示出口编号和打开的出口数字
 - **子模式1（轮巡上升）**：常态闭合，偶尔打开，显示关闭的出口编号和打开的出口数字
+
+## 4. OLED显示模式实现重构
+
+为了提高代码的可读性和可维护性，OLED类的显示逻辑已被重构为使用模式专用方法：
+
+### 4.1 实现方式
+- **主方法**：`update(const DisplayData& data)`
+- **核心逻辑**：使用switch-case结构根据当前模式调用相应的专用显示方法
+- **模式专用方法**：
+  - `displayNormalMode(const DisplayData& data)`：处理正常模式显示
+  - `displayEncoderDiagnosticMode(const DisplayData& data)`：处理编码器诊断模式显示
+  - `displayOutletDiagnosticMode(const DisplayData& data)`：处理出口诊断模式显示
+  - `displayOtherModes(const DisplayData& data)`：处理其他模式显示
+
+### 4.2 重构优势
+1. **提高代码可读性**：不同模式的显示逻辑分离到独立方法中
+2. **降低维护难度**：修改特定模式显示时只需关注对应的方法
+3. **增强扩展性**：添加新模式时只需编写新的显示方法
+4. **保持一致性**：所有模式的显示更新遵循统一的流程和间隔

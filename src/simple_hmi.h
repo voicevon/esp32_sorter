@@ -18,10 +18,10 @@ private:
     int slaveLEDPin;
     
     // 中断相关变量
-    volatile bool masterButtonFlag;        // 最终的按钮按下标志（按下并释放）
-    volatile bool slaveButtonFlag;         // 最终的按钮按下标志（按下并释放）
-    volatile bool masterButtonPressed;     // 临时的按钮按下状态
-    volatile bool slaveButtonPressed;      // 临时的按钮按下状态
+    volatile bool masterButtonClickFlag;   // 最终的按钮点击标志（按下并释放）
+    volatile bool slaveButtonClickFlag;    // 最终的按钮点击标志（按下并释放）
+    volatile bool masterButtonDownState;   // 临时的按钮按下状态
+    volatile bool slaveButtonDownState;    // 临时的按钮按下状态
     unsigned long lastMasterDebounceTime;
     unsigned long lastSlaveDebounceTime;
     

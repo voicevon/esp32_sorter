@@ -1,18 +1,27 @@
 #include "diameter_scanner.h"
 #include "oled.h"
 
+// 初始化静态实例变量为NULL
+DiameterScanner* DiameterScanner::instance = NULL;
+
 DiameterScanner::DiameterScanner() : 
     isScanning(false),
-    nominalDiameter(0),
-    logLevel(LOG_LEVEL_INFO) {
+    nominalDiameter(0) {
     for (int i = 0; i < 4; i++) {
         scannerPins[i] = LASER_SCANNER_PINS[i];
-        highLevelCounts[i] = 0;
+        highLevelPulseCounts[i] = 0;
         objectCount[i] = 0;
         lastSensorStates[i] = false;
-        isSampling[i] = false;
-        lastRisingEdge[i] = false;
+        isObjectPassing[i] = false;
     }
+}
+
+// 实现单例模式的getInstance方法
+DiameterScanner* DiameterScanner::getInstance() {
+    if (instance == NULL) {
+        instance = new DiameterScanner();
+    }
+    return instance;
 }
 
 void DiameterScanner::initialize() {
@@ -29,11 +38,10 @@ void DiameterScanner::start() {
     isScanning = true;
     nominalDiameter = 0;
     for (int i = 0; i < 4; i++) {
-        highLevelCounts[i] = 0;
+        highLevelPulseCounts[i] = 0;
         objectCount[i] = 0;
         lastSensorStates[i] = false;
-        isSampling[i] = false;
-        lastRisingEdge[i] = false;
+        isObjectPassing[i] = false;
     }
 }
 
@@ -50,43 +58,30 @@ void DiameterScanner::sample(int phase) {
             anyHigh = true;
             allFinished = false;
             
-            if (!isSampling[i]) {
-                isSampling[i] = true;
-                highLevelCounts[i] = 0;
-                lastRisingEdge[i] = true;
+            if (!isObjectPassing[i]) {
+                isObjectPassing[i] = true;
+                highLevelPulseCounts[i] = 0;
             }
             
-            highLevelCounts[i]++;
+            highLevelPulseCounts[i]++;
         } else {
-            if (isSampling[i]) {
-                isSampling[i] = false;
+            if (isObjectPassing[i]) {
+                isObjectPassing[i] = false;
                 
                 // 当传感器从高电平变为低电平时，计数加一（物体通过）
-                if (lastRisingEdge[i]) {
-                    objectCount[i]++;
-                    lastRisingEdge[i] = false;
-                }
+                objectCount[i]++;
             }
         }
         
         lastSensorStates[i] = currentState;
     }
     
-    if (anyHigh) {
-        if (logLevel == LOG_LEVEL_DEBUG) {
-            Serial.print("✗");
-        }
-    } else {
-        if (logLevel == LOG_LEVEL_DEBUG) {
-            Serial.print("·");
-        }
-        
-        if (allFinished) {
+    if (!anyHigh && allFinished) {
             float correctedCounts[4];
             int validCount = 0;
             
             for (int i = 0; i < 4; i++) {
-                correctedCounts[i] = highLevelCounts[i] * LASER_SCANNER_WEIGHTS[i];
+                correctedCounts[i] = highLevelPulseCounts[i] * LASER_SCANNER_WEIGHTS[i];
                 
                 if (correctedCounts[i] >= LASER_SCANNER_MIN_DIAMETER) {
                     validCount++;
@@ -122,7 +117,6 @@ void DiameterScanner::sample(int phase) {
                 }
             }
         }
-    }
 }
 
 int DiameterScanner::getDiameterAndStop() const {
@@ -144,16 +138,8 @@ int DiameterScanner::getTotalObjectCount() const {
     return total;
 }
 
-void DiameterScanner::setLogLevel(LoggerLevel level) {
-    logLevel = level;
-}
-
-LoggerLevel DiameterScanner::getLogLevel() {
-    return logLevel;
-}
-
-String DiameterScanner::getIOStatus() {
-    bool currentStates[4];
+bool* DiameterScanner::getIOStatusArray() {
+    static bool currentStates[4];
     bool stateChanged = false;
     
     // 读取所有4个传感器的当前状态
@@ -173,60 +159,19 @@ String DiameterScanner::getIOStatus() {
         }
     }
     
-    // 生成IO状态字符串
-    String status = "";
-    for (int i = 0; i < 4; i++) {
-        status += String(currentStates[i] ? "H" : "L");
-        if (i < 3) {
-            status += " ";
-        }
-    }
-    
-    return status;
+    return currentStates;
 }
 
-void DiameterScanner::displayIOStatus() {
-    String status = getIOStatus();
-    
-    // 串口输出
-    Serial.print("IO Status: ");
-    Serial.println(status);
-    
-    // OLED显示
-    OLED* oled = OLED::getInstance();
-    if (oled->isAvailable()) {
-        oled->displayDiagnosticInfo("Scanner IO Status", status);
+int DiameterScanner::getHighLevelPulseCount(int index) const {
+    if (index >= 0 && index < 4) {
+        return highLevelPulseCounts[index];
     }
+    return 0;
 }
 
-String DiameterScanner::getRawDiameters() {
-    // 生成原始直径值字符串
-    String diameters = "D1:" + String(highLevelCounts[0]) + 
-                      " D2:" + String(highLevelCounts[1]) + 
-                      " D3:" + String(highLevelCounts[2]) + 
-                      " D4:" + String(highLevelCounts[3]);
-    
-    return diameters;
-}
-
-void DiameterScanner::displayRawDiameters() {
-    String diameters = getRawDiameters();
-    
-    // 串口输出
-    Serial.println("Raw Diameters:");
-    for (int i = 0; i < 4; i++) {
-        Serial.print("  Scanner ");
-        Serial.print(i + 1);
-        Serial.print(": ");
-        Serial.print(highLevelCounts[i]);
-        Serial.print(" (corrected: ");
-        Serial.print(highLevelCounts[i] * LASER_SCANNER_WEIGHTS[i]);
-        Serial.println(")");
+float DiameterScanner::getSensorWeight(int index) const {
+    if (index >= 0 && index < 4) {
+        return LASER_SCANNER_WEIGHTS[index];
     }
-    
-    // OLED显示
-    OLED* oled = OLED::getInstance();
-    if (oled->isAvailable()) {
-        oled->displayDiagnosticInfo("Scanner Diameter", diameters);
-    }
+    return 0.0f;
 }

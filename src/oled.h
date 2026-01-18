@@ -19,6 +19,12 @@
 // 系统工作模式前向声明
 enum SystemMode;
 
+// 比较两个DisplayData对象是否相等
+bool operator==(const DisplayData& lhs, const DisplayData& rhs);
+
+// 比较两个DisplayData对象是否不相等
+bool operator!=(const DisplayData& lhs, const DisplayData& rhs);
+
 /**
  * @class OLED
  * @brief SSD1306 I2C显示器管理类
@@ -54,12 +60,26 @@ private:
   // 诊断模式显示状态管理
   bool isDiagnosticModeActive;  // 是否处于诊断模式显示状态
   
+  // 扫描仪编码器值显示状态管理
+  int lastRisingValues[4];  // 存储上一次显示的上升沿编码器值
+  int lastFallingValues[4];  // 存储上一次显示的下降沿编码器值
+  bool isFirstScannerDisplay;  // 指示是否是第一次显示扫描仪编码器值
+  
+  // 上一次显示的DisplayData，用于检测数据变化
+  DisplayData lastDisplayData;
+  
   // 私有方法
   void drawHeader();
   void drawSystemInfo(SystemMode currentMode);
   void drawEncoderInfo(int encoderPosition);
   void drawOutletInfo(uint8_t outletCount);
   void checkTemporaryDisplayEnd();  // 检查临时显示是否结束
+  
+  // 模式专用显示方法
+  void displayNormalMode(const DisplayData& data);
+  void displayEncoderDiagnosticMode(const DisplayData& data);
+  void displayOutletDiagnosticMode(const DisplayData& data);
+  void displayOtherModes(const DisplayData& data);
   
 public:
   // 单例模式的获取实例方法
@@ -84,7 +104,10 @@ public:
   void displayDiagnosticInfo(const String& title, const String& info);
   
   // 显示出口测试模式图形
-  void displayOutletTestGraphic(uint8_t outletCount, uint8_t openOutlet, int subMode);
+    void displayOutletTestGraphic(uint8_t outletCount, uint8_t openOutlet, int subMode);
+    
+    // 显示扫描仪编码器值
+    void displayScannerEncoderValues(const int* risingValues, const int* fallingValues);
   
   // 重置诊断模式显示标志（用于切换出MODE_DIAGNOSE_SCANNER模式时）
   void resetDiagnosticMode();

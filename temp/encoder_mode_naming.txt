@@ -1,0 +1,95 @@
+# encoderValueRecordingMode 命名建议
+
+## 功能分析
+通过代码分析，该变量的核心功能是：
+- **在两种工作模式之间切换**：
+  - 正常模式（false）：调用`scanner->sample()`进行直径测量采样
+  - 诊断模式（true）：调用`scanner->recordEncoderValues()`仅记录编码器值用于诊断
+- 主要用于**扫描仪诊断场景**
+- 提供了`enable/disable`方法进行控制
+
+## 当前命名分析
+变量名: encoderValueRecordingMode
+注释: 编码器值记录模式标志
+问题: 
+- 名称过长，不够简洁
+- 没有明确表达"模式切换"的核心功能
+- 更偏向于描述操作而非模式本身
+
+## 命名建议
+
+### 1. scannerDiagnosticMode
+- **变量名**：scannerDiagnosticMode
+- **注释**：扫描仪诊断模式标志 - 在正常测量和编码器值记录（诊断）模式间切换
+- **方法名**：enableScannerDiagnosticMode() / disableScannerDiagnosticMode()
+- **优势**：
+  - 直接明确表示这是诊断模式
+  - 与功能高度匹配（诊断模式下记录编码器值）
+  - 简洁清晰，易于理解
+
+### 2. encoderRecordingMode
+- **变量名**：encoderRecordingMode
+- **注释**：编码器记录模式标志 - 启用时仅记录编码器值用于诊断
+- **方法名**：enableEncoderRecording() / disableEncoderRecording()
+- **优势**：
+  - 保留了"encoder"关键字，明确与编码器相关
+  - 更简洁，去掉了冗余的"Value"
+  - 仍能表达记录功能
+
+### 3. diagnosticSamplingMode
+- **变量名**：diagnosticSamplingMode
+- **注释**：诊断采样模式标志 - 切换正常测量和诊断采样模式
+- **方法名**：enableDiagnosticSampling() / disableDiagnosticSampling()
+- **优势**：
+  - 强调了"采样"的核心操作
+  - 明确表示这是诊断相关的
+
+### 4. measurementDiagnosticMode
+- **变量名**：measurementDiagnosticMode
+- **注释**：测量诊断模式标志 - 在正常测量和诊断采样间切换
+- **方法名**：enableMeasurementDiagnostic() / disableMeasurementDiagnostic()
+- **优势**：
+  - 明确连接了测量和诊断两个概念
+  - 表达了模式切换的完整功能
+
+### 5. scanDiagnosticMode
+- **变量名**：scanDiagnosticMode
+- **注释**：扫描诊断模式标志 - 切换正常扫描和诊断记录模式
+- **方法名**：enableScanDiagnostic() / disableScanDiagnostic()
+- **优势**：
+  - 非常简洁
+  - 与其他标志变量命名风格一致
+
+## 推荐选择
+
+### 首选：scannerDiagnosticMode
+**理由**：
+- 最直接地表达了变量的核心功能：扫描仪的诊断模式
+- 与功能完全匹配，不会产生歧义
+- 与项目中其他模式变量（如MODE_DIAGNOSE_SCANNER）的命名风格一致
+- 简洁明了，易于记忆和使用
+
+### 备选：encoderRecordingMode
+**理由**：
+- 保留了与编码器相关的明确联系
+- 更简洁，适合追求代码简洁性的场景
+- 仍能清晰表达功能
+
+## 代码修改示例
+```cpp
+// 旧代码 - Sorter类
+getInstance()->enableEncoderValueRecording();
+getInstance()->disableEncoderValueRecording();
+
+// 新代码 - Sorter类
+getInstance()->enableScannerDiagnosticMode();
+getInstance()->disableScannerDiagnosticMode();
+
+// 旧代码 - ScannerDiagnosticHandler类
+scannerDiagnosticHandler.enableEncoderValueRecording();
+scannerDiagnosticHandler.disableEncoderValueRecording();
+
+// 新代码 - ScannerDiagnosticHandler类
+scannerDiagnosticHandler.enableScannerDiagnosticMode();
+scannerDiagnosticHandler.disableScannerDiagnosticMode();
+```
