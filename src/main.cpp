@@ -10,6 +10,8 @@
 
 // 引入系统工作模式定义
 #include "main.h"
+#include "user_interface/oled.h"
+#include "user_interface/terminal.h"
 
 // 全局变量定义
 
@@ -36,8 +38,7 @@ bool modeChangePending = false;
 int normalModeSubmode = 0;
 // 编码器诊断模式子模式（0: 位置显示, 1: 相位变化）
 int encoderDiagnosticSubmode = 0;
-// 出口测试模式子模式（0: 轮巡降落, 1: 轮巡上升）
-int outletTestSubmode = 0;
+
 
 // =========================
 // 状态标志
@@ -77,11 +78,30 @@ void setup() {
   Serial.begin(115200);
   Serial.println("ESP32 Sorter system starting...");
   
-  // 初始化用户界面（包含OLED和SimpleHMI）
+  // 初始化用户界面（不包含显示设备）
   userInterface->initialize();
+  
+  // 创建并初始化显示设备
+  OLED* oled = OLED::getInstance();
+  Terminal* terminal = Terminal::getInstance();
+  
+  oled->initialize();
+  terminal->initialize();
+  
+  // 将显示设备注入到UserInterface中
+  UserInterface::addExternalDisplayDevice(oled);
+  UserInterface::addExternalDisplayDevice(terminal);
   
   // 显式启用所有输出渠道（串口和OLED）
   userInterface->enableOutputChannel(OUTPUT_ALL);
+  
+  // 设置UserInterface指针到各个诊断类
+  outletDiagnosticHandler.setUserInterface(userInterface);
+  
+  // 设置每个出口对象的指针到出口诊断处理类
+  for (uint8_t i = 0; i < OUTLET_COUNT; i++) {
+    outletDiagnosticHandler.setOutlet(i, sorter.getOutlet(i));
+  }
   
   // 串口初始化完成后无需等待连接建立
   
@@ -142,11 +162,7 @@ void handleSlaveButton() {
       userInterface->displayDiagnosticInfo("Encoder Diag", "SubMode: " + subModeName);
     } else if (currentMode == MODE_DIAGNOSE_OUTLET) {
       // 在出口诊断模式下，切换子显示模式
-      outletTestSubmode = (outletTestSubmode + 1) % 2;  // 2个子模式循环切换
-      
-      String subModeName = outletTestSubmode == 0 ? "Cycle Drop (Normally Open)" : "Cycle Raise (Normally Closed)";
-      Serial.println("[DIAGNOSTIC] Switch to Submode: " + subModeName);
-      userInterface->displayDiagnosticInfo("Outlet Diag", "SubMode: " + subModeName);
+      outletDiagnosticHandler.switchToNextSubMode();
     } else if (currentMode == MODE_DIAGNOSE_SCANNER) {
       // 在扫描仪诊断模式下，切换子显示模式
       scannerDiagnosticHandler.switchToNextSubMode();
@@ -215,97 +231,6 @@ void processDiagnoseEncoderMode() {
   
   // 使用新的显示方法
   userInterface->displayPositionInfo("Encoder", encoderPosition, true);
-}
-
-// 处理出口诊断模式
-void processDiagnoseOutletMode(unsigned long currentTime) {
-  // 诊断出口模式 - 根据子模式测试出口
-  static unsigned long modeStartTime = 0;
-  static unsigned long lastOutletTime = 0;
-  static bool outletState = false;
-  static uint8_t currentOutlet = 0;
-  static uint8_t MAX_OUTLETS = 0;
-  static bool displayInitialized = false;
-  
-  // 模式开始时初始化
-  if (modeStartTime == 0) {
-    modeStartTime = currentTime;
-    lastOutletTime = currentTime;
-    outletState = false;
-    currentOutlet = 0;
-    displayInitialized = false;
-    // 获取出口数量
-    MAX_OUTLETS = outletDiagnosticHandler.getOutletCount();
-    Serial.println("[DIAGNOSTIC] Outlet Diagnostic Mode Activated - Submode: " + String(outletTestSubmode == 0 ? "Cycle Drop (Normally Open)" : "Cycle Raise (Normally Closed)"));
-    Serial.println("[DIAGNOSTIC] Use slave button to switch submode");
-  }
-  
-  // 初始化显示
-  if (!displayInitialized) {
-    displayInitialized = true;
-    userInterface->displayOutletTestGraphic(MAX_OUTLETS, 255, outletTestSubmode);  // 初始状态，没有打开的出口
-  }
-  
-  // 根据子模式执行相对独立的逻辑
-  switch (outletTestSubmode) {
-    case 0: {
-      // 子模式0：轮巡降落（常态打开，偶尔闭合）
-      // 打开保持时间：4.5秒，关闭保持时间：1.5秒
-      unsigned long interval = outletState ? 4500 : 1500;
-      
-      if (currentTime - lastOutletTime >= interval) {
-        lastOutletTime = currentTime;
-        outletState = !outletState;
-        
-        // 当状态从关闭切换到打开时，移动到下一个出口
-        if (outletState) {
-          currentOutlet = (currentOutlet + 1) % MAX_OUTLETS;
-          Serial.print("[DIAGNOSTIC] Now testing outlet normally closed: ");
-          Serial.println(currentOutlet);
-        }
-        
-        // 使用公共方法控制当前出口
-        outletDiagnosticHandler.setOutletState(currentOutlet, outletState);
-        
-        // 更新OLED显示
-        if (outletState) {
-          userInterface->displayOutletTestGraphic(MAX_OUTLETS, currentOutlet, outletTestSubmode);
-        } else {
-          userInterface->displayOutletTestGraphic(MAX_OUTLETS, 255, outletTestSubmode);  // 255表示没有打开的出口
-        }
-      }
-      break;
-    }
-    
-    case 1: {
-      // 子模式1：轮巡上升（常态闭合，偶尔打开）
-      // 关闭保持时间：4.5秒，打开保持时间：1.5秒
-      unsigned long interval = outletState ? 1500 : 4500;
-      
-      if (currentTime - lastOutletTime >= interval) {
-        lastOutletTime = currentTime;
-        outletState = !outletState;
-        
-        // 当状态从关闭切换到打开时，移动到下一个出口
-        if (outletState) {
-          currentOutlet = (currentOutlet + 1) % MAX_OUTLETS;
-          Serial.print("[DIAGNOSTIC] Now testing outlet normally open: ");
-          Serial.println(currentOutlet);
-        }
-        
-        // 使用公共方法控制当前出口
-        outletDiagnosticHandler.setOutletState(currentOutlet, outletState);
-        
-        // 更新OLED显示
-        if (outletState) {
-          userInterface->displayOutletTestGraphic(MAX_OUTLETS, currentOutlet, outletTestSubmode);
-        } else {
-          userInterface->displayOutletTestGraphic(MAX_OUTLETS, 255, outletTestSubmode);  // 255表示没有打开的出口
-        }
-      }
-      break;
-    }
-  }
 }
 
 // 处理上料器测试模式
@@ -426,8 +351,13 @@ void loop() {
       break;
       
     case MODE_DIAGNOSE_OUTLET:
-      processDiagnoseOutletMode(currentTime);
-      outletDiagnosticHandler.processTasks();  // 出口诊断模式需要处理出口相关任务
+      // 处理从按钮输入，切换子模式
+      if (userInterface->isSlaveButtonPressed()) {
+        outletDiagnosticHandler.switchToNextSubMode();
+      }
+      
+      // 执行诊断模式的主要逻辑
+      outletDiagnosticHandler.update(currentTime);
       break;
       
     case MODE_TEST_RELOADER:
@@ -459,10 +389,6 @@ void loop() {
       Serial.println(currentMode);
       break;
   }
-  
-
-  
-
 }
 
 // 函数实现

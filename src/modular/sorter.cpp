@@ -4,10 +4,9 @@
 #include "tray_manager.h"
 #include <Arduino.h>
 #include <cstddef>
-#include "user_interface/oled.h"
 
 Sorter::Sorter() :
-                   restartScan(false), calculateDiameter(false),
+                   shouldRestartScan(false), shouldCalculateDiameter(false),
                    executeOutlets(false), resetOutlets(false),
                    reloaderOpenRequested(false), reloaderCloseRequested(false),
                    lastSpeedCheckTime(0), lastEncoderPosition(0), lastSpeed(0.0f), lastObjectCount(0) {
@@ -22,14 +21,6 @@ Sorter::Sorter() :
 }
 
 void Sorter::initialize() {
-    // 初始化LED引脚为输出模式
-    pinMode(STATUS_LED1_PIN, OUTPUT);
-    pinMode(STATUS_LED2_PIN, OUTPUT);
-    
-    // 初始化LED状态为关闭
-    digitalWrite(STATUS_LED1_PIN, LOW);
-    digitalWrite(STATUS_LED2_PIN, LOW);
-    
     // 获取直径扫描仪单例实例并初始化
     if (!scanner) {
         scanner = DiameterScanner::getInstance();
@@ -68,7 +59,7 @@ void Sorter::initialize() {
     reloaderServo.write(SORTER_RELOADER_CLOSE_ANGLE);
     
     // 设置编码器回调，将Sorter实例和静态回调函数连接到编码器
-    encoder->setPhaseCallback(this, encoderPhaseCallback);
+    encoder->setPhaseCallback(this, onEncoderPhaseChange);
 }
 
 // 初始化出口位置实现
@@ -91,10 +82,10 @@ void Sorter::onPhaseChange(int phase) {
     switch (phase) {
         // 直径扫描仪相关操作
         case 100:
-            calculateDiameter = true;
+            shouldCalculateDiameter = true;
             break;
         case 180:
-            restartScan = true;
+            shouldRestartScan = true;
             break;
             
         // 出口相关操作
@@ -122,7 +113,7 @@ void Sorter::onPhaseChange(int phase) {
 }
 
 // 实现静态回调函数
-void Sorter::encoderPhaseCallback(void* context, int phase) {
+void Sorter::onEncoderPhaseChange(void* context, int phase) {
     // 将上下文转换回Sorter指针并调用成员函数
     Sorter* sorter = static_cast<Sorter*>(context);
     sorter->onPhaseChange(phase);
@@ -130,13 +121,13 @@ void Sorter::encoderPhaseCallback(void* context, int phase) {
 
 // 处理扫描仪相关任务
 void Sorter::processScannerTasks() {
-    if (restartScan) {
-        restartScan = false;
+    if (shouldRestartScan) {
+        shouldRestartScan = false;
         scanner->start();
     }
     
-    if (calculateDiameter) {
-        calculateDiameter = false;
+    if (shouldCalculateDiameter) {
+        shouldCalculateDiameter = false;
         // 从传感器获取直径数据（单位为unit）
         int rawDiameterValue = scanner->getDiameterAndStop();
         // 将unit转换为毫米（diameter_mm = rawDiameterUnit / 2）
@@ -198,14 +189,7 @@ void Sorter::processOutletTasks() {
             outlets[i].execute();
         }
         
-        // 使用直接GPIO控制LED显示出口状态：两个LED都亮表示有出口打开
-        if (hasOutletOpened) {
-            digitalWrite(STATUS_LED1_PIN, HIGH);
-            digitalWrite(STATUS_LED2_PIN, HIGH);
-        } else {
-            digitalWrite(STATUS_LED1_PIN, LOW);
-            digitalWrite(STATUS_LED2_PIN, LOW);
-        }
+        // 出口状态已经通过出口舵机动作显示，无需额外LED指示
     }
     
     if (resetOutlets) {
@@ -214,9 +198,7 @@ void Sorter::processOutletTasks() {
             outlets[i].setReadyToOpen(false);
             outlets[i].execute();
         }
-        // 复位时关闭所有LED
-        digitalWrite(STATUS_LED1_PIN, LOW);
-        digitalWrite(STATUS_LED2_PIN, LOW);
+        // 复位出口状态已完成，无需额外LED指示
     }
 }
 
@@ -241,12 +223,16 @@ void Sorter::setOutletState(uint8_t outletIndex, bool open) {
     if (outletIndex < SORTER_NUM_OUTLETS) {
         outlets[outletIndex].setReadyToOpen(open);
         outlets[outletIndex].execute();
-        // 公共方法中使用直接GPIO控制LED显示
-        if (open) {
-            digitalWrite(STATUS_LED1_PIN, HIGH);
-            digitalWrite(STATUS_LED2_PIN, HIGH);
-        }
+        // 公共方法中无需额外LED指示，出口状态已通过舵机动作显示
     }
+}
+
+// 获取特定出口对象的指针（用于诊断模式）
+Outlet* Sorter::getOutlet(uint8_t index) {
+    if (index < SORTER_NUM_OUTLETS) {
+        return &outlets[index];
+    }
+    return nullptr;
 }
 
 // 上料器控制公共方法实现
