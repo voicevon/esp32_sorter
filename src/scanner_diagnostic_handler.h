@@ -27,11 +27,15 @@ private:
     // 编码器值记录
     long risingEdgeEncoderValues[4];  // 上升沿编码器值
     long fallingEdgeEncoderValues[4]; // 下降沿编码器值
+    int diameterDifferences[4];       // 直径差值（下降沿 - 上升沿，确保非负）
+    bool hasCalculatedDifferences;    // 标记是否已经计算过差值
     
     // 传感器状态
     bool lastSensorStates[4];  // 上一次传感器状态
     bool risingEdges[4];       // 上升沿标志
     bool fallingEdges[4];      // 下降沿标志
+    String lastIOStatus;       // 上一次IO状态字符串，用于避免重复输出
+    int lastRawDiameters[4];   // 上一次原始直径值，用于避免重复输出
 
 public:
     /**
@@ -43,11 +47,6 @@ public:
      * 显示原始直径
      */
     void displayRawDiameters();
-    
-    /**
-     * 编码器相位变化回调
-     */
-    void onPhaseChange(int phase);
     
     /**
      * 主更新方法，处理所有诊断逻辑

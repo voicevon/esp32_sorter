@@ -14,13 +14,13 @@ typedef void (*PhaseCallback)(void* context, int phase);
 class Encoder {
 private:
     // 核心状态变量
-    long count;                      // 编码器计数值
-    long lastCount;                  // 上次计数值，用于检测变化
-    volatile bool positionChanged;  // 位置变化标志（用于OLED显示）
+    long encoderCount;               // 编码器计数值
+    long previousCount;              // 上次计数值，用于检测变化
+    volatile bool positionChanged; // 位置变化标志（用于OLED显示）
     
     // 回调函数指针和上下文
-    PhaseCallback phaseCallback;  // 相位回调
-    void* phaseCallbackContext;    // 回调上下文指针
+    PhaseCallback encoderPhaseCallback;  // 相位回调
+    void* encoderPhaseCallbackContext;    // 回调上下文指针
     
     // 私有构造函数（单例模式）
     Encoder();
@@ -48,7 +48,7 @@ public:
     bool hasPositionChanged() const { return positionChanged; }
     
     // 获取原始计数值
-    long getRawCount() const { return count; }
+    long getRawCount() const { return encoderCount; }
     
     // 中断处理函数
     static void handleAPhaseInterrupt();  // A相中断
@@ -56,7 +56,7 @@ public:
     static void handleZPhaseInterrupt();  // Z相中断
     
     // 调试信息打印方法
-    void printout();
+    void printDiagnosticInfo();
 };
 
 #endif // ENCODER_H

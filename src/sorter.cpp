@@ -1,25 +1,23 @@
 #include "sorter.h"
 #include "HardwareSerial.h"
 #include "pins.h"
-#include "asparagus_tray_manager.h"
+#include "tray_manager.h"
 #include <Arduino.h>
 #include <cstddef>
 #include "oled.h"
 
-
-
 Sorter::Sorter() :
-                   restartScanFlag(false), calculateDiameterFlag(false),
-                   executeOutletsFlag(false), resetOutletsFlag(false),
-                   reloaderOpenFlag(false), reloaderCloseFlag(false),
+                   restartScan(false), calculateDiameter(false),
+                   executeOutlets(false), resetOutlets(false),
+                   reloaderOpenRequested(false), reloaderCloseRequested(false),
                    lastSpeedCheckTime(0), lastObjectCount(0) {
     // 构造函数初始化 - 使用单例模式获取实例
     encoder = Encoder::getInstance();
-    hmi = SimpleHMI::getInstance();
+    simpleHmi = SimpleHMI::getInstance();
     
     // 初始化分流点索引为默认值
     for (uint8_t i = 0; i < SORTER_NUM_OUTLETS; i++) {
-        divergencePointIndices[i] = 5 + i * 5;  // 默认间距为5
+        outletDivergencePoints[i] = 5 + i * 5;  // 默认间距为5
     }
 }
 
@@ -38,23 +36,24 @@ void Sorter::initialize() {
     }
     scanner->initialize();
     
-    // 初始化所有出口并设置直径范围（以毫米为单位）
-    // 出口0: 扫描次数>1
-    outlets[0].initialize(SERVO_PINS[0]);
-    // 出口1: 直径>15mm (15mm以上)
-    outlets[1].initialize(SERVO_PINS[1], 20,255 );
-    // 出口2: 12mm<直径≤15mm
-    outlets[2].initialize(SERVO_PINS[2], 18, 20);
-    // 出口3: 10mm<直径≤12mm
-    outlets[3].initialize(SERVO_PINS[3], 16, 18);
-    // 出口4: 8mm≤直径≤10mm
-    outlets[4].initialize(SERVO_PINS[4], 14, 16);
-    // 出口5: 6mm<直径≤8mm
-    outlets[5].initialize(SERVO_PINS[5], 12, 14);
-    // 出口6: 4mm<直径≤6mm
-    outlets[6].initialize(SERVO_PINS[6], 10, 12);
-    // 出口7: 直径≤4mm (4mm以下)
-    outlets[7].initialize(SERVO_PINS[7], 8, 10);
+    // 出口直径范围定义（单位：毫米）
+    const uint8_t OUTLET_DIAMETER_RANGES[SORTER_NUM_OUTLETS][2] = {
+        {0, 0},     // 出口0：特殊处理
+        {20, 255},  // 出口1：直径>20mm
+        {18, 20},   // 出口2：18mm<直径≤20mm
+        {16, 18},   // 出口3：16mm<直径≤18mm
+        {14, 16},   // 出口4：14mm<直径≤16mm
+        {12, 14},   // 出口5：12mm<直径≤14mm
+        {10, 12},   // 出口6：10mm<直径≤12mm
+        {8, 10}     // 出口7：8mm<直径≤10mm
+    };
+    
+    // 初始化所有出口并设置直径范围
+    for (uint8_t i = 0; i < SORTER_NUM_OUTLETS; i++) {
+        int minD = OUTLET_DIAMETER_RANGES[i][0];
+        int maxD = OUTLET_DIAMETER_RANGES[i][1];
+        outlets[i].initialize(SERVO_PINS[i], minD, maxD);
+    }
     
     // 初始化出口位置
     uint8_t defaultDivergencePoints[SORTER_NUM_OUTLETS] = {1, 3, 5, 7, 9, 11, 13, 15};
@@ -69,22 +68,20 @@ void Sorter::initialize() {
     reloaderServo.write(SORTER_RELOADER_CLOSE_ANGLE);
     
     // 设置编码器回调，将Sorter实例和静态回调函数连接到编码器
-    encoder->setPhaseCallback(this, staticPhaseCallback);
+    encoder->setPhaseCallback(this, encoderPhaseCallback);
 }
 
 // 初始化出口位置实现
 void Sorter::initializeDivergencePoints(const uint8_t positions[SORTER_NUM_OUTLETS]) {
     for (uint8_t i = 0; i < SORTER_NUM_OUTLETS; i++) {
         if (positions[i] < 31) { // TOTAL_TRAYS = 31
-            divergencePointIndices[i] = positions[i];
+            outletDivergencePoints[i] = positions[i];
         } else {
             // 如果提供的位置无效，使用默认值
-            divergencePointIndices[i] = 5 + i * 5;
+            outletDivergencePoints[i] = 5 + i * 5;
         }
     }
 }
-
-
 
 void Sorter::onPhaseChange(int phase) {
     // 编码器中断始终工作，不受系统模式影响
@@ -94,27 +91,27 @@ void Sorter::onPhaseChange(int phase) {
     switch (phase) {
         // 直径扫描仪相关操作
         case 100:
-            calculateDiameterFlag = true;
+            calculateDiameter = true;
             break;
         case 180:
-            restartScanFlag = true;
+            restartScan = true;
             break;
             
         // 出口相关操作
         case 110:
-            resetOutletsFlag = true;
+            resetOutlets = true;
             break;
         case 175:
-            executeOutletsFlag = true;
+            executeOutlets = true;
             break;
         // 上料器特殊位置控制
         case 200:
             // 上料器开启位置
-            reloaderOpenFlag = true;
+            reloaderOpenRequested = true;
             break;
         case 220:
             // 上料器关闭位置
-            reloaderCloseFlag = true;
+            reloaderCloseRequested = true;
             break;
         default:
             // 无需处理的phase值
@@ -125,7 +122,7 @@ void Sorter::onPhaseChange(int phase) {
 }
 
 // 实现静态回调函数
-void Sorter::staticPhaseCallback(void* context, int phase) {
+void Sorter::encoderPhaseCallback(void* context, int phase) {
     // 将上下文转换回Sorter指针并调用成员函数
     Sorter* sorter = static_cast<Sorter*>(context);
     sorter->onPhaseChange(phase);
@@ -133,39 +130,39 @@ void Sorter::staticPhaseCallback(void* context, int phase) {
 
 // 处理扫描仪相关任务
 void Sorter::processScannerTasks() {
-    if (restartScanFlag) {
-        restartScanFlag = false;
+    if (restartScan) {
+        restartScan = false;
         scanner->start();
     }
     
-    if (calculateDiameterFlag) {
-        calculateDiameterFlag = false;
+    if (calculateDiameter) {
+        calculateDiameter = false;
         // 从传感器获取直径数据（单位为unit）
-        int rawDiameterUnit = scanner->getDiameterAndStop();
+        int rawDiameterValue = scanner->getDiameterAndStop();
         // 将unit转换为毫米（diameter_mm = rawDiameterUnit / 2）
-        int diameter_mm = rawDiameterUnit / 2;
-        int scanCount = scanner->getTotalObjectCount();
+        int diameterMm = rawDiameterValue / 2;
+        int objectScanCount = scanner->getTotalObjectCount();
         
         // 当直径不为0时显示原始检测数据
-        if (diameter_mm > 0) {
+        if (diameterMm > 0) {
             Serial.print("原始值检测到: ");
-            Serial.print(diameter_mm);
+            Serial.print(diameterMm);
             Serial.print("mm, 物体计数: ");
-            Serial.println(scanCount);
+            Serial.println(objectScanCount);
         }
         
         // 添加新的直径数据到托盘系统（使用毫米值）
-        traySystem.pushNewAsparagus(diameter_mm, scanCount);
-        presetOutlets();
+        traySystem.pushNewAsparagus(diameterMm, objectScanCount);
+        prepareOutlets();
     }
 }
 
 // 处理出口相关任务
 void Sorter::processOutletTasks() {
-    if (executeOutletsFlag) {
+    if (executeOutlets) {
         // 执行出口动作
-        executeOutletsFlag = false;
-        bool anyOutletOpened = false;
+        executeOutlets = false;
+        bool hasOutletOpened = false;
         for(int i = 0; i < SORTER_NUM_OUTLETS; i++){
             // 检查出口是否满足打开条件并实际打开
             // if (i == 0 && traySystem.getTrayScanCount(0) > 1) {
@@ -173,21 +170,21 @@ void Sorter::processOutletTasks() {
             if (false) {
                 Serial.println("预设出口0打开");
                 outlets[i].setReadyToOpen(true);
-                anyOutletOpened = true;
+                hasOutletOpened = true;
             } else if (i > 0) {
                 // 修改：将出口位置索引减1，因为实际托盘计数从1开始
-                int adjustedPosition = divergencePointIndices[i] - 1;
+                int adjustedPosition = outletDivergencePoints[i] - 1;
                 // 确保调整后的索引在有效范围内
                 if (adjustedPosition >= 0 && adjustedPosition < traySystem.getCapacity()) {
                     int diameter = traySystem.getTrayDiameter(adjustedPosition);
-                    int min = outlets[i].getMatchDiameterMin();
-                    int max = outlets[i].getMatchDiameterMax();
+                    int minDiameter = outlets[i].getMatchDiameterMin();
+                    int maxDiameter = outlets[i].getMatchDiameterMax();
                     
-                    if ((i == 1 && diameter > min) || 
-                        (i > 1 && diameter > min && diameter <= max)) {
+                    if ((i == 1 && diameter > minDiameter) || 
+                        (i > 1 && diameter > minDiameter && diameter <= maxDiameter)) {
 
                         outlets[i].setReadyToOpen(true);
-                        anyOutletOpened = true;
+                        hasOutletOpened = true;
                     } else {
                         outlets[i].setReadyToOpen(false);
                     }
@@ -202,7 +199,7 @@ void Sorter::processOutletTasks() {
         }
         
         // 使用直接GPIO控制LED显示出口状态：两个LED都亮表示有出口打开
-        if (anyOutletOpened) {
+        if (hasOutletOpened) {
             digitalWrite(STATUS_LED1_PIN, HIGH);
             digitalWrite(STATUS_LED2_PIN, HIGH);
         } else {
@@ -211,8 +208,8 @@ void Sorter::processOutletTasks() {
         }
     }
     
-    if (resetOutletsFlag) {
-        resetOutletsFlag = false;
+    if (resetOutlets) {
+        resetOutlets = false;
         for(int i = 0; i < SORTER_NUM_OUTLETS; i++){
             outlets[i].setReadyToOpen(false);
             outlets[i].execute();
@@ -226,24 +223,18 @@ void Sorter::processOutletTasks() {
 // 处理上料器相关任务
 void Sorter::processReloaderTasks() {
     // 处理上料器控制
-    if (reloaderOpenFlag) {
-        reloaderOpenFlag = false;
+    if (reloaderOpenRequested) {
+        reloaderOpenRequested = false;
         // 内联实现上料器开启
         reloaderServo.write(SORTER_RELOADER_OPEN_ANGLE);
     }
     
-    if (reloaderCloseFlag) {
-        reloaderCloseFlag = false;
+    if (reloaderCloseRequested) {
+        reloaderCloseRequested = false;
         // 内联实现上料器关闭
         reloaderServo.write(SORTER_RELOADER_CLOSE_ANGLE);
     }
 }
-
-
-
-
-
-
 
 // 出口控制公共方法实现
 void Sorter::setOutletState(uint8_t outletIndex, bool open) {
@@ -268,7 +259,7 @@ void Sorter::closeReloader() {
 }
 
 // 实现预设出口功能
-void Sorter::presetOutlets() {
+void Sorter::prepareOutlets() {
     // 出口0处理
     if (traySystem.getTrayScanCount(0) > 1){
         outlets[0].setReadyToOpen(true);
@@ -279,9 +270,9 @@ void Sorter::presetOutlets() {
     // 为每个出口预设状态
     for (uint8_t i = 1; i < SORTER_NUM_OUTLETS; i++) {
         // 修改：将出口位置索引减1，因为实际托盘计数从1开始
-        int outletPosition = divergencePointIndices[i] - 1;
-        int min = outlets[i].getMatchDiameterMin();
-        int max = outlets[i].getMatchDiameterMax();
+        int outletPosition = outletDivergencePoints[i] - 1;
+        int minDiameter = outlets[i].getMatchDiameterMin();
+        int maxDiameter = outlets[i].getMatchDiameterMax();
         
         // 确保调整后的索引在有效范围内
         if (outletPosition >= 0 && outletPosition < traySystem.getCapacity()) {
@@ -290,7 +281,7 @@ void Sorter::presetOutlets() {
             // 只在直径有效并且满足出口条件时设置出口状态
             if (diameter > 0 && diameter <= 50) {
                 // 检查直径范围
-                if ((i == 1 && diameter > min) || (i > 1 && diameter > min && diameter <= max)) {
+                if ((i == 1 && diameter > minDiameter) || (i > 1 && diameter > minDiameter && diameter <= maxDiameter)) {
                     outlets[i].setReadyToOpen(true);
                 } else {
                     outlets[i].setReadyToOpen(false);
@@ -339,47 +330,6 @@ float Sorter::getSortingSpeedPerSecond() {
     return speed;
 }
 
-
-
-
-
-
-
-
-
 // 获取显示数据（用于 UserInterface）
-DisplayData Sorter::getDisplayData(SystemMode currentMode, int normalSubMode, int encoderSubMode, int outletSubMode) {
-    DisplayData data;
-    
-    // 设置系统模式信息
-    data.currentMode = currentMode;
-    data.outletCount = SORTER_NUM_OUTLETS;
-    
-    // 设置子模式信息
-    data.normalSubMode = normalSubMode;
-    data.encoderSubMode = encoderSubMode;
-    data.outletSubMode = outletSubMode;
-    
-    // 设置编码器信息
-    data.encoderPosition = encoder->getCurrentPosition();
-    data.encoderPositionChanged = encoder->hasPositionChanged();
-    
-    // 设置分拣速度信息
-    float speedPerSecond = getSortingSpeedPerSecond();
-    data.sortingSpeedPerSecond = speedPerSecond;
-    data.sortingSpeedPerMinute = speedPerSecond * 60.0f;
-    data.sortingSpeedPerHour = speedPerSecond * 3600.0f;
-    
-    // 设置统计信息
-    data.identifiedCount = scanner->getTotalObjectCount();
-    data.transportedTrayCount = getTransportedTrayCount();
-    
-    // 设置直径信息
-    data.latestDiameter = getLatestDiameter();
-    
-    // 设置出口测试模式信息（默认没有打开的出口）
-    data.openOutlet = 255;
-    
-    return data;
-}
+// Sorter::getDisplayData方法已移除，改用专用方法
 

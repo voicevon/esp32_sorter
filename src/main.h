@@ -1,6 +1,8 @@
 #ifndef MAIN_H
 #define MAIN_H
 
+#include <Arduino.h>
+
 // 系统工作模式定义
 enum SystemMode {
   MODE_NORMAL = 0,            // 正常工作模式

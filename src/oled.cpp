@@ -1,31 +1,10 @@
 #include "oled.h"
-#include "display_data.h"
+// #include "display_data.h"已移除，不再需要
 
 // 系统名称
 String systemName = "Feng's AS-L9";
 
-// 比较两个DisplayData对象是否相等
-bool operator==(const DisplayData& lhs, const DisplayData& rhs) {
-  return lhs.currentMode == rhs.currentMode &&
-         lhs.outletCount == rhs.outletCount &&
-         lhs.normalSubMode == rhs.normalSubMode &&
-         lhs.encoderSubMode == rhs.encoderSubMode &&
-         lhs.outletSubMode == rhs.outletSubMode &&
-         lhs.encoderPosition == rhs.encoderPosition &&
-         lhs.encoderPositionChanged == rhs.encoderPositionChanged &&
-         lhs.sortingSpeedPerSecond == rhs.sortingSpeedPerSecond &&
-         lhs.sortingSpeedPerMinute == rhs.sortingSpeedPerMinute &&
-         lhs.sortingSpeedPerHour == rhs.sortingSpeedPerHour &&
-         lhs.identifiedCount == rhs.identifiedCount &&
-         lhs.transportedTrayCount == rhs.transportedTrayCount &&
-         lhs.latestDiameter == rhs.latestDiameter &&
-         lhs.openOutlet == rhs.openOutlet;
-}
-
-// 比较两个DisplayData对象是否不相等
-bool operator!=(const DisplayData& lhs, const DisplayData& rhs) {
-  return !(lhs == rhs);
-}
+// DisplayData比较运算符已移除，改用更具体的数据比较方法
 
 // 初始化静态实例指针
 OLED* OLED::instance = nullptr;
@@ -39,8 +18,15 @@ OLED::OLED() : display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1) {
   isDiagnosticModeActive = false;  // 初始化诊断模式标志
   isDisplayAvailable = false; // 初始化时假设显示器不可用
   
-  // 初始化上一次显示的DisplayData
-  lastDisplayData = DisplayData();
+  // 初始化上一次显示的数据
+  lastDisplayedMode = static_cast<SystemMode>(0);
+  lastEncoderPosition = 0;
+  lastSortingSpeedPerSecond = 0;
+  lastSortingSpeedPerMinute = 0;
+  lastSortingSpeedPerHour = 0;
+  lastIdentifiedCount = 0;
+  lastTransportedTrayCount = 0;
+  lastLatestDiameter = 0;
   
   // 初始化扫描仪编码器值显示状态管理变量
   for (int i = 0; i < 4; i++) {
@@ -97,15 +83,13 @@ void OLED::initialize() {
 }
 
 // 更新显示内容
-void OLED::update(const DisplayData& data) {
+// update方法已移除，改用功能专用方法
+
+// 显示正常模式统计信息（子模式0）
+void OLED::displayNormalModeStats(int sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount) {
   // 检查显示器是否可用
   if (!isDisplayAvailable) {
     return;
-  }
-  
-  // 在MODE_DIAGNOSE_SCANNER、MODE_VERSION_INFO和MODE_DIAGNOSE_OUTLET模式下，保持诊断模式显示，不切换回常规显示
-  if ((data.currentMode == MODE_DIAGNOSE_SCANNER || data.currentMode == MODE_VERSION_INFO || data.currentMode == MODE_DIAGNOSE_OUTLET) && isDiagnosticModeActive) {
-    return;  // 跳过常规更新，保持当前显示内容
   }
   
   // 检查临时显示是否活动，如果是则跳过常规更新
@@ -114,148 +98,264 @@ void OLED::update(const DisplayData& data) {
     return;
   }
   
-  // 检查是否需要更新
-  unsigned long currentTime = millis();
-  if (currentTime - lastUpdateTime < UPDATE_INTERVAL) {
-    return;
-  }
-  
-  // 检查数据是否发生变化
-  bool dataChanged = (data != lastDisplayData);
-  
-  // 对于编码器诊断模式，只在位置变化时更新
-  if (data.currentMode == MODE_DIAGNOSE_ENCODER && !data.encoderPositionChanged) {
-    dataChanged = false;
-  }
-  
-  // 如果数据没有变化，则不更新显示
-  if (!dataChanged) {
-    return;
-  }
-  
-  // 更新时间戳
-  lastUpdateTime = currentTime;
-  
-  // 更新上一次显示的数据
-  lastDisplayData = data;
-  
-  // 清屏
+  // 清屏并设置基本显示参数
   display.clearDisplay();
-  
-  // 绘制头部信息
   drawHeader();
+  display.setCursor(0, 12);
+  display.setTextSize(1);
   
-  // 根据不同模式调用对应的显示方法
-  switch (data.currentMode) {
-    case MODE_NORMAL:
-      displayNormalMode(data);
-      break;
-    case MODE_DIAGNOSE_ENCODER:
-      displayEncoderDiagnosticMode(data);
-      break;
-    case MODE_DIAGNOSE_OUTLET:
-      displayOutletDiagnosticMode(data);
-      break;
-    default:
-      displayOtherModes(data);
-      break;
+  // 第一行：每秒多少根
+  display.print(F("Speed: "));
+  display.print(sortingSpeedPerSecond);
+  display.println(F(" /s"));
+  
+  // 第二行：每分钟多少根
+  display.print(F("Speed: "));
+  display.print(sortingSpeedPerMinute);
+  display.println(F(" /m"));
+  
+  // 第三行：每小时多少根
+  display.print(F("Speed: "));
+  display.print(sortingSpeedPerHour);
+  display.println(F(" /h"));
+  
+  // 第四行：空格
+  display.println();
+  
+  // 第五行：已识别数量和托架数量
+  display.print(F("Items: "));
+  display.print(identifiedCount);
+  display.print(F(" | Transported Trays: "));
+  display.println(transportedTrayCount);
+  
+  // 显示内容
+  display.display();
+}
+
+// 显示正常模式直径信息（子模式1）
+void OLED::displayNormalModeDiameter(int latestDiameter) {
+  // 检查显示器是否可用
+  if (!isDisplayAvailable) {
+    return;
+  }
+  
+  // 检查临时显示是否活动，如果是则跳过常规更新
+  if (isTemporaryDisplayActive) {
+    checkTemporaryDisplayEnd();
+    return;
+  }
+  
+  // 清屏并设置基本显示参数
+  display.clearDisplay();
+  drawHeader();
+  display.setCursor(0, 12);
+  display.setTextSize(1);
+  
+  // 第一行：最新直径（名义直径）
+  display.print(F("Diameter: "));
+  display.print(latestDiameter);
+  display.println(F(" mm"));
+  
+  // 第二行：显示说明
+  display.println(F("Nominal Diameter"));
+  
+  // 第三行：显示空行
+  display.println();
+  
+  // 显示内容
+  display.display();
+}
+
+// 显示正常模式（保留原方法以便兼容）
+// displayNormalMode方法已移除，改用功能专用方法
+
+// 显示速度统计信息
+void OLED::displaySpeedStats(int speedPerSecond, int speedPerMinute, int speedPerHour, int itemCount, int trayCount) {
+  // 检查显示器是否可用
+  if (!isDisplayAvailable) {
+    return;
+  }
+  
+  // 检查临时显示是否活动，如果是则跳过常规更新
+  if (isTemporaryDisplayActive) {
+    checkTemporaryDisplayEnd();
+    return;
+  }
+  
+  // 清屏并设置基本显示参数
+  display.clearDisplay();
+  drawHeader();
+  display.setCursor(0, 12);
+  display.setTextSize(1);
+  
+  // 第一行：每秒多少根
+  display.print(F("Speed: "));
+  display.print(speedPerSecond);
+  display.println(F(" /s"));
+  
+  // 第二行：每分钟多少根
+  display.print(F("Speed: "));
+  display.print(speedPerMinute);
+  display.println(F(" /m"));
+  
+  // 第三行：每小时多少根
+  display.print(F("Speed: "));
+  display.print(speedPerHour);
+  display.println(F(" /h"));
+  
+  // 第四行：空格
+  display.println();
+  
+  // 第五行：已识别数量和托架数量
+  display.print(F("Items: "));
+  display.print(itemCount);
+  display.print(F(" | Transported Trays: "));
+  display.println(trayCount);
+  
+  // 显示内容
+  display.display();
+}
+
+// 显示单个值（如直径、温度等）
+void OLED::displaySingleValue(const String& label, int value, const String& unit) {
+  // 检查显示器是否可用
+  if (!isDisplayAvailable) {
+    return;
+  }
+  
+  // 检查临时显示是否活动，如果是则跳过常规更新
+  if (isTemporaryDisplayActive) {
+    checkTemporaryDisplayEnd();
+    return;
+  }
+  
+  // 清屏并设置基本显示参数
+  display.clearDisplay();
+  drawHeader();
+  display.setCursor(0, 12);
+  display.setTextSize(1);
+  
+  // 第一行：显示标签和值
+  display.print(label);
+  display.print(F(": "));
+  display.print(value);
+  if (!unit.isEmpty()) {
+    display.print(F(" "));
+    display.print(unit);
+  }
+  display.println();
+  
+  // 显示内容
+  display.display();
+}
+
+// 显示位置信息
+void OLED::displayPositionInfo(const String& title, int position, bool showOnlyOnChange) {
+  // 检查显示器是否可用
+  if (!isDisplayAvailable) {
+    return;
+  }
+  
+  // 检查临时显示是否活动，如果是则跳过常规更新
+  if (isTemporaryDisplayActive) {
+    checkTemporaryDisplayEnd();
+    return;
+  }
+  
+  // 清屏并设置基本显示参数
+  display.clearDisplay();
+  drawHeader();
+  display.setCursor(0, 12);
+  display.setTextSize(1);
+  
+  // 第一行：显示标题和位置
+  display.print(title);
+  display.print(F(": "));
+  display.println(position);
+  
+  // 显示内容
+  display.display();
+}
+
+// 显示诊断相关的两个值
+void OLED::displayDiagnosticValues(const String& title, const String& value1, const String& value2) {
+  // 检查显示器是否可用
+  if (!isDisplayAvailable) {
+    return;
+  }
+  
+  // 检查临时显示是否活动，如果是则跳过常规更新
+  if (isTemporaryDisplayActive) {
+    checkTemporaryDisplayEnd();
+    return;
+  }
+  
+  // 清屏并设置基本显示参数
+  display.clearDisplay();
+  drawHeader();
+  display.setCursor(0, 12);
+  display.setTextSize(1);
+  
+  // 第一行：显示标题
+  display.println(title);
+  
+  // 第二行：显示第一个值
+  display.println(value1);
+  
+  // 第三行：显示第二个值
+  display.println(value2);
+  
+  // 显示内容
+  display.display();
+}
+
+// 显示多行文本信息
+void OLED::displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3) {
+  // 检查显示器是否可用
+  if (!isDisplayAvailable) {
+    return;
+  }
+  
+  // 检查临时显示是否活动，如果是则跳过常规更新
+  if (isTemporaryDisplayActive) {
+    checkTemporaryDisplayEnd();
+    return;
+  }
+  
+  // 清屏并设置基本显示参数
+  display.clearDisplay();
+  drawHeader();
+  display.setCursor(0, 12);
+  display.setTextSize(1);
+  
+  // 显示标题（如果有）
+  if (!title.isEmpty()) {
+    display.println(title);
+  }
+  
+  // 显示第一行
+  display.println(line1);
+  
+  // 显示第二行
+  display.println(line2);
+  
+  // 显示第三行（如果有）
+  if (!line3.isEmpty()) {
+    display.println(line3);
   }
   
   // 显示内容
   display.display();
 }
 
-// 显示正常模式
-void OLED::displayNormalMode(const DisplayData& data) {
-  // 正常模式：根据子模式显示不同信息
-  display.setCursor(0, 12);
-  display.setTextSize(1);
-  
-  if (data.normalSubMode == 0) {
-    // 子模式0：统计信息
-    // 第一行：每秒多少根
-    display.print(F("Speed: "));
-    display.print(data.sortingSpeedPerSecond);
-    display.println(F(" /s"));
-    
-    // 第二行：每分钟多少根
-    display.print(F("Speed: "));
-    display.print(data.sortingSpeedPerMinute);
-    display.println(F(" /m"));
-    
-    // 第三行：每小时多少根
-    display.print(F("Speed: "));
-    display.print(data.sortingSpeedPerHour);
-    display.println(F(" /h"));
-    
-    // 第四行：空格
-    display.println();
-    
-    // 第五行：已识别数量和托架数量
-    display.print(F("Items: "));
-    display.print(data.identifiedCount);
-    display.print(F(" | Transported Trays: "));
-    display.println(data.transportedTrayCount);
-  } else {
-    // 子模式1：最新直径
-    // 第一行：最新直径（名义直径）
-    display.print(F("Diameter: "));
-    display.print(data.latestDiameter);
-    display.println(F(" mm"));
-    
-    // 第二行：显示说明
-    display.println(F("Nominal Diameter"));
-    
-    // 第三行：显示空行
-    display.println();
-  }
-}
-
 // 显示编码器诊断模式
-void OLED::displayEncoderDiagnosticMode(const DisplayData& data) {
-  // 编码器诊断模式：根据子模式显示不同信息
-  display.setCursor(0, 12);
-  display.setTextSize(1);
-  
-  if (data.encoderSubMode == 0) {
-    // 子模式0：显示编码器位置（只在位置变化时更新）
-    if (data.encoderPositionChanged) {
-      display.print(F("Encoder Pos: "));
-      display.println(data.encoderPosition);
-    }
-  } else {
-    // 子模式1：显示相位变化信息（只在相位变化时更新）
-    if (data.encoderPositionChanged) {
-      display.print(F("Phase: "));
-      display.println(data.encoderPosition);
-    }
-  }
-}
+// displayEncoderDiagnosticMode方法已移除，改用功能专用方法
 
 // 显示出口诊断模式
-void OLED::displayOutletDiagnosticMode(const DisplayData& data) {
-  // 出口测试模式：根据子模式显示不同信息
-  display.setCursor(0, 12);
-  display.setTextSize(1);
-  
-  if (data.outletSubMode == 0) {
-    // 子模式0：轮巡降落（常态打开，偶尔闭合）
-    display.println(F("Outlet Test:"));
-    display.println(F("Mode 0: Open"));
-  } else {
-    // 子模式1：轮巡上升（常态闭合，偶尔打开）
-    display.println(F("Outlet Test:"));
-    display.println(F("Mode 1: Close"));
-  }
-}
+// displayOutletDiagnosticMode方法已移除，改用功能专用方法
 
 // 显示其他模式
-void OLED::displayOtherModes(const DisplayData& data) {
-  // 非正常模式和非编码器诊断模式和非出口测试模式：保持原有显示
-  drawSystemInfo(data.currentMode);
-  drawEncoderInfo(data.encoderPosition);
-  drawOutletInfo(data.outletCount);
-}
+// displayOtherModes方法已移除，改用功能专用方法
 
 // 显示模式变化信息
 void OLED::displayModeChange(SystemMode newMode) {
@@ -270,7 +370,13 @@ void OLED::displayModeChange(SystemMode newMode) {
   }
   
   // 重置上一次显示的数据，确保下一次更新能检测到模式变化
-  lastDisplayData = DisplayData();
+  lastEncoderPosition = 0;
+  lastSortingSpeedPerSecond = 0;
+  lastSortingSpeedPerMinute = 0;
+  lastSortingSpeedPerHour = 0;
+  lastIdentifiedCount = 0;
+  lastTransportedTrayCount = 0;
+  lastLatestDiameter = 0;
   
   display.clearDisplay();
   display.setCursor(0, 20);
@@ -304,6 +410,39 @@ void OLED::displayModeChange(SystemMode newMode) {
   
   display.display();
   
+  // 启动临时显示计时（2秒）
+  isTemporaryDisplayActive = true;
+  temporaryDisplayStartTime = millis();
+  temporaryDisplayDuration = 2000;
+}
+
+// 新方法：显示模式变化信息，不依赖SystemMode
+void OLED::displayModeChange(const String& newModeName) {
+  // 检查显示器是否可用
+  if (!isDisplayAvailable) {
+    return;
+  }
+
+  // 重置上一次显示的数据，确保下一次更新能检测到模式变化
+  lastEncoderPosition = 0;
+  lastSortingSpeedPerSecond = 0;
+  lastSortingSpeedPerMinute = 0;
+  lastSortingSpeedPerHour = 0;
+  lastIdentifiedCount = 0;
+  lastTransportedTrayCount = 0;
+  lastLatestDiameter = 0;
+
+  display.clearDisplay();
+  display.setCursor(0, 20);
+  display.setTextSize(2);
+  display.println(F("Mode Change"));
+  display.setTextSize(1);
+  display.setCursor(0, 40);
+  display.print(F("New Mode: "));
+  display.println(newModeName);
+
+  display.display();
+
   // 启动临时显示计时（2秒）
   isTemporaryDisplayActive = true;
   temporaryDisplayStartTime = millis();
@@ -393,6 +532,13 @@ void OLED::drawSystemInfo(SystemMode currentMode) {
       display.println(F("Unknown"));
       break;
   }
+}
+
+// 新方法：绘制状态栏，不依赖SystemMode
+void OLED::drawStatusBar(const String& modeName) {
+  display.setCursor(0, 12);
+  display.print(F("Mode: "));
+  display.println(modeName);
 }
 
 // 绘制编码器信息

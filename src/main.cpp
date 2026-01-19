@@ -7,72 +7,70 @@
 #include "scanner_diagnostic_handler.h"
 #include "outlet_diagnostic_handler.h"
 #include "reloader_test_handler.h"
-#include "display_data_generator.h"
 
 // 引入系统工作模式定义
 #include "main.h"
 
 // 全局变量定义
 
+// =========================
+// 系统配置与版本信息
+// =========================
 // 版本信息
-String versionNumber = "ver: 2601";
+String firmwareVersion = "ver: 2601";
 
-// 版本信息已显示标志
-bool versionInfoAlreadyDisplayed = false;
-
-// 正常模式子模式
-int normalSubMode = 0;  // 0: 统计信息, 1: 最新直径
-
-// 编码器诊断模式子模式
-int encoderSubMode = 0;  // 0: 位置显示, 1: 相位变化
-
-// 出口测试模式子模式
-int outletSubMode = 0;  // 0: 轮巡降落（常态打开，偶尔闭合），1: 轮巡上升（常态闭合，偶尔打开）
-
-// 扫描仪诊断模式相关变量已移至ScannerDiagnosticHandler类内部管理
-
+// =========================
 // 模式相关变量
-SystemMode currentMode = MODE_NORMAL;  // 当前模式（修改为出口测试模式）
-SystemMode pendingMode = MODE_NORMAL;  // 待切换模式（与当前模式保持一致）
-bool modeChangePending = false;        // 模式切换标志
+// =========================
+// 当前工作模式
+SystemMode currentMode = MODE_NORMAL;
+// 待切换模式
+SystemMode pendingMode = MODE_NORMAL;
+// 模式切换标志
+bool modeChangePending = false;
 
-// 使用单例模式获取人机交互模块实例
+// =========================
+// 子模式变量
+// =========================
+// 正常模式子模式（0: 统计信息, 1: 最新直径）
+int normalModeSubmode = 0;
+// 编码器诊断模式子模式（0: 位置显示, 1: 相位变化）
+int encoderDiagnosticSubmode = 0;
+// 出口测试模式子模式（0: 轮巡降落, 1: 轮巡上升）
+int outletTestSubmode = 0;
+
+// =========================
+// 状态标志
+// =========================
+// 版本信息已显示标志
+bool hasVersionInfoDisplayed = false;
+
+// =========================
+// 单例实例
+// =========================
+// 人机交互模块实例
 UserInterface* userInterface = UserInterface::getInstance();
-
-// 使用单例模式获取Encoder实例
+// 编码器实例
 Encoder* encoder = Encoder::getInstance();
+// 直径扫描仪实例
+DiameterScanner* diameterScanner = DiameterScanner::getInstance();
 
-// 获取直径扫描仪单例实例
-DiameterScanner* globalScanner = DiameterScanner::getInstance();
-
-// 创建芦笋托盘系统实例（全局）
-AsparagusTrayManager globalTraySystem;
-
-// 创建Sorter实例
+// =========================
+// 系统组件实例
+// =========================
+// 芦笋托盘系统实例
+TrayManager traySystem;
+// 分拣控制器实例
 Sorter sorter;
-
-// 创建扫描仪诊断处理类实例
+// 扫描仪诊断处理类实例
 ScannerDiagnosticHandler scannerDiagnosticHandler;
-
-// 创建出口诊断处理类实例
+// 出口诊断处理类实例
 OutletDiagnosticHandler outletDiagnosticHandler;
-
-// 创建上料器测试处理类实例
+// 上料器测试处理类实例
 ReloaderTestHandler reloaderTestHandler;
 
-// 创建显示数据生成器实例
-DisplayDataGenerator displayDataGenerator(globalTraySystem);
-
 // 函数声明
-String getModeName(SystemMode mode);
-
-
-
-
-
-
-
-
+String getSystemModeName(SystemMode mode);
 
 void setup() {
   // 初始化串口通信
@@ -98,15 +96,10 @@ void setup() {
   // 初始化上料器测试处理类
   reloaderTestHandler.initialize();
   
-  // 初始化显示数据生成器
-  displayDataGenerator.initialize();
-  
   Serial.println("System ready");
-  Serial.println("Current Mode: " + getModeName(currentMode));
+  Serial.println("Current Mode: " + getSystemModeName(currentMode));
   Serial.println("Use mode button to switch between modes");
 }
-
-
 
 // 处理主按钮（模式切换）
 void handleMasterButton() {
@@ -118,10 +111,10 @@ void handleMasterButton() {
     // 打印模式切换请求信息
     Serial.print("[DIAGNOSTIC] Mode switch requested to: ");
     // 临时保存当前模式，显示待切换的模式名称
-    SystemMode tempMode = currentMode;
-    currentMode = pendingMode;
-    Serial.println(getModeName(currentMode));
-    currentMode = tempMode; // 恢复原模式
+      SystemMode tempMode = currentMode;
+      currentMode = pendingMode;
+      Serial.println(getSystemModeName(currentMode));
+      currentMode = tempMode; // 恢复原模式
     // 注意：isMasterButtonPressed()方法会自动清除标志
   }
 }
@@ -132,25 +125,28 @@ void handleSlaveButton() {
     // 从按钮功能处理
     if (currentMode == MODE_NORMAL) {
       // 在正常模式下，切换子显示模式
-      normalSubMode = (normalSubMode + 1) % 2;  // 2个子模式循环切换
+      normalModeSubmode = (normalModeSubmode + 1) % 2;  // 2个子模式循环切换
       
-      String subModeName = normalSubMode == 0 ? "Stats" : "Latest Diameter";
+      String subModeName = normalModeSubmode == 0 ? "Stats" : "Latest Diameter";
       Serial.println("[NORMAL] Switch to Submode: " + subModeName);
       userInterface->displayDiagnosticInfo("Normal Mode", "SubMode: " + subModeName);
     } else if (currentMode == MODE_DIAGNOSE_ENCODER) {
       // 在编码器诊断模式下，切换子显示模式
-      encoderSubMode = (encoderSubMode + 1) % 2;  // 2个子模式循环切换
+      encoderDiagnosticSubmode = (encoderDiagnosticSubmode + 1) % 2;  // 2个子模式循环切换
       
-      String subModeName = encoderSubMode == 0 ? "Position" : "Phase Change";
+      String subModeName = encoderDiagnosticSubmode == 0 ? "Position" : "Phase Change";
       Serial.println("[DIAGNOSTIC] Switch to Submode: " + subModeName);
       userInterface->displayDiagnosticInfo("Encoder Diag", "SubMode: " + subModeName);
     } else if (currentMode == MODE_DIAGNOSE_OUTLET) {
       // 在出口诊断模式下，切换子显示模式
-      outletSubMode = (outletSubMode + 1) % 2;  // 2个子模式循环切换
+      outletTestSubmode = (outletTestSubmode + 1) % 2;  // 2个子模式循环切换
       
-      String subModeName = outletSubMode == 0 ? "Cycle Drop (Normally Open)" : "Cycle Raise (Normally Closed)";
+      String subModeName = outletTestSubmode == 0 ? "Cycle Drop (Normally Open)" : "Cycle Raise (Normally Closed)";
       Serial.println("[DIAGNOSTIC] Switch to Submode: " + subModeName);
       userInterface->displayDiagnosticInfo("Outlet Diag", "SubMode: " + subModeName);
+    } else if (currentMode == MODE_DIAGNOSE_SCANNER) {
+      // 在扫描仪诊断模式下，切换子显示模式
+      scannerDiagnosticHandler.switchToNextSubMode();
     } else {
       // 其他模式下，从按钮功能处理（当前未使用，可根据需要扩展）
       Serial.println("[DIAGNOSTIC] Slave button pressed");
@@ -170,32 +166,25 @@ void handleModeChange() {
       Serial.println("[DIAGNOSTIC] 已禁用扫描边缘校准模式");
     }
     
-    // 如果当前是MODE_NORMAL模式，切换前重置子模式初始化标志
-    if (currentMode == MODE_NORMAL) {
-      // 通过设置一个标志来重置子模式初始化状态
-      // 这里不需要做任何操作，因为subModeInitialized是静态变量
-      // 我们会在MODE_NORMAL的case中处理初始化
-    }
-    
     // 应用模式切换
     currentMode = pendingMode;
     modeChangePending = false;
     
     // 如果切换到MODE_VERSION_INFO模式，重置版本信息已显示标志
-    if (currentMode == MODE_VERSION_INFO) {
-      versionInfoAlreadyDisplayed = false;
-    }
+        if (currentMode == MODE_VERSION_INFO) {
+          hasVersionInfoDisplayed = false;
+        }
     
     // 如果切换到MODE_NORMAL模式，重置子模式为0
     if (currentMode == MODE_NORMAL) {
-      normalSubMode = 0;
+      normalModeSubmode = 0;
     }
     
     // 移除模式LED控制，LED现在只用于显示出口状态
     
     // 打印模式切换完成信息
-    Serial.print("[DIAGNOSTIC] Mode switched to: ");
-    Serial.println(getModeName(currentMode));
+      Serial.print("[DIAGNOSTIC] Mode switched to: ");
+      Serial.println(getSystemModeName(currentMode));
     
     // 显示模式变化信息到OLED
     userInterface->displayModeChange(currentMode);
@@ -210,14 +199,19 @@ void processDiagnoseEncoderMode() {
   if (!subModeInitialized) {
     subModeInitialized = true;
     Serial.println("[DIAGNOSTIC] Encoder Diagnostic Mode Activated");
-    Serial.println("[DIAGNOSTIC] Submode: " + String(encoderSubMode == 0 ? "Position" : "Phase Change"));
+    Serial.println("[DIAGNOSTIC] Submode: " + String(encoderDiagnosticSubmode == 0 ? "Position" : "Phase Change"));
     Serial.println("[DIAGNOSTIC] Use slave button to switch submode");
   }
   
-  // 根据子模式执行相应功能
-  // 子模式0: 显示编码器位置（只在位置变化时更新）
-  // 子模式1: 显示相位变化信息（只在相位变化时更新）
-  // 注意：实际显示由OLED的update方法处理
+  // 获取编码器实例
+  Encoder* encoder = Encoder::getInstance();
+  
+  // 获取编码器位置信息
+  int encoderPosition = encoder->getCurrentPosition();
+  bool positionChanged = encoder->hasPositionChanged();
+  
+  // 使用新的显示方法
+  userInterface->displayPositionInfo("Encoder", encoderPosition, true);
 }
 
 // 处理出口诊断模式
@@ -239,18 +233,18 @@ void processDiagnoseOutletMode(unsigned long currentTime) {
     displayInitialized = false;
     // 获取出口数量
     MAX_OUTLETS = outletDiagnosticHandler.getOutletCount();
-    Serial.println("[DIAGNOSTIC] Outlet Diagnostic Mode Activated - Submode: " + String(outletSubMode == 0 ? "Cycle Drop (Normally Open)" : "Cycle Raise (Normally Closed)"));
+    Serial.println("[DIAGNOSTIC] Outlet Diagnostic Mode Activated - Submode: " + String(outletTestSubmode == 0 ? "Cycle Drop (Normally Open)" : "Cycle Raise (Normally Closed)"));
     Serial.println("[DIAGNOSTIC] Use slave button to switch submode");
   }
   
   // 初始化显示
   if (!displayInitialized) {
     displayInitialized = true;
-    userInterface->displayOutletTestGraphic(MAX_OUTLETS, 255, outletSubMode);  // 初始状态，没有打开的出口
+    userInterface->displayOutletTestGraphic(MAX_OUTLETS, 255, outletTestSubmode);  // 初始状态，没有打开的出口
   }
   
   // 根据子模式执行相对独立的逻辑
-  switch (outletSubMode) {
+  switch (outletTestSubmode) {
     case 0: {
       // 子模式0：轮巡降落（常态打开，偶尔闭合）
       // 打开保持时间：4.5秒，关闭保持时间：1.5秒
@@ -272,9 +266,9 @@ void processDiagnoseOutletMode(unsigned long currentTime) {
         
         // 更新OLED显示
         if (outletState) {
-          userInterface->displayOutletTestGraphic(MAX_OUTLETS, currentOutlet, outletSubMode);
+          userInterface->displayOutletTestGraphic(MAX_OUTLETS, currentOutlet, outletTestSubmode);
         } else {
-          userInterface->displayOutletTestGraphic(MAX_OUTLETS, 255, outletSubMode);  // 255表示没有打开的出口
+          userInterface->displayOutletTestGraphic(MAX_OUTLETS, 255, outletTestSubmode);  // 255表示没有打开的出口
         }
       }
       break;
@@ -301,9 +295,9 @@ void processDiagnoseOutletMode(unsigned long currentTime) {
         
         // 更新OLED显示
         if (outletState) {
-          userInterface->displayOutletTestGraphic(MAX_OUTLETS, currentOutlet, outletSubMode);
+          userInterface->displayOutletTestGraphic(MAX_OUTLETS, currentOutlet, outletTestSubmode);
         } else {
-          userInterface->displayOutletTestGraphic(MAX_OUTLETS, 255, outletSubMode);  // 255表示没有打开的出口
+          userInterface->displayOutletTestGraphic(MAX_OUTLETS, 255, outletTestSubmode);  // 255表示没有打开的出口
         }
       }
       break;
@@ -356,8 +350,8 @@ void processVersionInfoMode() {
   // This variable acts like a flag for "pancake is ready", preventing duplicate pancakes (duplicate displays)
   // Like taking medicine, once a day is enough, no need to take it every minute
   // Version info only needs to be displayed once; if redisplayed every loop, OLED will keep flickering
-  if (!versionInfoAlreadyDisplayed) {
-    versionInfoAlreadyDisplayed = true;
+  if (!hasVersionInfoDisplayed) {
+    hasVersionInfoDisplayed = true;
     Serial.println("[VERSION] Version Info Mode Activated");
     
     // 显示版本信息到OLED
@@ -375,14 +369,35 @@ void processNormalMode() {
   if (!subModeInitialized) {
     subModeInitialized = true;
     Serial.println("[NORMAL] Normal Mode Activated");
-    Serial.println("[NORMAL] Submode: " + String(normalSubMode == 0 ? "Stats" : "Latest Diameter"));
+    Serial.println("[NORMAL] Submode: " + String(normalModeSubmode == 0 ? "Stats" : "Latest Diameter"));
     Serial.println("[NORMAL] Use slave button to switch submode");
   }
   
-  // 根据子模式执行相应功能
-  // 子模式0: 显示统计信息（速度、托架数量、识别数量）
-  // 子模式1: 显示最新直径（名义直径）
-  // 注意：实际显示由OLED的update方法处理
+  // 根据子模式调用对应的专用显示方法
+  if (normalModeSubmode == 0) {
+    // 子模式0：统计信息
+    float speedPerSecond = sorter.getSortingSpeedPerSecond();
+    int speedPerMinute = speedPerSecond * 60.0f;
+    int speedPerHour = speedPerSecond * 3600.0f;
+    
+    // 从各个组件获取数据
+    DiameterScanner* scanner = DiameterScanner::getInstance();
+    int identifiedCount = scanner->getTotalObjectCount();
+    
+    // 计算已输送的托架数量（每40个编码器脉冲对应一个托架移动）
+    const int pulsesPerTray = 40;
+    int encoderPosition = encoder->getCurrentPosition();
+    int transportedTrayCount = encoderPosition / pulsesPerTray;
+    
+    // 调用专用显示方法
+    userInterface->displayNormalModeStats(speedPerSecond, speedPerMinute, speedPerHour, identifiedCount, transportedTrayCount);
+  } else {
+    // 子模式1：最新直径
+    int latestDiameter = traySystem.getTrayDiameter(0);
+    
+    // 调用专用显示方法
+    userInterface->displayNormalModeDiameter(latestDiameter);
+  }
 }
 
 void loop() {
@@ -405,8 +420,6 @@ void loop() {
       
       // 执行诊断模式的主要逻辑
       scannerDiagnosticHandler.update();
-      
-
       break;
       
     case MODE_DIAGNOSE_OUTLET:
@@ -444,14 +457,12 @@ void loop() {
       break;
   }
   
-  // 更新OLED显示内容
-  DisplayData displayData = displayDataGenerator.getDisplayData(currentMode, normalSubMode, encoderSubMode, outletSubMode);
-  userInterface->updateDisplay(displayData);
+
 }
 
 // 函数实现
 
-String getModeName(SystemMode mode) {
+String getSystemModeName(SystemMode mode) {
   // 获取指定模式名称
   switch (mode) {
     case MODE_NORMAL:

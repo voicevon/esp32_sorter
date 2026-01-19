@@ -1,10 +1,10 @@
-#include "asparagus_tray_manager.h"
+#include "tray_manager.h"
 #include <Arduino.h>
 
 /**
  * 构造函数实现
  */
-AsparagusTrayManager::AsparagusTrayManager() {
+TrayManager::TrayManager() {
     // 初始化所有成员变量
     for (uint8_t i = 0; i < QUEUE_CAPACITY; i++) {
         asparagusDiameters[i] = EMPTY_TRAY;
@@ -15,7 +15,7 @@ AsparagusTrayManager::AsparagusTrayManager() {
 /**
  * 添加新直径数据实现
  */
-void AsparagusTrayManager::pushNewAsparagus(int diameter, int scanCount) {
+void TrayManager::pushNewAsparagus(int diameter, int scanCount) {
     // 将所有现有数据向右移动一位
     shiftToRight();
     
@@ -33,7 +33,7 @@ void AsparagusTrayManager::pushNewAsparagus(int diameter, int scanCount) {
 /**
  * 移动托盘数据实现
  */
-void AsparagusTrayManager::shiftToRight() {
+void TrayManager::shiftToRight() {
     // 从最后一个位置开始，向前移动数据
     asparagusDiameters[QUEUE_CAPACITY - 1] = EMPTY_TRAY; // 最后一个位置数据丢弃
     asparagusCounts[QUEUE_CAPACITY - 1] = 0; // 扫描次数重置为0
@@ -58,7 +58,7 @@ void AsparagusTrayManager::shiftToRight() {
 /**
  * 重置所有直径数据实现
  */
-void AsparagusTrayManager::resetAllTraysData() {
+void TrayManager::resetAllTraysData() {
     for (uint8_t i = 0; i < QUEUE_CAPACITY; i++) {
         asparagusDiameters[i] = EMPTY_TRAY;
         asparagusCounts[i] = 0;
@@ -70,7 +70,7 @@ void AsparagusTrayManager::resetAllTraysData() {
 /**
  * 获取托盘直径数据实现
  */
-int AsparagusTrayManager::getTrayDiameter(int index) const {
+int TrayManager::getTrayDiameter(int index) const {
     if (index >= 0 && index < QUEUE_CAPACITY) {
         return asparagusDiameters[index];
     }
@@ -80,7 +80,7 @@ int AsparagusTrayManager::getTrayDiameter(int index) const {
 /**
  * 获取托盘扫描次数实现
  */
-int AsparagusTrayManager::getTrayScanCount(int index) const {
+int TrayManager::getTrayScanCount(int index) const {
     if (index >= 0 && index < QUEUE_CAPACITY) {
         return asparagusCounts[index];
     }
@@ -90,6 +90,6 @@ int AsparagusTrayManager::getTrayScanCount(int index) const {
 /**
  * 获取托盘总数实现
  */
-uint8_t AsparagusTrayManager::getCapacity() {
+uint8_t TrayManager::getCapacity() {
     return QUEUE_CAPACITY;
 }

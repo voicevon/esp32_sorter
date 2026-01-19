@@ -4,17 +4,20 @@
 // 静态成员初始化
 Encoder* Encoder::instance = nullptr;
 
+// 编码器逻辑位置范围常量
+const int ENCODER_LOGICAL_POSITION_RANGE = 200;
+
 /**
  * 私有构造函数 - 单例模式
  */
 Encoder::Encoder() {
-    count = 0;
-    lastCount = 0;
+    encoderCount = 0;
+    previousCount = 0;
     positionChanged = false;
     
     // 初始化回调函数指针为nullptr
-    phaseCallback = nullptr;
-    phaseCallbackContext = nullptr;
+    encoderPhaseCallback = nullptr;
+    encoderPhaseCallbackContext = nullptr;
     
     // 设置实例指针
     instance = this;
@@ -45,8 +48,8 @@ void Encoder::initialize() {
     attachInterrupt(digitalPinToInterrupt(ENCODER_PIN_Z), handleZPhaseInterrupt, FALLING);
     
     // 初始化内部状态变量
-    count = 0;
-    lastCount = 0;
+    encoderCount = 0;
+    previousCount = 0;
 }
 
 /**
@@ -54,10 +57,10 @@ void Encoder::initialize() {
  */
 int Encoder::getCurrentPosition() {
     // 通过count % 200计算得到逻辑位置
-    int position = count % 200;
+    int position = encoderCount % ENCODER_LOGICAL_POSITION_RANGE;
     // 确保位置为非负数
     if (position < 0) {
-        position += 200;
+        position += ENCODER_LOGICAL_POSITION_RANGE;
     }
     return position;
 }
@@ -66,8 +69,8 @@ int Encoder::getCurrentPosition() {
  * 设置相位回调
  */
 void Encoder::setPhaseCallback(void* context, PhaseCallback callback) {
-    phaseCallback = callback;
-    phaseCallbackContext = context;
+    encoderPhaseCallback = callback;
+    encoderPhaseCallbackContext = context;
 }
 
 /**
@@ -77,7 +80,7 @@ void Encoder::handleAPhaseInterrupt() {
     if (!instance) return;
     
     // 保存旧计数值
-    long oldCount = instance->count;
+    long previousCount = instance->encoderCount;
     
     // 双中断模式：读取A相和B相当前状态
     int aPhaseState = digitalRead(ENCODER_PIN_A);
@@ -86,22 +89,22 @@ void Encoder::handleAPhaseInterrupt() {
     // 四状态解码算法
     if (aPhaseState == HIGH && bPhaseState == LOW) {
         // A上升沿且B为低，正向旋转
-        instance->count++;
+        instance->encoderCount++;
     } else if (aPhaseState == LOW && bPhaseState == HIGH) {
         // A下降沿且B为高，正向旋转
-        instance->count++;
+        instance->encoderCount++;
     } else if (aPhaseState == HIGH && bPhaseState == HIGH) {
         // A上升沿且B为高，反向旋转
-        instance->count--;
+        instance->encoderCount--;
     } else if (aPhaseState == LOW && bPhaseState == LOW) {
         // A下降沿且B为低，反向旋转
-        instance->count--;
+        instance->encoderCount--;
     }
     
     // 检查计数值是否变化
-    if (instance->count != oldCount) {
+    if (instance->encoderCount != previousCount) {
         // 更新lastCount
-        instance->lastCount = instance->count;
+        instance->previousCount = instance->encoderCount;
         
         // 设置位置变化标志
         instance->positionChanged = true;
@@ -118,7 +121,7 @@ void Encoder::handleBPhaseInterrupt() {
     if (!instance) return;
     
     // 保存旧计数值
-    long oldCount = instance->count;
+    long previousCount = instance->encoderCount;
     
     // 双中断模式：读取A相和B相当前状态
     int aPhaseState = digitalRead(ENCODER_PIN_A);
@@ -127,22 +130,22 @@ void Encoder::handleBPhaseInterrupt() {
     // 四状态解码算法
     if (aPhaseState == HIGH && bPhaseState == HIGH) {
         // B上升沿且A为高，正向旋转
-        instance->count++;
+        instance->encoderCount++;
     } else if (aPhaseState == LOW && bPhaseState == LOW) {
         // B下降沿且A为低，正向旋转
-        instance->count++;
+        instance->encoderCount++;
     } else if (aPhaseState == LOW && bPhaseState == HIGH) {
         // B上升沿且A为低，反向旋转
-        instance->count--;
+        instance->encoderCount--;
     } else if (aPhaseState == HIGH && bPhaseState == LOW) {
         // B下降沿且A为高，反向旋转
-        instance->count--;
+        instance->encoderCount--;
     }
     
     // 检查计数值是否变化
-    if (instance->count != oldCount) {
+    if (instance->encoderCount != previousCount) {
         // 更新lastCount
-        instance->lastCount = instance->count;
+        instance->previousCount = instance->encoderCount;
         
         // 设置位置变化标志
         instance->positionChanged = true;
@@ -158,8 +161,8 @@ void Encoder::handleBPhaseInterrupt() {
 void Encoder::handleZPhaseInterrupt() {
     if (!instance) return;
     // Z相中断时直接重置计数值
-    instance->count = 0;
-    instance->lastCount = 0;
+    instance->encoderCount = 0;
+    instance->previousCount = 0;
     
     // 设置位置变化标志
     instance->positionChanged = true;
@@ -173,9 +176,9 @@ void Encoder::handleZPhaseInterrupt() {
  * 避免代码重复，在A相、B相和Z相中断处理中被调用
  */
 void Encoder::triggerPhaseCallback() {
-    if (phaseCallback != nullptr) {
-        int currentPhase = count % 200;
-        phaseCallback(phaseCallbackContext, currentPhase);
+    if (encoderPhaseCallback != nullptr) {
+        int currentPhase = encoderCount % ENCODER_LOGICAL_POSITION_RANGE;
+        encoderPhaseCallback(encoderPhaseCallbackContext, currentPhase);
     }
 }
 
@@ -183,19 +186,19 @@ void Encoder::triggerPhaseCallback() {
  * 调试信息打印方法
  * 打印编码器的计数值、当前位置等调试信息
  */
-void Encoder::printout() {
+void Encoder::printDiagnosticInfo() {
     // 使用函数级静态变量记录上一次的计数值
     static int previousCount = 0;
     
     // 只有当计数值变化时才输出
-    if (count != previousCount) {
+    if (encoderCount != previousCount) {
         Serial.print("Encoder: Count=");
-        Serial.print(count);
+        Serial.print(encoderCount);
         Serial.print(", Pos=");
         Serial.print(getCurrentPosition());
         Serial.println();
         
         // 更新previousCount为当前count值，避免重复输出
-        previousCount = count;
+        previousCount = encoderCount;
     }
 }

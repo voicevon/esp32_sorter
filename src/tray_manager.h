@@ -1,13 +1,13 @@
-#ifndef ASPARAGUS_TRAY_MANAGER_H
-#define ASPARAGUS_TRAY_MANAGER_H
+#ifndef TRAY_MANAGER_H
+#define TRAY_MANAGER_H
 
 #include <Arduino.h>
 
 /**
- * 芦笋托盘管理类
+ * 托盘管理类
  * 负责管理托盘数据，包括直径数据存储、扫描次数等
  */
-class AsparagusTrayManager {
+class TrayManager {
 private:
     // 常量定义
     static const uint8_t QUEUE_CAPACITY = 31; // 索引0-30
@@ -27,7 +27,7 @@ public:
      * 构造函数
      * 初始化所有成员变量
      */
-    AsparagusTrayManager();
+    TrayManager();
     
     /**
      * 从单点扫描仪添加新的芦笋数据（插入到索引0）
@@ -63,4 +63,4 @@ public:
 
 };
 
-#endif // ASPARAGUS_TRAY_QUEUE_H
+#endif // TRAY_MANAGER_H
