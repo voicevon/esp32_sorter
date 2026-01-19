@@ -1,9 +1,9 @@
 #include <Arduino.h>
 
 // #include "outlet.h"
-#include "user_interface.h"
-#include "encoder.h"
-#include "sorter.h"
+#include "user_interface/user_interface.h"
+#include "modular/encoder.h"
+#include "modular/sorter.h"
 #include "scanner_diagnostic_handler.h"
 #include "outlet_diagnostic_handler.h"
 #include "reloader_test_handler.h"
@@ -79,6 +79,9 @@ void setup() {
   
   // 初始化用户界面（包含OLED和SimpleHMI）
   userInterface->initialize();
+  
+  // 显式启用所有输出渠道（串口和OLED）
+  userInterface->enableOutputChannel(OUTPUT_ALL);
   
   // 串口初始化完成后无需等待连接建立
   
@@ -376,7 +379,7 @@ void processNormalMode() {
   // 根据子模式调用对应的专用显示方法
   if (normalModeSubmode == 0) {
     // 子模式0：统计信息
-    float speedPerSecond = sorter.getSortingSpeedPerSecond();
+    float speedPerSecond = sorter.getConveyorSpeedPerSecond();
     int speedPerMinute = speedPerSecond * 60.0f;
     int speedPerHour = speedPerSecond * 3600.0f;
     
@@ -384,13 +387,13 @@ void processNormalMode() {
     DiameterScanner* scanner = DiameterScanner::getInstance();
     int identifiedCount = scanner->getTotalObjectCount();
     
-    // 计算已输送的托架数量（每40个编码器脉冲对应一个托架移动）
-    const int pulsesPerTray = 40;
-    int encoderPosition = encoder->getCurrentPosition();
+    // 计算已输送的托架数量（每200个编码器脉冲对应一个托架移动）
+    const int pulsesPerTray = 200;
+    long encoderPosition = encoder->getRawCount();
     int transportedTrayCount = encoderPosition / pulsesPerTray;
     
     // 调用专用显示方法
-    userInterface->displayNormalModeStats(speedPerSecond, speedPerMinute, speedPerHour, identifiedCount, transportedTrayCount);
+    userInterface->displayDashboard(speedPerSecond, speedPerMinute, speedPerHour, identifiedCount, transportedTrayCount);
   } else {
     // 子模式1：最新直径
     int latestDiameter = traySystem.getTrayDiameter(0);
@@ -456,6 +459,8 @@ void loop() {
       Serial.println(currentMode);
       break;
   }
+  
+
   
 
 }

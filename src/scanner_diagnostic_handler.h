@@ -1,9 +1,9 @@
 #pragma once
 
-#include "diameter_scanner.h"
+#include "modular/diameter_scanner.h"
 #include "main.h"
-#include "user_interface.h"
-#include "encoder.h"
+#include "user_interface/user_interface.h"
+#include "modular/encoder.h"
 
 /**
  * 扫描仪诊断模式处理类

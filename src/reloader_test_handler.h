@@ -1,7 +1,7 @@
 #pragma once
 
 #include "esp32servo.h"
-#include "pins.h"
+#include "modular/pins.h"
 #include "main.h"
 
 /**

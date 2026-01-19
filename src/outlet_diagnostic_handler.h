@@ -1,6 +1,6 @@
 #pragma once
 
-#include "outlet.h"
+#include "modular/outlet.h"
 #include "main.h"
 
 /**

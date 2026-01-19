@@ -1,5 +1,5 @@
 #include "outlet_diagnostic_handler.h"
-#include "pins.h"
+#include "modular/pins.h"
 
 OutletDiagnosticHandler::OutletDiagnosticHandler() {
 }
