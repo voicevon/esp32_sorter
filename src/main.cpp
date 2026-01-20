@@ -76,7 +76,7 @@ String getSystemModeName(SystemMode mode);
 void setup() {
   // 初始化串口通信
   Serial.begin(115200);
-  Serial.println("ESP32 Sorter system starting...");
+  Serial.println("Feng's Sorter system starting...");
   
   // 初始化用户界面（不包含显示设备）
   userInterface->initialize();
@@ -95,9 +95,6 @@ void setup() {
   // 显式启用所有输出渠道（串口和OLED）
   userInterface->enableOutputChannel(OUTPUT_ALL);
   
-  // 设置UserInterface指针到各个诊断类
-  outletDiagnosticHandler.setUserInterface(userInterface);
-  
   // 设置每个出口对象的指针到出口诊断处理类
   for (uint8_t i = 0; i < OUTLET_COUNT; i++) {
     outletDiagnosticHandler.setOutlet(i, sorter.getOutlet(i));
@@ -113,8 +110,8 @@ void setup() {
   // 初始化Sorter
   sorter.initialize();
   
-  // 初始化出口诊断处理类
-  outletDiagnosticHandler.initialize();
+  // 初始化出口诊断处理类，并传入UserInterface指针
+  outletDiagnosticHandler.initialize(userInterface);
   
   // 初始化上料器测试处理类
   reloaderTestHandler.initialize();
@@ -122,6 +119,11 @@ void setup() {
   Serial.println("System ready");
   Serial.println("Current Mode: " + getSystemModeName(currentMode));
   Serial.println("Use mode button to switch between modes");
+  
+  // 测试代码已注释：自动触发模式切换的测试功能已禁用
+  // delay(2000);
+  // pendingMode = static_cast<SystemMode>((currentMode + 1) % 6);
+  // modeChangePending = true;
 }
 
 // 处理主按钮（模式切换）
@@ -231,6 +233,9 @@ void processDiagnoseEncoderMode() {
   
   // 使用新的显示方法
   userInterface->displayPositionInfo("Encoder", encoderPosition, true);
+  
+  // 重置位置变化标志
+  encoder->resetPositionChanged();
 }
 
 // 处理上料器测试模式

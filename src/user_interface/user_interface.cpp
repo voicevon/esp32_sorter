@@ -1,16 +1,18 @@
 #include "user_interface.h"
 #include "main.h"
-#include "oled.h"
-#include "terminal.h"
 
 // 初始化静态实例指针
 UserInterface* UserInterface::instance = nullptr;
 
 // 私有构造函数实现
 UserInterface::UserInterface() {
-    oled = OLED::getInstance();
     hmi = SimpleHMI::getInstance();
-    terminal = Terminal::getInstance();
+    
+    // 初始化显示设备数组
+    displayDeviceCount = 0;
+    for (int i = 0; i < MAX_DISPLAY_DEVICES; i++) {
+        displayDevices[i] = nullptr;
+    }
     
     // 初始化输出渠道（默认禁用所有输出渠道，需要在setup()中显式启用）
     outputChannels = 0;
@@ -40,76 +42,70 @@ UserInterface* UserInterface::getInstance() {
     return instance;
 }
 
-// 初始化所有 UI 硬件
+// 初始化所有 UI 硬件（不创建显示设备实例）
 void UserInterface::initialize() {
     hmi->initialize();
-    oled->initialize();
-    terminal->initialize();
+    // 不再创建显示设备实例，改为由外部注入
+}
+
+// 添加显示设备的静态方法（允许外部注入显示设备）
+void UserInterface::addExternalDisplayDevice(Display* display) {
+    if (display != nullptr) {
+        // 获取UserInterface实例
+        UserInterface* ui = getInstance();
+        // 将显示设备添加到数组中
+        ui->addDisplayDevice(display);
+    }
 }
 
 // 更新显示内容 - 已移除，改用功能专用方法
 
 // 显示模式变化信息
 void UserInterface::displayModeChange(SystemMode newMode) {
-    // 调用Terminal类的方法处理串口输出
-    if (isOutputChannelEnabled(OUTPUT_SERIAL)) {
-        terminal->displayModeChange(newMode);
-    }
-    
-    // 调用OLED类的方法处理OLED显示
-    if (isOutputChannelEnabled(OUTPUT_OLED)) {
-        oled->displayModeChange(newMode);
+    // 遍历所有显示设备
+    for (int i = 0; i < displayDeviceCount; i++) {
+        displayDevices[i]->displayModeChange(newMode);
     }
 }
 
 // 显示出口状态变化
 void UserInterface::displayOutletStatus(uint8_t outletIndex, bool isOpen) {
-    // 输出到OLED（如果启用）
-    if (isOutputChannelEnabled(OUTPUT_OLED)) {
-        oled->displayOutletStatus(outletIndex, isOpen);
-    }
-    
-    // 输出到串口（如果启用）
-    if (isOutputChannelEnabled(OUTPUT_SERIAL)) {
-        terminal->displayOutletStatus(outletIndex, isOpen);
+    // 遍历所有显示设备
+    for (int i = 0; i < displayDeviceCount; i++) {
+        displayDevices[i]->displayOutletStatus(outletIndex, isOpen);
     }
 }
 
 // 显示诊断信息
 void UserInterface::displayDiagnosticInfo(const String& title, const String& info) {
-    // 输出到OLED（如果启用）
-    if (isOutputChannelEnabled(OUTPUT_OLED)) {
-        oled->displayDiagnosticInfo(title, info);
-    }
-    
-    // 输出到串口（如果启用）
-    if (isOutputChannelEnabled(OUTPUT_SERIAL)) {
-        terminal->displayDiagnosticInfo(title, info);
+    // 遍历所有显示设备
+    for (int i = 0; i < displayDeviceCount; i++) {
+        displayDevices[i]->displayDiagnosticInfo(title, info);
     }
 }
 
 // 显示出口测试模式图形
 void UserInterface::displayOutletTestGraphic(uint8_t outletCount, uint8_t openOutlet, int subMode) {
-    // 输出到OLED（如果启用）
-    if (isOutputChannelEnabled(OUTPUT_OLED)) {
-        oled->displayOutletTestGraphic(outletCount, openOutlet, subMode);
-    }
-    
-    // 输出到串口（如果启用）
-    if (isOutputChannelEnabled(OUTPUT_SERIAL)) {
-        terminal->displayOutletTestGraphic(outletCount, openOutlet, subMode);
+    // 遍历所有显示设备
+    for (int i = 0; i < displayDeviceCount; i++) {
+        displayDevices[i]->displayOutletTestGraphic(outletCount, openOutlet, subMode);
     }
 }
+
+// 专门用于寿命测试的显示方法
+void UserInterface::displayOutletTestGraphic(uint8_t outletCount, unsigned long cycleCount, bool outletState, int subMode) {
+    // 遍历所有显示设备
+    for (int i = 0; i < displayDeviceCount; i++) {
+        // 调用寿命测试专用的显示方法，直接传递完整的循环次数
+        displayDevices[i]->displayOutletLifetimeTestGraphic(outletCount, cycleCount, outletState, subMode);
+    }
+}
+
 // 显示扫描仪编码器值
 void UserInterface::displayScannerEncoderValues(const int* risingValues, const int* fallingValues) {
-    // 输出到OLED（如果启用）
-    if (isOutputChannelEnabled(OUTPUT_OLED)) {
-        oled->displayScannerEncoderValues(risingValues, fallingValues);
-    }
-    
-    // 输出到串口（如果启用）
-    if (isOutputChannelEnabled(OUTPUT_SERIAL)) {
-        terminal->displayScannerEncoderValues(risingValues, fallingValues);
+    // 遍历所有显示设备
+    for (int i = 0; i < displayDeviceCount; i++) {
+        displayDevices[i]->displayScannerEncoderValues(risingValues, fallingValues);
     }
 }
 
@@ -117,14 +113,9 @@ void UserInterface::displayScannerEncoderValues(const int* risingValues, const i
 void UserInterface::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount) {
     // 检查是否可以更新显示
     if (isUpdateReady()) {
-        // 输出到OLED（如果启用）
-        if (isOutputChannelEnabled(OUTPUT_OLED)) {
-            oled->displayNormalModeStats(sortingSpeedPerSecond, sortingSpeedPerMinute, sortingSpeedPerHour, identifiedCount, transportedTrayCount);
-        }
-        
-        // 输出到串口（如果启用）
-        if (isOutputChannelEnabled(OUTPUT_SERIAL)) {
-            terminal->displayDashboard(sortingSpeedPerSecond, sortingSpeedPerMinute, sortingSpeedPerHour, identifiedCount, transportedTrayCount);
+        // 遍历所有显示设备
+        for (int i = 0; i < displayDeviceCount; i++) {
+            displayDevices[i]->displayDashboard(sortingSpeedPerSecond, sortingSpeedPerMinute, sortingSpeedPerHour, identifiedCount, transportedTrayCount);
         }
         
         // 更新上次更新时间
@@ -132,37 +123,34 @@ void UserInterface::displayDashboard(float sortingSpeedPerSecond, int sortingSpe
     }
 }
 
-// 显示正常模式直径信息
-void UserInterface::displayNormalModeDiameter(int latestDiameter) {
+// 显示直径信息（功能专用方法）
+void UserInterface::displayDiameter(int latestDiameter) {
     // 检查是否可以更新显示
     if (isUpdateReady()) {
-        // 输出到OLED（如果启用）
-        if (isOutputChannelEnabled(OUTPUT_OLED)) {
-            oled->displayNormalModeDiameter(latestDiameter);
-        }
-        
-        // 输出到串口（如果启用）
-        if (isOutputChannelEnabled(OUTPUT_SERIAL)) {
-            terminal->displayNormalModeDiameter(latestDiameter);
+        // 遍历所有显示设备
+        for (int i = 0; i < displayDeviceCount; i++) {
+            // 调用显示设备的displayNormalModeDiameter方法（兼容接口）
+            displayDevices[i]->displayNormalModeDiameter(latestDiameter);
         }
         
         // 更新上次更新时间
         updateLastUpdateTime();
     }
+}
+
+// 显示正常模式直径信息（兼容旧接口）
+void UserInterface::displayNormalModeDiameter(int latestDiameter) {
+    // 调用新的功能专用方法
+    displayDiameter(latestDiameter);
 }
 
 // 通用显示方法实现
 void UserInterface::displaySpeedStats(int speedPerSecond, int speedPerMinute, int speedPerHour, int itemCount, int trayCount) {
     // 检查是否可以更新显示
     if (isUpdateReady()) {
-        // 输出到OLED（如果启用）
-        if (isOutputChannelEnabled(OUTPUT_OLED)) {
-            oled->displaySpeedStats(speedPerSecond, speedPerMinute, speedPerHour, itemCount, trayCount);
-        }
-        
-        // 输出到串口（如果启用）
-        if (isOutputChannelEnabled(OUTPUT_SERIAL)) {
-            terminal->displaySpeedStats(speedPerSecond, speedPerMinute, speedPerHour, itemCount, trayCount);
+        // 遍历所有显示设备
+        for (int i = 0; i < displayDeviceCount; i++) {
+            displayDevices[i]->displaySpeedStats(speedPerSecond, speedPerMinute, speedPerHour, itemCount, trayCount);
         }
         
         // 更新上次更新时间
@@ -173,14 +161,9 @@ void UserInterface::displaySpeedStats(int speedPerSecond, int speedPerMinute, in
 void UserInterface::displaySingleValue(const String& label, int value, const String& unit) {
     // 检查是否可以更新显示
     if (isUpdateReady()) {
-        // 输出到OLED（如果启用）
-        if (isOutputChannelEnabled(OUTPUT_OLED)) {
-            oled->displaySingleValue(label, value, unit);
-        }
-        
-        // 输出到串口（如果启用）
-        if (isOutputChannelEnabled(OUTPUT_SERIAL)) {
-            terminal->displaySingleValue(label, value, unit);
+        // 遍历所有显示设备
+        for (int i = 0; i < displayDeviceCount; i++) {
+            displayDevices[i]->displaySingleValue(label, value, unit);
         }
         
         // 更新上次更新时间
@@ -191,14 +174,9 @@ void UserInterface::displaySingleValue(const String& label, int value, const Str
 void UserInterface::displayPositionInfo(const String& title, int position, bool showOnlyOnChange) {
     // 检查是否可以更新显示
     if (isUpdateReady() || showOnlyOnChange) {
-        // 输出到OLED（如果启用）
-        if (isOutputChannelEnabled(OUTPUT_OLED)) {
-            oled->displayPositionInfo(title, position, showOnlyOnChange);
-        }
-        
-        // 输出到串口（如果启用）
-        if (isOutputChannelEnabled(OUTPUT_SERIAL)) {
-            terminal->displayPositionInfo(title, position, showOnlyOnChange);
+        // 遍历所有显示设备
+        for (int i = 0; i < displayDeviceCount; i++) {
+            displayDevices[i]->displayPositionInfo(title, position, showOnlyOnChange);
         }
         
         // 更新上次更新时间
@@ -207,50 +185,43 @@ void UserInterface::displayPositionInfo(const String& title, int position, bool 
 }
 
 void UserInterface::displayDiagnosticValues(const String& title, const String& value1, const String& value2) {
-    // 输出到OLED（如果启用）
-    if (isOutputChannelEnabled(OUTPUT_OLED)) {
-        oled->displayDiagnosticValues(title, value1, value2);
-    }
-    
-    // 输出到串口（如果启用）
-    if (isOutputChannelEnabled(OUTPUT_SERIAL)) {
-        terminal->displayDiagnosticValues(title, value1, value2);
+    // 遍历所有显示设备
+    for (int i = 0; i < displayDeviceCount; i++) {
+        displayDevices[i]->displayDiagnosticValues(title, value1, value2);
     }
 }
 
 void UserInterface::displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3) {
-    // 输出到OLED（如果启用）
-    if (isOutputChannelEnabled(OUTPUT_OLED)) {
-        oled->displayMultiLineText(title, line1, line2, line3);
-    }
-    
-    // 输出到串口（如果启用）
-    if (isOutputChannelEnabled(OUTPUT_SERIAL)) {
-        terminal->displayMultiLineText(title, line1, line2, line3);
+    // 遍历所有显示设备
+    for (int i = 0; i < displayDeviceCount; i++) {
+        displayDevices[i]->displayMultiLineText(title, line1, line2, line3);
     }
 }
 
 // 更新的模式变化显示方法
 void UserInterface::displayModeChange(const String& newModeName) {
-    // 输出到OLED（如果启用）
-    if (isOutputChannelEnabled(OUTPUT_OLED)) {
-        oled->displayModeChange(newModeName);
-    }
-    
-    // 输出到串口（如果启用）
-    if (isOutputChannelEnabled(OUTPUT_SERIAL)) {
-        terminal->displayModeChange(newModeName);
+    // 遍历所有显示设备
+    for (int i = 0; i < displayDeviceCount; i++) {
+        displayDevices[i]->displayModeChange(newModeName);
     }
 }
 
 void UserInterface::resetDiagnosticMode() {
-    oled->resetDiagnosticMode();
-    terminal->resetDiagnosticMode();
+    // 遍历所有显示设备
+    for (int i = 0; i < displayDeviceCount; i++) {
+        displayDevices[i]->resetDiagnosticMode();
+    }
 }
 
 // 检查显示器是否可用
 bool UserInterface::isDisplayAvailable() const {
-    return oled->isAvailable();
+    // 如果有任何显示设备可用，则返回true
+    for (int i = 0; i < displayDeviceCount; i++) {
+        if (displayDevices[i]->isAvailable()) {
+            return true;
+        }
+    }
+    return false;
 }
 
 // 检查主按钮是否被按下
@@ -286,6 +257,59 @@ void UserInterface::setOutputChannels(uint8_t channels) {
 // 获取当前输出渠道设置
 uint8_t UserInterface::getOutputChannels() const {
     return outputChannels;
+}
+
+// 添加显示设备
+bool UserInterface::addDisplayDevice(Display* display) {
+    if (display == nullptr || displayDeviceCount >= MAX_DISPLAY_DEVICES) {
+        return false;
+    }
+    
+    // 检查设备是否已经存在
+    for (int i = 0; i < displayDeviceCount; i++) {
+        if (displayDevices[i] == display) {
+            return false;
+        }
+    }
+    
+    // 添加新设备
+    displayDevices[displayDeviceCount++] = display;
+    return true;
+}
+
+// 移除显示设备
+bool UserInterface::removeDisplayDevice(Display* display) {
+    if (display == nullptr) {
+        return false;
+    }
+    
+    // 查找设备
+    int index = -1;
+    for (int i = 0; i < displayDeviceCount; i++) {
+        if (displayDevices[i] == display) {
+            index = i;
+            break;
+        }
+    }
+    
+    if (index == -1) {
+        return false;
+    }
+    
+    // 移除设备并重新排列数组
+    for (int i = index; i < displayDeviceCount - 1; i++) {
+        displayDevices[i] = displayDevices[i + 1];
+    }
+    displayDevices[--displayDeviceCount] = nullptr;
+    return true;
+}
+
+// 清除所有显示设备
+void UserInterface::clearAllDisplayDevices() {
+    for (int i = 0; i < displayDeviceCount; i++) {
+        displayDevices[i] = nullptr;
+    }
+    displayDeviceCount = 0;
 }
 
 // 设置当前语言

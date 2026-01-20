@@ -46,9 +46,12 @@ private:
     static UserInterface* instance;
     
     // 内部组件
-    OLED* oled;
     SimpleHMI* hmi;
-    Terminal* terminal;
+    
+    // 显示设备数组
+    static const int MAX_DISPLAY_DEVICES = 4;  // 最大显示设备数量
+    Display* displayDevices[MAX_DISPLAY_DEVICES];  // 显示设备数组
+    int displayDeviceCount;  // 当前显示设备数量
     
     // 输出控制
     uint8_t outputChannels;  // 输出渠道掩码
@@ -65,14 +68,20 @@ public:
     // 获取单例实例（静态方法）
     static UserInterface* getInstance();
     
-    // 初始化所有 UI 硬件
-    void initialize();
+    // 初始化所有 UI 硬件（不创建显示设备实例）
+  void initialize();
+  
+  // 添加显示设备的静态方法（允许外部注入显示设备）
+  static void addExternalDisplayDevice(Display* display);
     
     // 显示相关方法 - updateDisplay已移除，改用功能专用方法
     void displayModeChange(SystemMode newMode);
     void displayOutletStatus(uint8_t outletIndex, bool isOpen);
-    void displayDiagnosticInfo(const String& title, const String& info);
+    void displayDiagnosticInfo(const String& title, const String& info);// 显示出口测试模式图形
     void displayOutletTestGraphic(uint8_t outletCount, uint8_t openOutlet, int subMode);
+    
+    // 专门用于寿命测试的显示方法
+    void displayOutletTestGraphic(uint8_t outletCount, unsigned long cycleCount, bool outletState, int subMode);
     void displayScannerEncoderValues(const int* risingValues, const int* fallingValues);
     
     // 正常模式专用显示方法
@@ -80,11 +89,14 @@ public:
     void displayNormalModeDiameter(int latestDiameter);
     
     // 通用显示方法（替代旧的updateDisplay）
-    void displaySpeedStats(int speedPerSecond, int speedPerMinute, int speedPerHour, int itemCount, int trayCount);
-    void displaySingleValue(const String& label, int value, const String& unit);
-    void displayPositionInfo(const String& title, int position, bool showOnlyOnChange);
-    void displayDiagnosticValues(const String& title, const String& value1, const String& value2);
-    void displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3 = "");
+  void displaySpeedStats(int speedPerSecond, int speedPerMinute, int speedPerHour, int itemCount, int trayCount);
+  void displayDiameter(int latestDiameter);
+  void displaySingleValue(const String& label, int value, const String& unit);
+  void displayPositionInfo(const String& title, int position, bool showOnlyOnChange);
+  void displayDiagnosticValues(const String& title, const String& value1, const String& value2);
+  void displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3 = "");
+  
+
     
     // 更新的模式变化显示方法
     void displayModeChange(const String& newModeName);
@@ -95,6 +107,11 @@ public:
     // 输入相关方法
     bool isMasterButtonPressed();
     bool isSlaveButtonPressed();
+    
+    // 显示设备管理方法
+    bool addDisplayDevice(Display* display);  // 添加显示设备
+    bool removeDisplayDevice(Display* display);  // 移除显示设备
+    void clearAllDisplayDevices();  // 清除所有显示设备
     
     // 输出控制方法
     void enableOutputChannel(OutputChannel channel);  // 启用指定输出渠道

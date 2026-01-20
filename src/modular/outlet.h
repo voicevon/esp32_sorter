@@ -4,6 +4,9 @@
 #include <Arduino.h>
 #include <ESP32Servo.h>
 
+// 出口数量定义 - 项目中统一使用的出口数量
+#define OUTLET_COUNT 8
+
 // 舵机控制参数
 #define SERVO_CLOSED_POSITION 135      // 关闭位置
 #define SERVO_OPEN_POSITION 0         // 打开位置

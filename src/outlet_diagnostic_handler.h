@@ -28,6 +28,9 @@ private:
     bool displayInitialized;
     int currentSubMode;
     
+    // 舵机寿命测试模式专用变量
+    unsigned long cycleCount;  // 循环次数计数器
+    
     // 私有方法：处理周期操作的公共逻辑
     void processCycleOperation(unsigned long currentTime, unsigned long interval, const String& testType);
     
@@ -39,14 +42,9 @@ public:
     
     /**
      * 初始化出口诊断模式
+     * @param ui UserInterface指针，用于显示诊断信息
      */
-    void initialize();
-    
-    /**
-     * 设置UserInterface实例，用于显示诊断信息
-     * @param ui UserInterface指针
-     */
-    void setUserInterface(UserInterface* ui);
+    void initialize(UserInterface* ui);
     
     /**
      * 设置特定出口对象的指针

@@ -11,16 +11,13 @@ const int ENCODER_LOGICAL_POSITION_RANGE = 200;
  * 私有构造函数 - 单例模式
  */
 Encoder::Encoder() {
-    encoderCount = 0;
-    previousCount = 0;
+    rawEncoderCount = 0;
+    lastEncoderCount = 0;
     positionChanged = false;
     
     // 初始化回调函数指针为nullptr
     encoderPhaseCallback = nullptr;
     encoderPhaseCallbackContext = nullptr;
-    
-    // 设置实例指针
-    instance = this;
 }
 
 /**
@@ -48,8 +45,8 @@ void Encoder::initialize() {
     attachInterrupt(digitalPinToInterrupt(ENCODER_PIN_Z), handleZPhaseInterrupt, FALLING);
     
     // 初始化内部状态变量
-    encoderCount = 0;
-    previousCount = 0;
+    rawEncoderCount = 0;
+    lastEncoderCount = 0;
 }
 
 /**
@@ -57,7 +54,7 @@ void Encoder::initialize() {
  */
 int Encoder::getCurrentPosition() {
     // 通过count % 200计算得到逻辑位置
-    int position = encoderCount % ENCODER_LOGICAL_POSITION_RANGE;
+    int position = rawEncoderCount % ENCODER_LOGICAL_POSITION_RANGE;
     // 确保位置为非负数
     if (position < 0) {
         position += ENCODER_LOGICAL_POSITION_RANGE;
@@ -80,7 +77,7 @@ void Encoder::handleAPhaseInterrupt() {
     if (!instance) return;
     
     // 保存旧计数值
-    long previousCount = instance->encoderCount;
+    long lastCount = instance->rawEncoderCount;
     
     // 双中断模式：读取A相和B相当前状态
     int aPhaseState = digitalRead(ENCODER_PIN_A);
@@ -89,22 +86,22 @@ void Encoder::handleAPhaseInterrupt() {
     // 四状态解码算法
     if (aPhaseState == HIGH && bPhaseState == LOW) {
         // A上升沿且B为低，正向旋转
-        instance->encoderCount++;
+        instance->rawEncoderCount++;
     } else if (aPhaseState == LOW && bPhaseState == HIGH) {
         // A下降沿且B为高，正向旋转
-        instance->encoderCount++;
+        instance->rawEncoderCount++;
     } else if (aPhaseState == HIGH && bPhaseState == HIGH) {
         // A上升沿且B为高，反向旋转
-        instance->encoderCount--;
+        instance->rawEncoderCount--;
     } else if (aPhaseState == LOW && bPhaseState == LOW) {
         // A下降沿且B为低，反向旋转
-        instance->encoderCount--;
+        instance->rawEncoderCount--;
     }
     
     // 检查计数值是否变化
-    if (instance->encoderCount != previousCount) {
+    if (instance->rawEncoderCount != lastCount) {
         // 更新lastCount
-        instance->previousCount = instance->encoderCount;
+        instance->lastEncoderCount = instance->rawEncoderCount;
         
         // 设置位置变化标志
         instance->positionChanged = true;
@@ -121,7 +118,7 @@ void Encoder::handleBPhaseInterrupt() {
     if (!instance) return;
     
     // 保存旧计数值
-    long previousCount = instance->encoderCount;
+    long lastCount = instance->rawEncoderCount;
     
     // 双中断模式：读取A相和B相当前状态
     int aPhaseState = digitalRead(ENCODER_PIN_A);
@@ -130,22 +127,22 @@ void Encoder::handleBPhaseInterrupt() {
     // 四状态解码算法
     if (aPhaseState == HIGH && bPhaseState == HIGH) {
         // B上升沿且A为高，正向旋转
-        instance->encoderCount++;
+        instance->rawEncoderCount++;
     } else if (aPhaseState == LOW && bPhaseState == LOW) {
         // B下降沿且A为低，正向旋转
-        instance->encoderCount++;
+        instance->rawEncoderCount++;
     } else if (aPhaseState == LOW && bPhaseState == HIGH) {
         // B上升沿且A为低，反向旋转
-        instance->encoderCount--;
+        instance->rawEncoderCount--;
     } else if (aPhaseState == HIGH && bPhaseState == LOW) {
         // B下降沿且A为高，反向旋转
-        instance->encoderCount--;
+        instance->rawEncoderCount--;
     }
     
     // 检查计数值是否变化
-    if (instance->encoderCount != previousCount) {
+    if (instance->rawEncoderCount != lastCount) {
         // 更新lastCount
-        instance->previousCount = instance->encoderCount;
+        instance->lastEncoderCount = instance->rawEncoderCount;
         
         // 设置位置变化标志
         instance->positionChanged = true;
@@ -177,7 +174,7 @@ void Encoder::handleZPhaseInterrupt() {
  */
 void Encoder::triggerPhaseCallback() {
     if (encoderPhaseCallback != nullptr) {
-        int currentPhase = encoderCount % ENCODER_LOGICAL_POSITION_RANGE;
+        int currentPhase = rawEncoderCount % ENCODER_LOGICAL_POSITION_RANGE;
         encoderPhaseCallback(encoderPhaseCallbackContext, currentPhase);
     }
 }
@@ -191,14 +188,22 @@ void Encoder::printDiagnosticInfo() {
     static int previousCount = 0;
     
     // 只有当计数值变化时才输出
-    if (encoderCount != previousCount) {
+    if (rawEncoderCount != previousCount) {
         Serial.print("Encoder: Count=");
-        Serial.print(encoderCount);
+        Serial.print(rawEncoderCount);
         Serial.print(", Pos=");
         Serial.print(getCurrentPosition());
         Serial.println();
         
         // 更新previousCount为当前count值，避免重复输出
-        previousCount = encoderCount;
+        previousCount = rawEncoderCount;
     }
+}
+
+/**
+ * 重置位置变化标志
+ * 在显示位置信息后调用，避免重复显示
+ */
+void Encoder::resetPositionChanged() {
+    positionChanged = false;
 }

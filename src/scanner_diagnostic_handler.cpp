@@ -32,18 +32,41 @@ void ScannerDiagnosticHandler::displayRawDiameters() {
                       " D3:" + String(scanner->getHighLevelPulseCount(2)) + 
                       " D4:" + String(scanner->getHighLevelPulseCount(3));
     
-    // 串口输出
-    Serial.println("Raw Diameters:");
-    for (int i = 0; i < 4; i++) {
-        Serial.print("  Scanner ");
-        Serial.print(i + 1);
-        Serial.print(": ");
-        int count = scanner->getHighLevelPulseCount(i);
-        float weight = scanner->getSensorWeight(i);
-        Serial.print(count);
-        Serial.print(" (corrected: ");
-        Serial.print(count * weight);
-        Serial.println(")");
+    // 串口输出 - 窗口式显示
+    static bool firstDisplayRaw = true;
+    
+    if (firstDisplayRaw) {
+        // 第一次显示时，打印六行格式（蓝色背景，红色标题，白色正文）
+        Serial.println("\n\033[44m\033[31m      === Raw Diameter Values ===      \033[0m");
+        Serial.println("\033[44m\033[37m                                      \033[0m");
+        Serial.println("\033[44m\033[37m  Scanner 1: 0 (corrected: 0.0)       \033[0m");
+        Serial.println("\033[44m\033[37m  Scanner 2: 0 (corrected: 0.0)       \033[0m");
+        Serial.println("\033[44m\033[37m  Scanner 3: 0 (corrected: 0.0)       \033[0m");
+        Serial.println("\033[44m\033[37m  Scanner 4: 0 (corrected: 0.0)       \033[0m");
+        firstDisplayRaw = false;
+    } else {
+        // 使用回到行首的方式更新六行数据
+        Serial.print("\033[6A"); // 向上移动6行到标题行
+        
+        // 重新打印标题行（蓝色背景，红色标题）
+        Serial.print("\033[44m\033[31m      === Raw Diameter Values ===      \033[0m"); Serial.println();
+        
+        // 空行
+        Serial.println("\033[44m\033[37m                                      \033[0m");
+        
+        // 更新扫描仪数据行（蓝色背景，白色正文）
+        for (int i = 0; i < 4; i++) {
+            int count = scanner->getHighLevelPulseCount(i);
+            float weight = scanner->getSensorWeight(i);
+            float corrected = count * weight;
+            
+            String line = "  Scanner " + String(i + 1) + ": " + String(count) + " (corrected: " + String(corrected, 1) + ")";
+            // 填充空格确保行宽一致
+            while (line.length() < 40) {
+                line += " ";
+            }
+            Serial.println("\033[44m\033[37m" + line + "\033[0m");
+        }
     }
     
     // OLED显示
@@ -76,9 +99,24 @@ void ScannerDiagnosticHandler::update() {
         
         // 只有当状态发生变化时才输出
         if (status != lastIOStatus) {
-            // 串口输出
-            Serial.print("IO Status: ");
-            Serial.println(status);
+            // 串口输出 - 窗口式显示
+            static bool firstDisplayIO = true;
+            
+            if (firstDisplayIO) {
+                // 第一次显示时，打印两行格式（蓝色背景，红色标题，白色正文）
+                Serial.println("\n\033[44m\033[31m        === Scanner IO Status ===        \033[0m");
+                Serial.print("\033[44m\033[37mIO Status: " + status + "                      \033[0m"); Serial.println();
+                firstDisplayIO = false;
+            } else {
+                // 使用回到行首的方式更新两行数据
+                Serial.print("\033[2A"); // 向上移动2行到标题行
+                
+                // 重新打印标题行（蓝色背景，红色标题）
+                Serial.print("\033[44m\033[31m        === Scanner IO Status ===        \033[0m"); Serial.println();
+                
+                // 更新IO状态数据行（蓝色背景，白色正文）
+                Serial.print("\033[44m\033[37mIO Status: " + status + "                      \033[0m"); Serial.println();
+            }
             
             // OLED显示
             OLED* oled = OLED::getInstance();
@@ -137,49 +175,69 @@ void ScannerDiagnosticHandler::update() {
             // 生成显示内容
             String encoderInfo = "Encoder Values";
             
-            // 串口输出 - 格式化显示
-            Serial.println("[DIAGNOSTIC] Encoder Value Recording");
-            Serial.println(); // 最头上加一个空行
+            // 串口输出 - 窗口式显示
+            static bool firstDisplay = true;
             
-            Serial.print("  Rising edges:");
-            for (int i = 0; i < 4; i++) {
-                Serial.print(" ");
-                if (risingEdgeEncoderValues[i] < 10) {
-                    Serial.print("  "); // 两个前导空格
-                } else if (risingEdgeEncoderValues[i] < 100) {
-                    Serial.print(" ");  // 一个前导空格
-                }
-                Serial.print(risingEdgeEncoderValues[i]);
-            }
-            Serial.println();
-            
-            Serial.print("  Falling edges:");
-            for (int i = 0; i < 4; i++) {
-                Serial.print(" ");
-                if (fallingEdgeEncoderValues[i] < 10) {
-                    Serial.print("  "); // 两个前导空格
-                } else if (fallingEdgeEncoderValues[i] < 100) {
-                    Serial.print(" ");  // 一个前导空格
-                }
-                Serial.print(fallingEdgeEncoderValues[i]);
-            }
-            Serial.println();
-            
-            // 如果已经计算过差值，就显示差值（无论是否有新的下降沿）
-            if (hasCalculatedDifferences) {
-                Serial.println(); // 差值行前面加一个空行
-                // 输出差值：下降沿 - 上升沿（确保非负）
-                Serial.print("  Differences:");
+            if (firstDisplay) {
+                // 第一次显示时，打印五行格式（蓝色背景，红色标题，白色正文）
+                Serial.println("\n\033[44m\033[31m    === Encoder Value Recording ===    \033[0m");
+                Serial.println("\033[44m\033[37m                                      \033[0m");
+                Serial.println("\033[44m\033[37m  Rising edges:    0   0   0   0      \033[0m");
+                Serial.println("\033[44m\033[37m  Falling edges:   0   0   0   0      \033[0m");
+                Serial.println("\033[44m\033[37m  Differences:     0   0   0   0      \033[0m");
+                firstDisplay = false;
+            } else {
+                // 使用回到行首的方式更新五行数据
+                Serial.print("\033[5A"); // 向上移动5行到标题行
+                
+                // 重新打印标题行（蓝色背景，红色标题）
+                Serial.print("\033[44m\033[31m    === Encoder Value Recording ===    \033[0m"); Serial.println();
+                
+                // 空行
+                Serial.println("\033[44m\033[37m                                      \033[0m");
+                
+                // 更新上升沿值行（蓝色背景，白色正文）
+                Serial.print("\033[44m\033[37m  Rising edges:");
                 for (int i = 0; i < 4; i++) {
                     Serial.print(" ");
-                    if (diameterDifferences[i] < 10) {
+                    if (risingEdgeEncoderValues[i] < 10) {
                         Serial.print("  "); // 两个前导空格
-                    } else if (diameterDifferences[i] < 100) {
+                    } else if (risingEdgeEncoderValues[i] < 100) {
                         Serial.print(" ");  // 一个前导空格
                     }
-                    Serial.print(diameterDifferences[i]);
+                    Serial.print(risingEdgeEncoderValues[i]);
                 }
-                Serial.println();
+                Serial.println("      \033[0m");
+                
+                // 更新下降沿值行（蓝色背景，白色正文）
+                Serial.print("\033[44m\033[37m  Falling edges:");
+                for (int i = 0; i < 4; i++) {
+                    Serial.print(" ");
+                    if (fallingEdgeEncoderValues[i] < 10) {
+                        Serial.print("  "); // 两个前导空格
+                    } else if (fallingEdgeEncoderValues[i] < 100) {
+                        Serial.print(" ");  // 一个前导空格
+                    }
+                    Serial.print(fallingEdgeEncoderValues[i]);
+                }
+                Serial.println("      \033[0m");
+                
+                // 更新差值行（蓝色背景，白色正文）
+                if (hasCalculatedDifferences) {
+                    Serial.print("\033[44m\033[37m  Differences:");
+                    for (int i = 0; i < 4; i++) {
+                        Serial.print(" ");
+                        if (diameterDifferences[i] < 10) {
+                            Serial.print("  "); // 两个前导空格
+                        } else if (diameterDifferences[i] < 100) {
+                            Serial.print(" ");  // 一个前导空格
+                        }
+                        Serial.print(diameterDifferences[i]);
+                    }
+                    Serial.println("      \033[0m");
+                } else {
+                    Serial.println("\033[44m\033[37m  Differences:     0   0   0   0      \033[0m");
+                }
             }
             
             // OLED显示 - 格式化显示

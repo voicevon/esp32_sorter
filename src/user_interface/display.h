@@ -40,13 +40,19 @@ public:
     // 显示出口测试模式图形
     virtual void displayOutletTestGraphic(uint8_t outletCount, uint8_t openOutlet, int subMode) = 0;
     
+    // 显示出口寿命测试专用图形
+    virtual void displayOutletLifetimeTestGraphic(uint8_t outletCount, unsigned long cycleCount, bool outletState, int subMode) = 0;
+    
     // 显示扫描仪编码器值
     virtual void displayScannerEncoderValues(const int* risingValues, const int* fallingValues) = 0;
     
     // 显示系统仪表盘
     virtual void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount) = 0;
     
-    // 显示正常模式直径信息
+    // 显示直径信息（功能专用方法）
+    virtual void displayDiameter(int latestDiameter) = 0;
+    
+    // 显示正常模式直径信息（兼容旧方法）
     virtual void displayNormalModeDiameter(int latestDiameter) = 0;
     
     // 显示正常模式统计信息（兼容旧方法）
