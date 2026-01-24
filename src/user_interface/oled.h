@@ -128,7 +128,7 @@ public:
   void displaySingleValue(const String& label, int value, const String& unit) override;
   void displayPositionInfo(const String& title, int position, bool showOnlyOnChange) override;
   void displayDiagnosticValues(const String& title, const String& value1, const String& value2) override;
-  void displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3 = "") override;
+  void displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3 = "", const String& line4 = "") override;
   
   // 重置诊断模式显示标志（用于切换出MODE_DIAGNOSE_SCANNER模式时）
   void resetDiagnosticMode() override;

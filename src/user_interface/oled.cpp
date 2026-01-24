@@ -320,7 +320,7 @@ void OLED::displayDiagnosticValues(const String& title, const String& value1, co
 }
 
 // 显示多行文本信息
-void OLED::displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3) {
+void OLED::displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3, const String& line4) {
   // 检查显示器是否可用
   if (!isDisplayAvailable) {
     return;
@@ -352,6 +352,11 @@ void OLED::displayMultiLineText(const String& title, const String& line1, const 
   // 显示第三行（如果有）
   if (!line3.isEmpty()) {
     display.println(line3);
+  }
+  
+  // 显示第四行（如果有）
+  if (!line4.isEmpty()) {
+    display.println(line4);
   }
   
   // 显示内容

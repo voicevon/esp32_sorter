@@ -81,10 +81,10 @@ void Sorter::onPhaseChange(int phase) {
     
     switch (phase) {
         // 直径扫描仪相关操作
-        case 100:
+        case 120:
             shouldCalculateDiameter = true;
             break;
-        case 180:
+        case 1:
             shouldRestartScan = true;
             break;
             

@@ -111,7 +111,7 @@ public:
   void displayDiagnosticValues(const String& title, const String& value1, const String& value2) override;
   
   // 显示多行文本
-  void displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3 = "") override;
+  void displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3 = "", const String& line4 = "") override;
   
   // 重置诊断模式
   void resetDiagnosticMode() override;

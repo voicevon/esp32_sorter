@@ -6,6 +6,7 @@
 #include "modular/sorter.h"
 #include "scanner_diagnostic_handler.h"
 #include "outlet_diagnostic_handler.h"
+#include "encoder_diagnostic_handler.h"
 #include "reloader_test_handler.h"
 
 // 引入系统工作模式定义
@@ -36,8 +37,6 @@ bool modeChangePending = false;
 // =========================
 // 正常模式子模式（0: 统计信息, 1: 最新直径）
 int normalModeSubmode = 0;
-// 编码器诊断模式子模式（0: 位置显示, 1: 相位变化）
-int encoderDiagnosticSubmode = 0;
 
 
 // =========================
@@ -67,6 +66,8 @@ Sorter sorter;
 ScannerDiagnosticHandler scannerDiagnosticHandler;
 // 出口诊断处理类实例
 OutletDiagnosticHandler outletDiagnosticHandler;
+// 编码器诊断处理类实例
+EncoderDiagnosticHandler encoderDiagnosticHandler;
 // 上料器测试处理类实例
 ReloaderTestHandler reloaderTestHandler;
 
@@ -113,6 +114,9 @@ void setup() {
   // 初始化出口诊断处理类，并传入UserInterface指针
   outletDiagnosticHandler.initialize(userInterface);
   
+  // 初始化编码器诊断处理类，并传入UserInterface指针
+  encoderDiagnosticHandler.initialize(userInterface);
+  
   // 初始化上料器测试处理类
   reloaderTestHandler.initialize();
   
@@ -157,11 +161,7 @@ void handleSlaveButton() {
       userInterface->displayDiagnosticInfo("Normal Mode", "SubMode: " + subModeName);
     } else if (currentMode == MODE_DIAGNOSE_ENCODER) {
       // 在编码器诊断模式下，切换子显示模式
-      encoderDiagnosticSubmode = (encoderDiagnosticSubmode + 1) % 2;  // 2个子模式循环切换
-      
-      String subModeName = encoderDiagnosticSubmode == 0 ? "Position" : "Phase Change";
-      Serial.println("[DIAGNOSTIC] Switch to Submode: " + subModeName);
-      userInterface->displayDiagnosticInfo("Encoder Diag", "SubMode: " + subModeName);
+      encoderDiagnosticHandler.switchToNextSubMode();
     } else if (currentMode == MODE_DIAGNOSE_OUTLET) {
       // 在出口诊断模式下，切换子显示模式
       outletDiagnosticHandler.switchToNextSubMode();
@@ -212,31 +212,7 @@ void handleModeChange() {
   }
 }
 
-// 处理编码器诊断模式
-void processDiagnoseEncoderMode() {
-  // 诊断编码器模式 - 根据子模式显示不同信息
-  static bool subModeInitialized = false;
-  
-  if (!subModeInitialized) {
-    subModeInitialized = true;
-    Serial.println("[DIAGNOSTIC] Encoder Diagnostic Mode Activated");
-    Serial.println("[DIAGNOSTIC] Submode: " + String(encoderDiagnosticSubmode == 0 ? "Position" : "Phase Change"));
-    Serial.println("[DIAGNOSTIC] Use slave button to switch submode");
-  }
-  
-  // 获取编码器实例
-  Encoder* encoder = Encoder::getInstance();
-  
-  // 获取编码器位置信息
-  int encoderPosition = encoder->getCurrentPosition();
-  bool positionChanged = encoder->hasPositionChanged();
-  
-  // 使用新的显示方法
-  userInterface->displayPositionInfo("Encoder", encoderPosition, true);
-  
-  // 重置位置变化标志
-  encoder->resetPositionChanged();
-}
+
 
 // 处理上料器测试模式
 void processTestReloaderMode(unsigned long currentTime) {
@@ -376,8 +352,13 @@ void loop() {
       break;
       
     case MODE_DIAGNOSE_ENCODER:
-      processDiagnoseEncoderMode();
-      // 编码器诊断模式不需要处理任何任务，只需要监控编码器状态
+      // 处理从按钮输入，切换子模式
+      if (userInterface->isSlaveButtonPressed()) {
+        encoderDiagnosticHandler.switchToNextSubMode();
+      }
+      
+      // 执行诊断模式的主要逻辑
+      encoderDiagnosticHandler.update();
       break;
       
     case MODE_NORMAL:

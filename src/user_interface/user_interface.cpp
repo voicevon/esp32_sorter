@@ -191,10 +191,10 @@ void UserInterface::displayDiagnosticValues(const String& title, const String& v
     }
 }
 
-void UserInterface::displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3) {
+void UserInterface::displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3, const String& line4) {
     // 遍历所有显示设备
     for (int i = 0; i < displayDeviceCount; i++) {
-        displayDevices[i]->displayMultiLineText(title, line1, line2, line3);
+        displayDevices[i]->displayMultiLineText(title, line1, line2, line3, line4);
     }
 }
 

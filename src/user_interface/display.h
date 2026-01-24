@@ -71,7 +71,7 @@ public:
     virtual void displayDiagnosticValues(const String& title, const String& value1, const String& value2) = 0;
     
     // 显示多行文本
-    virtual void displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3 = "") = 0;
+    virtual void displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3 = "", const String& line4 = "") = 0;
     
     // 重置诊断模式
     virtual void resetDiagnosticMode() = 0;

@@ -17,6 +17,10 @@ private:
     long rawEncoderCount;            // 编码器计数值
     long lastEncoderCount;           // 上次计数值，用于检测变化
     volatile bool positionChanged; // 位置变化标志（用于OLED显示）
+    long zeroCrossCount;            // Z相触发次数（清零次数）
+    long zeroCrossRawCount;         // Z相触发时的原始计数值
+    int forcedZeroCount;            // 强制清零次数
+    long forcedZeroRawCount;        // 强制清零时的原始计数值
     
     // 回调函数指针和上下文
     PhaseCallback encoderPhaseCallback;  // 相位回调
@@ -53,13 +57,22 @@ public:
     // 获取原始计数值
     long getRawCount() const { return rawEncoderCount; }
     
+    // 获取清零次数（Z相触发次数）
+    long getZeroCrossCount() const { return zeroCrossCount; }
+    
+    // 获取Z相触发时的原始计数值
+    long getZeroCrossRawCount() const { return zeroCrossRawCount; }
+    
+    // 获取强制清零次数
+    int getForcedZeroCount() const { return forcedZeroCount; }
+    
+    // 获取强制清零时的原始计数值
+    long getForcedZeroRawCount() const { return forcedZeroRawCount; }
+    
     // 中断处理函数
     static void handleAPhaseInterrupt();  // A相中断
     static void handleBPhaseInterrupt();  // B相中断
     static void handleZPhaseInterrupt();  // Z相中断
-    
-    // 调试信息打印方法
-    void printDiagnosticInfo();
 };
 
 #endif // ENCODER_H

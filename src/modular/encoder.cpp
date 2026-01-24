@@ -14,6 +14,10 @@ Encoder::Encoder() {
     rawEncoderCount = 0;
     lastEncoderCount = 0;
     positionChanged = false;
+    zeroCrossCount = 0;
+    zeroCrossRawCount = 0;
+    forcedZeroCount = 0;
+    forcedZeroRawCount = 0;
     
     // 初始化回调函数指针为nullptr
     encoderPhaseCallback = nullptr;
@@ -47,6 +51,10 @@ void Encoder::initialize() {
     // 初始化内部状态变量
     rawEncoderCount = 0;
     lastEncoderCount = 0;
+    zeroCrossCount = 0;
+    zeroCrossRawCount = 0;
+    forcedZeroCount = 0;
+    forcedZeroRawCount = 0;
 }
 
 /**
@@ -158,8 +166,23 @@ void Encoder::handleBPhaseInterrupt() {
 void Encoder::handleZPhaseInterrupt() {
     if (!instance) return;
     
-    // 保留连续计数，不重置计数值
-    // 只设置位置变化标志
+    // 增加清零次数计数
+    instance->zeroCrossCount++;
+    
+    // 记录Z相触发时的原始计数值
+    instance->zeroCrossRawCount = instance->rawEncoderCount;
+    
+    // 当清零时，如果计数器对400取模余数不是0，则强行设为0
+    if (instance->rawEncoderCount % 400 != 0) {
+        // 记录强制清零时的原始计数值
+        instance->forcedZeroRawCount = instance->rawEncoderCount;
+        // 增加强制清零计数
+        instance->forcedZeroCount++;
+        // 直接设为0
+        instance->rawEncoderCount = 0;
+    }
+    
+    // 设置位置变化标志
     instance->positionChanged = true;
     
     // 调用触发相位回调的方法，传递特殊相位值255表示Z相信号
@@ -176,27 +199,6 @@ void Encoder::triggerPhaseCallback() {
     if (encoderPhaseCallback != nullptr) {
         int currentPhase = rawEncoderCount % ENCODER_LOGICAL_POSITION_RANGE;
         encoderPhaseCallback(encoderPhaseCallbackContext, currentPhase);
-    }
-}
-
-/**
- * 调试信息打印方法
- * 打印编码器的计数值、当前位置等调试信息
- */
-void Encoder::printDiagnosticInfo() {
-    // 使用函数级静态变量记录上一次的计数值
-    static int previousCount = 0;
-    
-    // 只有当计数值变化时才输出
-    if (rawEncoderCount != previousCount) {
-        Serial.print("Encoder: Count=");
-        Serial.print(rawEncoderCount);
-        Serial.print(", Pos=");
-        Serial.print(getCurrentPosition());
-        Serial.println();
-        
-        // 更新previousCount为当前count值，避免重复输出
-        previousCount = rawEncoderCount;
     }
 }
 

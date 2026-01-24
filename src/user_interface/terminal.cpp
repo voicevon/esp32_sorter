@@ -477,12 +477,12 @@ void Terminal::displayDiagnosticValues(const String& title, const String& value1
 }
 
 // 显示多行文本
-void Terminal::displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3) {
+void Terminal::displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3, const String& line4) {
     // 检查是否是第一次显示
     static bool firstDisplay = true;
     
     // 计算需要的行数
-    int lineCount = line3.isEmpty() ? 3 : 4;
+    int lineCount = 3 + (line3.isEmpty() ? 0 : 1) + (line4.isEmpty() ? 0 : 1);
     
     if (firstDisplay) {
         // 第一次显示时，打印多行格式（蓝色背景，红色标题，白色正文）
@@ -491,6 +491,9 @@ void Terminal::displayMultiLineText(const String& title, const String& line1, co
         Serial.println(STYLE_DATA_WINDOW_CONTENT + line2 + "                      " + STYLE_RESET);
         if (!line3.isEmpty()) {
             Serial.println(STYLE_DATA_WINDOW_CONTENT + line3 + "                      " + STYLE_RESET);
+        }
+        if (!line4.isEmpty()) {
+            Serial.println(STYLE_DATA_WINDOW_CONTENT + line4 + "                      " + STYLE_RESET);
         }
         firstDisplay = false;
     } else {
@@ -505,6 +508,9 @@ void Terminal::displayMultiLineText(const String& title, const String& line1, co
         Serial.println(STYLE_DATA_WINDOW_CONTENT + line2 + "                      " + STYLE_RESET);
         if (!line3.isEmpty()) {
             Serial.println(STYLE_DATA_WINDOW_CONTENT + line3 + "                      " + STYLE_RESET);
+        }
+        if (!line4.isEmpty()) {
+            Serial.println(STYLE_DATA_WINDOW_CONTENT + line4 + "                      " + STYLE_RESET);
         }
     }
 }

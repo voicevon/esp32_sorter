@@ -94,7 +94,7 @@ public:
   void displaySingleValue(const String& label, int value, const String& unit);
   void displayPositionInfo(const String& title, int position, bool showOnlyOnChange);
   void displayDiagnosticValues(const String& title, const String& value1, const String& value2);
-  void displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3 = "");
+  void displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3 = "", const String& line4 = "");
   
 
     
