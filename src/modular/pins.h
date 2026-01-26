@@ -14,14 +14,9 @@ const int SERVO_PINS[8] = {
   32    // 出口8舵机
 };
 
-// 上料器舵机引脚
-const int RELOADER_SERVO_PIN = 15;  // 上料器舵机控制引脚
-
- // 人机交互模块引脚定义
+// 人机交互模块引脚定义
 const int MODE_BUTTON_PIN = 4;     // 主按钮引脚 (Master Button) - 模式切换按钮
 const int DIAGNOSTIC_BUTTON_PIN = 5; // 从按钮引脚 (Slave Button)
-const int STATUS_LED1_PIN = 16;    // 主LED引脚 (Master LED)
-const int STATUS_LED2_PIN = 17;    // 从LED引脚 (Slave LED)
 
 // 激光扫描仪引脚（4个扫描点）
 const int LASER_SCANNER_PINS[4] = {36, 35, 34, 39};  // 激光扫描仪信号输入引脚

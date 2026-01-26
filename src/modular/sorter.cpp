@@ -4,11 +4,11 @@
 #include "tray_manager.h"
 #include <Arduino.h>
 #include <cstddef>
+#include <EEPROM.h>
 
 Sorter::Sorter() :
                    shouldRestartScan(false), shouldCalculateDiameter(false),
                    executeOutlets(false), resetOutlets(false),
-                   reloaderOpenRequested(false), reloaderCloseRequested(false),
                    lastSpeedCheckTime(0), lastEncoderPosition(0), lastSpeed(0.0f), lastObjectCount(0) {
     // 构造函数初始化 - 使用单例模式获取实例
     encoder = Encoder::getInstance();
@@ -27,23 +27,113 @@ void Sorter::initialize() {
     }
     scanner->initialize();
     
-    // 出口直径范围定义（单位：毫米）
-    const uint8_t OUTLET_DIAMETER_RANGES[SORTER_NUM_OUTLETS][2] = {
-        {0, 0},     // 出口0：特殊处理
-        {20, 255},  // 出口1：直径>20mm
-        {18, 20},   // 出口2：18mm<直径≤20mm
-        {16, 18},   // 出口3：16mm<直径≤18mm
-        {14, 16},   // 出口4：14mm<直径≤16mm
-        {12, 14},   // 出口5：12mm<直径≤14mm
-        {10, 12},   // 出口6：10mm<直径≤12mm
-        {8, 10}     // 出口7：8mm<直径≤10mm
-    };
+    // 初始化EEPROM
+    EEPROM.begin(512);
     
-    // 初始化所有出口并设置直径范围
+    // 定义EEPROM中存储直径范围的起始地址
+    const int EEPROM_DIAMETER_RANGES_ADDR = 0;
+    // 定义EEPROM中存储舵机位置的起始地址
+    const int EEPROM_SERVO_POSITIONS_ADDR = 0x12;
+    const int EEPROM_SERVO_MAGIC_ADDR = 0x32;
+    
+    // 出口直径范围数组
+    uint8_t outletDiameterRanges[SORTER_NUM_OUTLETS][2];
+    // 出口舵机位置数组
+    uint8_t outletServoClosedPositions[SORTER_NUM_OUTLETS];
+    uint8_t outletServoOpenPositions[SORTER_NUM_OUTLETS];
+    
+    // 从EEPROM读取直径范围数据
+    bool useDefaultValues = false;
+    
+    // 检查EEPROM是否有有效数据（通过检查第一个字节是否为0xAA）
+    uint8_t magicByte = EEPROM.read(EEPROM_DIAMETER_RANGES_ADDR);
+    if (magicByte != 0xAA) {
+        // EEPROM中没有有效数据，使用默认值
+        useDefaultValues = true;
+        Serial.println("[SORTER] No valid diameter ranges in EEPROM, using default values");
+    }
+    
+    if (useDefaultValues) {
+        // 使用默认直径范围
+        outletDiameterRanges[0][0] = 0;     outletDiameterRanges[0][1] = 0;     // 出口0：特殊处理
+        outletDiameterRanges[1][0] = 20;    outletDiameterRanges[1][1] = 255;  // 出口1：直径>20mm
+        outletDiameterRanges[2][0] = 18;    outletDiameterRanges[2][1] = 20;   // 出口2：18mm<直径≤20mm
+        outletDiameterRanges[3][0] = 16;    outletDiameterRanges[3][1] = 18;   // 出口3：16mm<直径≤18mm
+        outletDiameterRanges[4][0] = 14;    outletDiameterRanges[4][1] = 16;   // 出口4：14mm<直径≤16mm
+        outletDiameterRanges[5][0] = 12;    outletDiameterRanges[5][1] = 14;   // 出口5：12mm<直径≤14mm
+        outletDiameterRanges[6][0] = 10;    outletDiameterRanges[6][1] = 12;   // 出口6：10mm<直径≤12mm
+        outletDiameterRanges[7][0] = 8;     outletDiameterRanges[7][1] = 10;   // 出口7：8mm<直径≤10mm
+        
+        // 将默认值写入EEPROM
+        EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR, 0xAA); // 写入魔术字节
+        for (uint8_t i = 0; i < SORTER_NUM_OUTLETS; i++) {
+            EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2, outletDiameterRanges[i][0]);
+            EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2 + 1, outletDiameterRanges[i][1]);
+        }
+        EEPROM.commit();
+        Serial.println("[SORTER] Default diameter ranges written to EEPROM");
+    } else {
+        // 从EEPROM读取直径范围
+        for (uint8_t i = 0; i < SORTER_NUM_OUTLETS; i++) {
+            outletDiameterRanges[i][0] = EEPROM.read(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2);
+            outletDiameterRanges[i][1] = EEPROM.read(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2 + 1);
+        }
+        Serial.println("[SORTER] Diameter ranges loaded from EEPROM");
+    }
+    
+    // 打印加载的直径范围
+    Serial.println("[SORTER] Loaded diameter ranges:");
     for (uint8_t i = 0; i < SORTER_NUM_OUTLETS; i++) {
-        int minD = OUTLET_DIAMETER_RANGES[i][0];
-        int maxD = OUTLET_DIAMETER_RANGES[i][1];
-        outlets[i].initialize(SERVO_PINS[i], minD, maxD);
+        Serial.print("Outlet ");
+        Serial.print(i);
+        Serial.print(": ");
+        Serial.print(outletDiameterRanges[i][0]);
+        Serial.print(" - ");
+        Serial.println(outletDiameterRanges[i][1]);
+    }
+    
+    // 从EEPROM读取舵机位置数据
+    bool useDefaultServoPositions = false;
+    uint8_t servoMagicByte = EEPROM.read(EEPROM_SERVO_MAGIC_ADDR);
+    if (servoMagicByte != 0xBB) {
+        // EEPROM中没有有效舵机位置数据，使用默认值
+        useDefaultServoPositions = true;
+        Serial.println("[SORTER] No valid servo positions in EEPROM, using default values");
+    }
+    
+    if (useDefaultServoPositions) {
+        // 使用默认舵机位置
+        for (uint8_t i = 0; i < SORTER_NUM_OUTLETS; i++) {
+            outletServoClosedPositions[i] = SERVO_CLOSED_POSITION;
+            outletServoOpenPositions[i] = SERVO_OPEN_POSITION;
+        }
+    } else {
+        // 从EEPROM读取舵机位置
+        for (uint8_t i = 0; i < SORTER_NUM_OUTLETS; i++) {
+            outletServoClosedPositions[i] = EEPROM.read(EEPROM_SERVO_POSITIONS_ADDR + i);
+            outletServoOpenPositions[i] = EEPROM.read(EEPROM_SERVO_POSITIONS_ADDR + SORTER_NUM_OUTLETS + i);
+        }
+        Serial.println("[SORTER] Servo positions loaded from EEPROM");
+    }
+    
+    // 打印加载的舵机位置
+    Serial.println("[SORTER] Loaded servo positions:");
+    for (uint8_t i = 0; i < SORTER_NUM_OUTLETS; i++) {
+        Serial.print("Outlet ");
+        Serial.print(i);
+        Serial.print(": Closed=");
+        Serial.print(outletServoClosedPositions[i]);
+        Serial.print(", Open=");
+        Serial.println(outletServoOpenPositions[i]);
+    }
+    
+    // 初始化所有出口并设置直径范围和舵机位置
+    for (uint8_t i = 0; i < SORTER_NUM_OUTLETS; i++) {
+        int minD = outletDiameterRanges[i][0];
+        int maxD = outletDiameterRanges[i][1];
+        int closedPos = outletServoClosedPositions[i];
+        int openPos = outletServoOpenPositions[i];
+        outlets[i].initialize(SERVO_PINS[i], minD, maxD, closedPos, openPos);
     }
     
     // 初始化出口位置
@@ -51,12 +141,7 @@ void Sorter::initialize() {
     initializeDivergencePoints(defaultDivergencePoints);
     
     // 初始化托盘系统
-    traySystem.resetAllTraysData();
-    
-    // 初始化上料器舵机
-    reloaderServo.attach(RELOADER_SERVO_PIN);
-    // 初始化时关闭上料器
-    reloaderServo.write(SORTER_RELOADER_CLOSE_ANGLE);
+    resetAllTraysData();
     
     // 设置编码器回调，将Sorter实例和静态回调函数连接到编码器
     encoder->setPhaseCallback(this, onEncoderPhaseChange);
@@ -94,15 +179,6 @@ void Sorter::onPhaseChange(int phase) {
             break;
         case 175:
             executeOutlets = true;
-            break;
-        // 上料器特殊位置控制
-        case 200:
-            // 上料器开启位置
-            reloaderOpenRequested = true;
-            break;
-        case 220:
-            // 上料器关闭位置
-            reloaderCloseRequested = true;
             break;
         default:
             // 无需处理的phase值
@@ -143,7 +219,7 @@ void Sorter::processScannerTasks() {
         }
         
         // 添加新的直径数据到托盘系统（使用毫米值）
-        traySystem.pushNewAsparagus(diameterMm, objectScanCount);
+        pushNewAsparagus(diameterMm, objectScanCount);
         prepareOutlets();
     }
 }
@@ -166,8 +242,8 @@ void Sorter::processOutletTasks() {
                 // 修改：将出口位置索引减1，因为实际托盘计数从1开始
                 int adjustedPosition = outletDivergencePoints[i] - 1;
                 // 确保调整后的索引在有效范围内
-                if (adjustedPosition >= 0 && adjustedPosition < traySystem.getCapacity()) {
-                    int diameter = traySystem.getTrayDiameter(adjustedPosition);
+                if (adjustedPosition >= 0 && adjustedPosition < getCapacity()) {
+                    int diameter = getTrayDiameter(adjustedPosition);
                     int minDiameter = outlets[i].getMatchDiameterMin();
                     int maxDiameter = outlets[i].getMatchDiameterMax();
                     
@@ -202,21 +278,7 @@ void Sorter::processOutletTasks() {
     }
 }
 
-// 处理上料器相关任务
-void Sorter::processReloaderTasks() {
-    // 处理上料器控制
-    if (reloaderOpenRequested) {
-        reloaderOpenRequested = false;
-        // 内联实现上料器开启
-        reloaderServo.write(SORTER_RELOADER_OPEN_ANGLE);
-    }
-    
-    if (reloaderCloseRequested) {
-        reloaderCloseRequested = false;
-        // 内联实现上料器关闭
-        reloaderServo.write(SORTER_RELOADER_CLOSE_ANGLE);
-    }
-}
+
 
 // 出口控制公共方法实现
 void Sorter::setOutletState(uint8_t outletIndex, bool open) {
@@ -235,19 +297,12 @@ Outlet* Sorter::getOutlet(uint8_t index) {
     return nullptr;
 }
 
-// 上料器控制公共方法实现
-void Sorter::openReloader() {
-    reloaderServo.write(SORTER_RELOADER_OPEN_ANGLE);
-}
 
-void Sorter::closeReloader() {
-    reloaderServo.write(SORTER_RELOADER_CLOSE_ANGLE);
-}
 
 // 实现预设出口功能
 void Sorter::prepareOutlets() {
     // 出口0处理
-    if (traySystem.getTrayScanCount(0) > 1){
+    if (getTrayScanCount(0) > 1){
         outlets[0].setReadyToOpen(true);
     } else {
         outlets[0].setReadyToOpen(false);
@@ -261,8 +316,8 @@ void Sorter::prepareOutlets() {
         int maxDiameter = outlets[i].getMatchDiameterMax();
         
         // 确保调整后的索引在有效范围内
-        if (outletPosition >= 0 && outletPosition < traySystem.getCapacity()) {
-            int diameter = traySystem.getTrayDiameter(outletPosition);
+        if (outletPosition >= 0 && outletPosition < getCapacity()) {
+            int diameter = getTrayDiameter(outletPosition);
             
             // 只在直径有效并且满足出口条件时设置出口状态
             if (diameter > 0 && diameter <= 50) {
@@ -283,7 +338,7 @@ void Sorter::prepareOutlets() {
 
 // 获取最新直径
 int Sorter::getLatestDiameter() const {
-    return traySystem.getTrayDiameter(0);
+    return getTrayDiameter(0);
 }
 
 // 获取已经输送的托架数量
@@ -339,4 +394,110 @@ float Sorter::getConveyorSpeedPerSecond() {
 
 // 获取显示数据（用于 UserInterface）
 // Sorter::getDisplayData方法已移除，改用专用方法
+
+// 获取出口最小直径
+int Sorter::getOutletMinDiameter(uint8_t outletIndex) const {
+    if (outletIndex < SORTER_NUM_OUTLETS) {
+        return outlets[outletIndex].getMatchDiameterMin();
+    }
+    return 0;
+}
+
+// 获取出口最大直径
+int Sorter::getOutletMaxDiameter(uint8_t outletIndex) const {
+    if (outletIndex < SORTER_NUM_OUTLETS) {
+        return outlets[outletIndex].getMatchDiameterMax();
+    }
+    return 0;
+}
+
+// 设置出口最小直径
+void Sorter::setOutletMinDiameter(uint8_t outletIndex, int minDiameter) {
+    if (outletIndex < SORTER_NUM_OUTLETS) {
+        outlets[outletIndex].setMatchDiameterMin(minDiameter);
+    }
+}
+
+// 设置出口最大直径
+void Sorter::setOutletMaxDiameter(uint8_t outletIndex, int maxDiameter) {
+    if (outletIndex < SORTER_NUM_OUTLETS) {
+        outlets[outletIndex].setMatchDiameterMax(maxDiameter);
+    }
+}
+
+// 获取出口关闭位置
+int Sorter::getOutletClosedPosition(uint8_t outletIndex) const {
+    if (outletIndex < SORTER_NUM_OUTLETS) {
+        return outlets[outletIndex].getClosedPosition();
+    }
+    return SERVO_CLOSED_POSITION;
+}
+
+// 获取出口打开位置
+int Sorter::getOutletOpenPosition(uint8_t outletIndex) const {
+    if (outletIndex < SORTER_NUM_OUTLETS) {
+        return outlets[outletIndex].getOpenPosition();
+    }
+    return SERVO_OPEN_POSITION;
+}
+
+// 设置出口关闭位置
+void Sorter::setOutletClosedPosition(uint8_t outletIndex, int closedPosition) {
+    if (outletIndex < SORTER_NUM_OUTLETS) {
+        outlets[outletIndex].setClosedPosition(closedPosition);
+    }
+}
+
+// 设置出口打开位置
+void Sorter::setOutletOpenPosition(uint8_t outletIndex, int openPosition) {
+    if (outletIndex < SORTER_NUM_OUTLETS) {
+        outlets[outletIndex].setOpenPosition(openPosition);
+    }
+}
+
+// 重置所有托盘数据
+void Sorter::resetAllTraysData() {
+    for (int i = 0; i < QUEUE_CAPACITY; i++) {
+        asparagusDiameters[i] = EMPTY_TRAY;
+        asparagusCounts[i] = 0;
+    }
+}
+
+// 获取托盘容量
+uint8_t Sorter::getCapacity() {
+    return QUEUE_CAPACITY;
+}
+
+// 获取指定托盘的直径
+int Sorter::getTrayDiameter(int index) const {
+    if (index >= 0 && index < QUEUE_CAPACITY) {
+        return asparagusDiameters[index];
+    }
+    return EMPTY_TRAY;
+}
+
+// 获取指定托盘的扫描计数
+int Sorter::getTrayScanCount(int index) const {
+    if (index >= 0 && index < QUEUE_CAPACITY) {
+        return asparagusCounts[index];
+    }
+    return 0;
+}
+
+// 向右移动所有托盘数据
+void Sorter::shiftToRight() {
+    for (int i = QUEUE_CAPACITY - 1; i > 0; i--) {
+        asparagusDiameters[i] = asparagusDiameters[i - 1];
+        asparagusCounts[i] = asparagusCounts[i - 1];
+    }
+    asparagusDiameters[0] = EMPTY_TRAY;
+    asparagusCounts[0] = 0;
+}
+
+// 添加新的芦笋数据到托盘系统
+void Sorter::pushNewAsparagus(int diameter, int scanCount) {
+    shiftToRight();
+    asparagusDiameters[0] = diameter;
+    asparagusCounts[0] = scanCount;
+}
 

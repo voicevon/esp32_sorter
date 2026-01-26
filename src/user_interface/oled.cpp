@@ -415,9 +415,6 @@ void OLED::displayModeChange(SystemMode newMode) {
     case MODE_DIAGNOSE_OUTLET:
       display.println(F("Outlet"));
       break;
-    case MODE_TEST_RELOADER:
-      display.println(F("Reloader"));
-      break;
     default:
       display.println(F("Unknown"));
       break;

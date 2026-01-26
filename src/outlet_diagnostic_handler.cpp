@@ -40,10 +40,10 @@ void OutletDiagnosticHandler::switchToNextSubMode() {
     String subModeName;
     switch (currentSubMode) {
         case 0:
-            subModeName = "Cycle Drop (Normally Open)";
+            subModeName = "Cycle Drop (Normally Closed)";
             break;
         case 1:
-            subModeName = "Cycle Raise (Normally Closed)";
+            subModeName = "Cycle Raise (Normally Open)";
             break;
         case 2:
             subModeName = "Servo Lifetime Test";
@@ -76,30 +76,57 @@ void OutletDiagnosticHandler::update(unsigned long currentTime) {
     switch (currentSubMode) {
         case 0: {
             /**
-             * 子模式0：轮巡降落测试（常态打开模式）
-             * 行为：出口默认保持打开状态，定期短暂闭合后恢复打开
+             * 子模式0：轮巡降落测试（常态闭合模式）
+             * 行为：出口默认保持关闭状态，定期短暂打开后恢复关闭
              * 时序：
-             *   - 打开状态保持时间：4.5秒（outletState为true时）
-             *   - 闭合状态保持时间：1.5秒（outletState为false时）
+             *   - 关闭状态保持时间：4.5秒（outletState为false时）
+             *   - 打开状态保持时间：1.5秒（outletState为true时）
              * 应用场景：测试弹簧降落式出口的正常工作
              */
-            interval = outletState ? 4500 : 1500;
+            interval = outletState ? 1500 : 4500;
             testType = "normally closed";  // 表示出口在非测试状态下是常闭的
             processCycleOperation(currentTime, interval, testType);
             break;
         }
         case 1: {
             /**
-             * 子模式1：轮巡上升测试（常态闭合模式）
-             * 行为：出口默认保持闭合状态，定期短暂打开后恢复闭合
+             * 子模式1：轮巡上升测试（常态打开模式）
+             * 行为：出口默认保持打开状态，定期短暂闭合后恢复打开
              * 时序：
-             *   - 闭合状态保持时间：4.5秒（outletState为false时）
-             *   - 打开状态保持时间：1.5秒（outletState为true时）
+             *   - 打开状态保持时间：4.5秒（outletState为true时）
+             *   - 闭合状态保持时间：1.5秒（outletState为false时）
              * 应用场景：测试推杆上升式出口的正常工作
              */
-            interval = outletState ? 1500 : 4500;
-            testType = "normally open";  // 表示出口在非测试状态下是常开的
-            processCycleOperation(currentTime, interval, testType);
+            // 不使用processCycleOperation函数，直接实现逻辑
+            if (currentTime - lastOutletTime >= (outletState ? 4500 : 1500)) {
+                // 更新时间戳
+                lastOutletTime = currentTime;
+                
+                // 切换出口状态（开<->关）
+                outletState = !outletState;
+                
+                // 当状态从关闭切换到打开时，移动到下一个出口
+                if (outletState) {
+                    currentOutlet = (currentOutlet + 1) % NUM_OUTLETS;
+                    
+                    // 输出诊断信息到串口
+                    Serial.print("[DIAGNOSTIC] Now testing outlet normally open: ");
+                    Serial.println(currentOutlet);
+                }
+                
+                // 直接控制当前出口执行相应动作
+                outlets[currentOutlet]->setReadyToOpen(outletState);
+                outlets[currentOutlet]->execute();
+                
+                // 更新显示屏内容，指示当前测试状态
+                if (outletState) {
+                    // 出口打开时，显示当前测试的出口编号
+                    userInterface->displayOutletTestGraphic(NUM_OUTLETS, currentOutlet, currentSubMode);
+                } else {
+                    // 出口关闭时，显示无出口打开状态（255为特殊标记值）
+                    userInterface->displayOutletTestGraphic(NUM_OUTLETS, 255, currentSubMode);
+                }
+            }
             break;
         }
         case 2: {
@@ -197,19 +224,50 @@ void OutletDiagnosticHandler::initializeDiagnosticMode(unsigned long currentTime
     // 模式开始时初始化
     modeStartTime = currentTime;
     lastOutletTime = currentTime;
-    outletState = false;
+    
+    // 根据子模式设置不同的初始outletState
+    // 子模式0：常态闭合模式，初始状态为关闭
+    // 子模式1：常态打开模式，初始状态为打开
+    // 子模式2：寿命测试模式，初始状态为关闭
+    if (currentSubMode == 1) {
+        outletState = true;  // 子模式1默认打开
+    } else {
+        outletState = false; // 其他模式默认关闭
+    }
+    
     currentOutlet = 0;
     displayInitialized = false;
     cycleCount = 0;
+    
+    // 立即控制当前出口执行初始状态的动作
+    if (currentSubMode != 2) { // 子模式2使用单独的逻辑
+        outlets[currentOutlet]->setReadyToOpen(outletState);
+        outlets[currentOutlet]->execute();
+        
+        // 更新显示内容
+        if (userInterface != nullptr) {
+            if (outletState) {
+                userInterface->displayOutletTestGraphic(NUM_OUTLETS, currentOutlet, currentSubMode);
+            } else {
+                userInterface->displayOutletTestGraphic(NUM_OUTLETS, 255, currentSubMode);
+            }
+        }
+        
+        // 输出诊断信息到串口
+        Serial.print("[DIAGNOSTIC] Initial outlet state " + String(currentSubMode == 0 ? "normally closed" : "normally open") + ": ");
+        Serial.print(currentOutlet);
+        Serial.print(" - ");
+        Serial.println(outletState ? "Open" : "Closed");
+    }
     
     // 打印诊断信息
     String subModeName;
     switch (currentSubMode) {
         case 0:
-            subModeName = "Cycle Drop (Normally Open)";
+            subModeName = "Cycle Drop (Normally Closed)";
             break;
         case 1:
-            subModeName = "Cycle Raise (Normally Closed)";
+            subModeName = "Cycle Raise (Normally Open)";
             break;
         case 2:
             subModeName = "Servo Lifetime Test";

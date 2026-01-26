@@ -19,16 +19,16 @@ class SimpleHMI;
 // 出口数量定义 - 使用统一的OUTLET_COUNT宏
 #define SORTER_NUM_OUTLETS OUTLET_COUNT
 
-// 上料器舵机角度定义
-static const int SORTER_RELOADER_OPEN_ANGLE = 90;
-static const int SORTER_RELOADER_CLOSE_ANGLE = 180;
+
+
+// 托盘相关常量
+static const uint8_t QUEUE_CAPACITY = 31; // 索引0-30
+static const int EMPTY_TRAY = 0;  // 无效直径值，用于表示该位置没有芦笋
 
 // 定义Sorter类
 class Sorter {
 private:
-    // 硬件相关常量
-    static const int RELOADER_OPEN_DELAY_MILLIS = 1000;    // 上料器打开延迟（毫秒）
-    static const int RELOADER_CLOSE_DELAY_MILLIS = 1000;   // 上料器关闭延迟（毫秒）
+
     
     // 分流点索引（编码器位置）
     int outletDivergencePoints[SORTER_NUM_OUTLETS];
@@ -39,16 +39,16 @@ private:
     // 直径扫描仪实例指针
     DiameterScanner* scanner;
     
-    // 芦笋托盘系统
-    TrayManager traySystem;
+    // 芦笋托盘数据
+    int asparagusDiameters[QUEUE_CAPACITY];    // 存储每个芦笋的直径数据
+    int asparagusCounts[QUEUE_CAPACITY];    // 存储每个位置的芦笋数量
     
-    // 上料器舵机
-    Servo reloaderServo;
+
     
     // 编码器和HMI实例
     Encoder* encoder;
     SimpleHMI* simpleHmi;
-    
+
 
     
     // 状态标志位（中断安全）
@@ -56,8 +56,6 @@ private:
     volatile bool shouldCalculateDiameter; // 计算直径数据标志 - 在特定编码器相位触发直径计算和处理
     volatile bool executeOutlets;         // 执行出口动作标志
     volatile bool resetOutlets;           // 重置出口标志
-    volatile bool reloaderOpenRequested;           // 上料器打开标志
-    volatile bool reloaderCloseRequested;          // 上料器关闭标志
     
     // 速度计算相关变量
     unsigned long lastSpeedCheckTime;
@@ -68,6 +66,12 @@ private:
     // 私有方法
     void prepareOutlets();
     void initializeDivergencePoints(const uint8_t positions[SORTER_NUM_OUTLETS]);
+    void shiftToRight();
+    void pushNewAsparagus(int diameter, int scanCount);
+    void resetAllTraysData();
+    int getTrayDiameter(int index) const;
+    int getTrayScanCount(int index) const;
+    static uint8_t getCapacity();
     
 public:
     // 构造函数
@@ -79,14 +83,11 @@ public:
     // 拆分的任务执行函数
     void processScannerTasks();     // 处理扫描仪相关任务
     void processOutletTasks();      // 处理出口相关任务
-    void processReloaderTasks();    // 处理上料器相关任务
     
     // 采样回调函数（供编码器调用，参数为相位）
     void onPhaseChange(int phase);
 
-    // 上料器控制公共方法（用于测试模式）
-    void openReloader();
-    void closeReloader();
+
     
     // 出口控制公共方法（用于诊断模式）
     void setOutletState(uint8_t outletIndex, bool open);
@@ -107,4 +108,16 @@ public:
     
     // 获取传送带速度（托架/秒，返回float类型）
     float getConveyorSpeedPerSecond();
+    
+    // 获取和设置出口直径范围的方法
+    int getOutletMinDiameter(uint8_t outletIndex) const;
+    int getOutletMaxDiameter(uint8_t outletIndex) const;
+    void setOutletMinDiameter(uint8_t outletIndex, int minDiameter);
+    void setOutletMaxDiameter(uint8_t outletIndex, int maxDiameter);
+    
+    // 获取和设置出口开放/关闭位置的方法
+    int getOutletClosedPosition(uint8_t outletIndex) const;
+    int getOutletOpenPosition(uint8_t outletIndex) const;
+    void setOutletClosedPosition(uint8_t outletIndex, int closedPosition);
+    void setOutletOpenPosition(uint8_t outletIndex, int openPosition);
 };

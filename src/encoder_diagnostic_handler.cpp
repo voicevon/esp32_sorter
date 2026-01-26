@@ -68,11 +68,15 @@ void EncoderDiagnosticHandler::update() {
     long forcedZeroRawCount = encoder->getForcedZeroRawCount();
     
     // 使用新的显示方法，在OLED上用四行显示，冒号对齐
+    // 第1行：原始计数值
+    // 第2行：相位值
+    // 第3行：空行
+    // 第4行：强行置0次数与总清零次数的比例和最后清零时的数值
     String rawLine = "Raw:    " + String(rawPosition);
     String phaseLine = "Phase:  " + String(encoderPosition);
-    String zeroLine = "Zero:   " + String(zeroCrossCount);
-    String forcedLine = "F: " + String(forcedZeroCount) + "/" + String(forcedZeroRawCount);
-    userInterface->displayMultiLineText("Encoder", rawLine, phaseLine, zeroLine, forcedLine);
+    String emptyLine = "";
+    String combinedLine = "F: " + String(forcedZeroCount) + "/" + String(zeroCrossCount) + " Last: " + String(forcedZeroRawCount);
+    userInterface->displayMultiLineText("Encoder", rawLine, phaseLine, combinedLine);
     
 
     

@@ -107,6 +107,8 @@ public:
     // 输入相关方法
     bool isMasterButtonPressed();
     bool isSlaveButtonPressed();
+    bool isMasterButtonLongPressed();
+    bool isSlaveButtonLongPressed();
     
     // 显示设备管理方法
     bool addDisplayDevice(Display* display);  // 添加显示设备

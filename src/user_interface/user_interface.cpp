@@ -234,6 +234,16 @@ bool UserInterface::isSlaveButtonPressed() {
     return hmi->isSlaveButtonPressed();
 }
 
+// 检查主按钮是否被长按
+bool UserInterface::isMasterButtonLongPressed() {
+    return hmi->isMasterButtonLongPressed();
+}
+
+// 检查从按钮是否被长按
+bool UserInterface::isSlaveButtonLongPressed() {
+    return hmi->isSlaveButtonLongPressed();
+}
+
 // 启用指定输出渠道
 void UserInterface::enableOutputChannel(OutputChannel channel) {
     outputChannels |= channel;

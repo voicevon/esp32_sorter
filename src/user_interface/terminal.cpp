@@ -66,9 +66,6 @@ void Terminal::displayModeChange(SystemMode newMode) {
         case MODE_DIAGNOSE_OUTLET:
             modeName = "Outlet Diagnostics";
             break;
-        case MODE_TEST_RELOADER:
-            modeName = "Feeder Test";
-            break;
         case MODE_VERSION_INFO:
             modeName = "Version Information";
             break;

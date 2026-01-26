@@ -27,6 +27,8 @@ private:
     // 编码器值记录
     long risingEdgeEncoderValues[4];  // 上升沿编码器值
     long fallingEdgeEncoderValues[4]; // 下降沿编码器值
+    long minRisingEdgeValues[4];      // 有史以来最小的上升沿值
+    long maxFallingEdgeValues[4];     // 有史以来最大的下降沿值
     int diameterDifferences[4];       // 直径差值（下降沿 - 上升沿，确保非负）
     bool hasCalculatedDifferences;    // 标记是否已经计算过差值
     
@@ -36,6 +38,12 @@ private:
     bool fallingEdges[4];      // 下降沿标志
     String lastIOStatus;       // 上一次IO状态字符串，用于避免重复输出
     int lastRawDiameters[4];   // 上一次原始直径值，用于避免重复输出
+    int risingEdgeCounts[4];   // 上升沿计数器
+    
+    // 子模式处理方法
+    void handleIOStatusCheck();       // 子模式0：IO状态检查
+    void handleEncoderValues();       // 子模式1：记录并显示传感器上升沿和下降沿的编码器值
+    void handleRawDiameterDisplay();  // 子模式2：显示原始直径
 
 public:
     /**

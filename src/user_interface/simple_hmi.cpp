@@ -20,9 +20,21 @@ void IRAM_ATTR masterButtonISR() {
             SimpleHMI::getInstance()->masterButtonDownState = currentState;
             SimpleHMI::getInstance()->lastMasterDebounceTime = currentTime;
             
-            // 只有当按钮从按下状态变为释放状态时，才认为是完整的按下事件
-            if (!currentState && wasPressed) {
-                SimpleHMI::getInstance()->masterButtonClickFlag = true;
+            // 记录按钮按下的开始时间
+            if (currentState) {
+                SimpleHMI::getInstance()->masterButtonPressStartTime = currentTime;
+            } else if (wasPressed) {
+                // 只有当按钮从按下状态变为释放状态时，才认为是完整的按下事件
+                unsigned long pressDuration = currentTime - SimpleHMI::getInstance()->masterButtonPressStartTime;
+                
+                // 检查按下时间是否超过长按阈值
+                if (pressDuration >= LONG_PRESS_DELAY) {
+                    // 标记为长按事件
+                    SimpleHMI::getInstance()->masterButtonLongPressFlag = true;
+                } else {
+                    // 标记为短按事件
+                    SimpleHMI::getInstance()->masterButtonClickFlag = true;
+                }
             }
         }
     }
@@ -43,9 +55,21 @@ void IRAM_ATTR slaveButtonISR() {
             SimpleHMI::getInstance()->slaveButtonDownState = currentState;
             SimpleHMI::getInstance()->lastSlaveDebounceTime = currentTime;
             
-            // 只有当按钮从按下状态变为释放状态时，才认为是完整的按下事件
-            if (!currentState && wasPressed) {
-                SimpleHMI::getInstance()->slaveButtonClickFlag = true;
+            // 记录按钮按下的开始时间
+            if (currentState) {
+                SimpleHMI::getInstance()->slaveButtonPressStartTime = currentTime;
+            } else if (wasPressed) {
+                // 只有当按钮从按下状态变为释放状态时，才认为是完整的按下事件
+                unsigned long pressDuration = currentTime - SimpleHMI::getInstance()->slaveButtonPressStartTime;
+                
+                // 检查按下时间是否超过长按阈值
+                if (pressDuration >= LONG_PRESS_DELAY) {
+                    // 标记为长按事件
+                    SimpleHMI::getInstance()->slaveButtonLongPressFlag = true;
+                } else {
+                    // 标记为短按事件
+                    SimpleHMI::getInstance()->slaveButtonClickFlag = true;
+                }
             }
         }
     }
@@ -55,14 +79,16 @@ void IRAM_ATTR slaveButtonISR() {
 SimpleHMI::SimpleHMI() : 
     masterButtonPin(MODE_BUTTON_PIN),
     slaveButtonPin(DIAGNOSTIC_BUTTON_PIN),
-    masterLEDPin(STATUS_LED1_PIN),
-    slaveLEDPin(STATUS_LED2_PIN),
     masterButtonClickFlag(false),
     slaveButtonClickFlag(false),
+    masterButtonLongPressFlag(false),
+    slaveButtonLongPressFlag(false),
     masterButtonDownState(false),
     slaveButtonDownState(false),
     lastMasterDebounceTime(0),
-    lastSlaveDebounceTime(0)
+    lastSlaveDebounceTime(0),
+    masterButtonPressStartTime(0),
+    slaveButtonPressStartTime(0)
 {
     // 私有构造函数，不应该在外部直接调用
 }
@@ -80,14 +106,6 @@ void SimpleHMI::initialize() {
     // 配置按钮引脚为输入模式
     pinMode(masterButtonPin, INPUT_PULLUP);
     pinMode(slaveButtonPin, INPUT_PULLUP);
-    
-    // 配置LED引脚为输出模式
-    pinMode(masterLEDPin, OUTPUT);
-    pinMode(slaveLEDPin, OUTPUT);
-    
-    // 设置初始LED状态为关闭
-    digitalWrite(masterLEDPin, LOW);
-    digitalWrite(slaveLEDPin, LOW);
     
     // 初始化按钮状态
     masterButtonDownState = digitalRead(masterButtonPin) == LOW;
@@ -113,6 +131,27 @@ bool SimpleHMI::isSlaveButtonPressed() {
     // 自动清除标志，确保每个按钮事件只被处理一次
     if (result) {
         slaveButtonClickFlag = false;
+    }
+    return result;
+}
+
+// 检查按钮长按状态
+// 返回true表示按钮被长按
+// 注意：此方法会自动清除标志
+bool SimpleHMI::isMasterButtonLongPressed() {
+    bool result = masterButtonLongPressFlag;
+    // 自动清除标志，确保每个按钮事件只被处理一次
+    if (result) {
+        masterButtonLongPressFlag = false;
+    }
+    return result;
+}
+
+bool SimpleHMI::isSlaveButtonLongPressed() {
+    bool result = slaveButtonLongPressFlag;
+    // 自动清除标志，确保每个按钮事件只被处理一次
+    if (result) {
+        slaveButtonLongPressFlag = false;
     }
     return result;
 }

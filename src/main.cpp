@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <EEPROM.h>
 
 // #include "outlet.h"
 #include "user_interface/user_interface.h"
@@ -7,7 +8,7 @@
 #include "scanner_diagnostic_handler.h"
 #include "outlet_diagnostic_handler.h"
 #include "encoder_diagnostic_handler.h"
-#include "reloader_test_handler.h"
+#include "config_handler.h"
 
 // 引入系统工作模式定义
 #include "main.h"
@@ -68,8 +69,9 @@ ScannerDiagnosticHandler scannerDiagnosticHandler;
 OutletDiagnosticHandler outletDiagnosticHandler;
 // 编码器诊断处理类实例
 EncoderDiagnosticHandler encoderDiagnosticHandler;
-// 上料器测试处理类实例
-ReloaderTestHandler reloaderTestHandler;
+// 配置处理类实例
+DiameterConfigHandler diameterConfigHandler(userInterface, &sorter);
+OutletPosConfigHandler outletPosConfigHandler(userInterface, &sorter);
 
 // 函数声明
 String getSystemModeName(SystemMode mode);
@@ -117,9 +119,6 @@ void setup() {
   // 初始化编码器诊断处理类，并传入UserInterface指针
   encoderDiagnosticHandler.initialize(userInterface);
   
-  // 初始化上料器测试处理类
-  reloaderTestHandler.initialize();
-  
   Serial.println("System ready");
   Serial.println("Current Mode: " + getSystemModeName(currentMode));
   Serial.println("Use mode button to switch between modes");
@@ -132,9 +131,10 @@ void setup() {
 
 // 处理主按钮（模式切换）
 void handleMasterButton() {
-  if (userInterface->isMasterButtonPressed()) {
+  // 长按触发模式切换
+  if (userInterface->isMasterButtonLongPressed()) {
     // 切换到下一个工作模式
-    pendingMode = static_cast<SystemMode>((currentMode + 1) % 6); // 6种模式循环切换
+    pendingMode = static_cast<SystemMode>((currentMode + 1) % 8); // 8种模式循环切换
     modeChangePending = true;
     
     // 打印模式切换请求信息
@@ -144,13 +144,16 @@ void handleMasterButton() {
       currentMode = pendingMode;
       Serial.println(getSystemModeName(currentMode));
       currentMode = tempMode; // 恢复原模式
-    // 注意：isMasterButtonPressed()方法会自动清除标志
+  } else if (userInterface->isMasterButtonPressed()) {
+    // 短按处理（可根据需要扩展）
+    Serial.println("[DIAGNOSTIC] Master button short pressed");
   }
 }
 
 // 处理从按钮（子模式切换）
 void handleSlaveButton() {
-  if (userInterface->isSlaveButtonPressed()) {
+  // 长按触发子模式切换
+  if (userInterface->isSlaveButtonLongPressed()) {
     // 从按钮功能处理
     if (currentMode == MODE_NORMAL) {
       // 在正常模式下，切换子显示模式
@@ -170,9 +173,11 @@ void handleSlaveButton() {
       scannerDiagnosticHandler.switchToNextSubMode();
     } else {
       // 其他模式下，从按钮功能处理（当前未使用，可根据需要扩展）
-      Serial.println("[DIAGNOSTIC] Slave button pressed");
+      Serial.println("[DIAGNOSTIC] Slave button long pressed");
     }
-    // 注意：isSlaveButtonPressed()方法会自动清除标志
+  } else if (userInterface->isSlaveButtonPressed()) {
+    // 短按处理（可根据需要扩展）
+    Serial.println("[DIAGNOSTIC] Slave button short pressed");
   }
 }
 
@@ -186,6 +191,41 @@ void handleModeChange() {
 
       Serial.println("[DIAGNOSTIC] 已禁用扫描边缘校准模式");
     }
+    
+    // 如果当前是配置模式，退出时写入EEPROM
+    if (currentMode == MODE_CONFIG_DIAMETER || currentMode == MODE_CONFIG_OUTLET_POS) {
+      Serial.println("[CONFIG] Saving configuration to EEPROM...");
+      
+      // 初始化EEPROM
+      EEPROM.begin(512);
+      
+      // 定义EEPROM中存储直径范围的起始地址
+      const int EEPROM_DIAMETER_RANGES_ADDR = 0;
+      // 定义EEPROM中存储舵机位置的起始地址
+      const int EEPROM_SERVO_POSITIONS_ADDR = 0x12;
+      const int EEPROM_SERVO_MAGIC_ADDR = 0x32;
+      
+      // 写入直径范围数据
+      EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR, 0xAA); // 写入魔术字节
+      for (uint8_t i = 0; i < OUTLET_COUNT; i++) {
+        EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2, sorter.getOutletMinDiameter(i));
+        EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2 + 1, sorter.getOutletMaxDiameter(i));
+      }
+      
+      // 写入舵机位置数据
+      EEPROM.write(EEPROM_SERVO_MAGIC_ADDR, 0xBB); // 写入魔术字节
+      for (uint8_t i = 0; i < OUTLET_COUNT; i++) {
+        EEPROM.write(EEPROM_SERVO_POSITIONS_ADDR + i, sorter.getOutletClosedPosition(i));
+        EEPROM.write(EEPROM_SERVO_POSITIONS_ADDR + OUTLET_COUNT + i, sorter.getOutletOpenPosition(i));
+      }
+      
+      // 提交写入
+      EEPROM.commit();
+      Serial.println("[CONFIG] Configuration saved to EEPROM");
+    }
+    
+    // 保存旧模式
+    SystemMode oldMode = currentMode;
     
     // 应用模式切换
     currentMode = pendingMode;
@@ -201,6 +241,14 @@ void handleModeChange() {
       normalModeSubmode = 0;
     }
     
+    // 如果从配置模式切换出，重置配置处理类状态
+    if ((oldMode == MODE_CONFIG_DIAMETER || oldMode == MODE_CONFIG_OUTLET_POS) && 
+        (currentMode != MODE_CONFIG_DIAMETER && currentMode != MODE_CONFIG_OUTLET_POS)) {
+      // 重置配置处理类状态
+      diameterConfigHandler.reset();
+      outletPosConfigHandler.reset();
+    }
+    
     // 移除模式LED控制，LED现在只用于显示出口状态
     
     // 打印模式切换完成信息
@@ -214,44 +262,7 @@ void handleModeChange() {
 
 
 
-// 处理上料器测试模式
-void processTestReloaderMode(unsigned long currentTime) {
-  // 上料器测试模式（Feeder Test Mode）
-  static unsigned long modeStartTime = 0;
-  static unsigned long lastReloaderTime = 0;
-  static bool reloaderState = false;
-  
-  // 模式开始时初始化
-  if (modeStartTime == 0) {
-    modeStartTime = currentTime;
-    lastReloaderTime = currentTime;
-    reloaderState = false;
-    Serial.println("[DIAGNOSTIC] 上料器测试模式（Feeder Test Mode）已启动");
-  }
-  
-  // 计算模式运行时间
-  unsigned long modeRunTime = currentTime - modeStartTime;
-  
-  // 前15秒，每5秒开关一次
-  if (modeRunTime <= 15000) {
-    if (currentTime - lastReloaderTime >= 5000) {
-      lastReloaderTime = currentTime;
-      reloaderState = !reloaderState;
-      if (reloaderState) {
-        reloaderTestHandler.openReloader();  // 使用公共方法开启上料器
-      } else {
-        reloaderTestHandler.closeReloader(); // 使用公共方法关闭上料器
-      }
-    }
-  } else {
-    // 15秒后，关闭并保持5秒
-    if (reloaderState) {
-      reloaderTestHandler.closeReloader();   // 使用公共方法确保关闭
-      reloaderState = false;
-      Serial.println("[DIAGNOSTIC] Feeder closed and maintained after 15 seconds");
-    }
-  }
-}
+
 
 // 处理版本信息模式
 void processVersionInfoMode() {
@@ -321,6 +332,23 @@ void loop() {
   unsigned long currentTime = millis();
   
   switch (currentMode) {
+    case MODE_NORMAL:
+      processNormalMode();
+      // 正常模式需要处理所有任务
+      sorter.processScannerTasks();
+      sorter.processOutletTasks();
+      break;
+      
+    case MODE_DIAGNOSE_ENCODER:
+      // 处理从按钮输入，切换子模式
+      if (userInterface->isSlaveButtonPressed()) {
+        encoderDiagnosticHandler.switchToNextSubMode();
+      }
+      
+      // 执行诊断模式的主要逻辑
+      encoderDiagnosticHandler.update();
+      break;
+      
     case MODE_DIAGNOSE_SCANNER:
       // 处理从按钮输入，切换子模式
       if (userInterface->isSlaveButtonPressed()) {
@@ -341,32 +369,19 @@ void loop() {
       outletDiagnosticHandler.update(currentTime);
       break;
       
-    case MODE_TEST_RELOADER:
-      processTestReloaderMode(currentTime);
-      reloaderTestHandler.processTasks();  // 上料器测试模式需要处理上料器相关任务
+
+      
+    case MODE_CONFIG_DIAMETER:
+      diameterConfigHandler.update();
+      break;
+      
+    case MODE_CONFIG_OUTLET_POS:
+      outletPosConfigHandler.update();
       break;
       
     case MODE_VERSION_INFO:
       processVersionInfoMode();
       // 版本信息模式不需要处理任何任务
-      break;
-      
-    case MODE_DIAGNOSE_ENCODER:
-      // 处理从按钮输入，切换子模式
-      if (userInterface->isSlaveButtonPressed()) {
-        encoderDiagnosticHandler.switchToNextSubMode();
-      }
-      
-      // 执行诊断模式的主要逻辑
-      encoderDiagnosticHandler.update();
-      break;
-      
-    case MODE_NORMAL:
-      processNormalMode();
-      // 正常模式需要处理所有任务
-      sorter.processScannerTasks();
-      sorter.processOutletTasks();
-      sorter.processReloaderTasks();
       break;
       
     default:
@@ -390,11 +405,14 @@ String getSystemModeName(SystemMode mode) {
       return "Scanner Diag";
     case MODE_DIAGNOSE_OUTLET:
       return "Outlet Diag";
-    case MODE_TEST_RELOADER:
-      return "Feeder Test";
     case MODE_VERSION_INFO:
       return "Version Info";
+    case MODE_CONFIG_DIAMETER:
+      return "Config Diameter";
+    case MODE_CONFIG_OUTLET_POS:
+      return "Config Outlet Pos";
     default:
       return "Unknown Mode";
   }
 }
+
