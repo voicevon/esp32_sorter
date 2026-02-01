@@ -2,10 +2,9 @@
 
 #include "encoder.h"
 #include "diameter_scanner.h"
-#include "tray_manager.h"
+#include "tray_system.h"
 #include "outlet.h"
-#include "pins.h"
-// #include "display_data.h"已移除，不再需要
+#include "../config.h"
 #include "main.h"
 #include "esp32servo.h"
 #include "user_interface/simple_hmi.h"
@@ -16,8 +15,8 @@ class SimpleHMI;
 // 上升沿和下降沿编码器值的最大数量
 #define SORTER_MAX_ENCODER_VALUES 10
 
-// 出口数量定义 - 使用统一的OUTLET_COUNT宏
-#define SORTER_NUM_OUTLETS OUTLET_COUNT
+// 出口数量定义 - 使用统一的NUM_OUTLETS
+#define SORTER_NUM_OUTLETS NUM_OUTLETS
 
 
 
@@ -39,23 +38,26 @@ private:
     // 直径扫描仪实例指针
     DiameterScanner* scanner;
     
-    // 芦笋托盘数据
-    int asparagusDiameters[QUEUE_CAPACITY];    // 存储每个芦笋的直径数据
-    int asparagusCounts[QUEUE_CAPACITY];    // 存储每个位置的芦笋数量
-    
-
-    
     // 编码器和HMI实例
     Encoder* encoder;
     SimpleHMI* simpleHmi;
+    
+    // 托盘系统实例
+    TraySystem* trayManager;
 
 
     
-    // 状态标志位（中断安全）
-    volatile bool shouldRestartScan;     // 重启扫描标志 - 重置扫描仪状态并启动新的扫描过程
-    volatile bool shouldCalculateDiameter; // 计算直径数据标志 - 在特定编码器相位触发直径计算和处理
-    volatile bool executeOutlets;         // 执行出口动作标志
-    volatile bool resetOutlets;           // 重置出口标志
+    // 状态标志位定义 (FSM States)
+    enum SorterState {
+        STATE_IDLE,                 // 空闲/等待开始 (Phase 0-1)
+        STATE_SCANNING,             // 正在扫描 (Phase 1-110)
+        STATE_RESETTING_OUTLETS,    // 复位出口 (Phase 110-120) - 原 resetOutlets
+        STATE_CALCULATING_DIAMETER, // 计算直径 (Phase 120-175) - 原 shouldCalculateDiameter
+        STATE_EXECUTING_OUTLETS     // 执行分拣 (Phase 175-200) - 原 executeOutlets
+    };
+    
+    // 当前状态
+    volatile SorterState currentState;
     
     // 速度计算相关变量
     unsigned long lastSpeedCheckTime;
@@ -66,11 +68,6 @@ private:
     // 私有方法
     void prepareOutlets();
     void initializeDivergencePoints(const uint8_t positions[SORTER_NUM_OUTLETS]);
-    void shiftToRight();
-    void pushNewAsparagus(int diameter, int scanCount);
-    void resetAllTraysData();
-    int getTrayDiameter(int index) const;
-    int getTrayScanCount(int index) const;
     static uint8_t getCapacity();
     
 public:
@@ -80,9 +77,8 @@ public:
     // 初始化分拣系统
     void initialize();
     
-    // 拆分的任务执行函数
-    void processScannerTasks();     // 处理扫描仪相关任务
-    void processOutletTasks();      // 处理出口相关任务
+    // 主循环处理函数 (FSM Executor)
+    void run();
     
     // 采样回调函数（供编码器调用，参数为相位）
     void onPhaseChange(int phase);

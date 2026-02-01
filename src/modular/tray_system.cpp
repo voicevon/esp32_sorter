@@ -1,21 +1,43 @@
-#include "tray_manager.h"
+#include "tray_system.h"
 #include <Arduino.h>
+#include <EEPROM.h>
+
+// 初始化静态实例变量
+TraySystem* TraySystem::instance = nullptr;
 
 /**
  * 构造函数实现
  */
-TrayManager::TrayManager() {
+TraySystem::TraySystem() {
     // 初始化所有成员变量
     for (uint8_t i = 0; i < QUEUE_CAPACITY; i++) {
         asparagusDiameters[i] = EMPTY_TRAY;
         asparagusCounts[i] = 0;
     }
+    Serial.println("[TRAY] TraySystem instance created");
+}
+
+/**
+ * 析构函数实现
+ */
+TraySystem::~TraySystem() {
+    Serial.println("[TRAY] TraySystem instance destroyed");
+}
+
+/**
+ * 获取单例实例实现
+ */
+TraySystem* TraySystem::getInstance() {
+    if (instance == nullptr) {
+        instance = new TraySystem();
+    }
+    return instance;
 }
 
 /**
  * 添加新直径数据实现
  */
-void TrayManager::pushNewAsparagus(int diameter, int scanCount) {
+void TraySystem::pushNewAsparagus(int diameter, int scanCount) {
     // 将所有现有数据向右移动一位
     shiftToRight();
     
@@ -33,7 +55,7 @@ void TrayManager::pushNewAsparagus(int diameter, int scanCount) {
 /**
  * 移动托盘数据实现
  */
-void TrayManager::shiftToRight() {
+void TraySystem::shiftToRight() {
     // 从最后一个位置开始，向前移动数据
     asparagusDiameters[QUEUE_CAPACITY - 1] = EMPTY_TRAY; // 最后一个位置数据丢弃
     asparagusCounts[QUEUE_CAPACITY - 1] = 0; // 扫描次数重置为0
@@ -58,7 +80,7 @@ void TrayManager::shiftToRight() {
 /**
  * 重置所有直径数据实现
  */
-void TrayManager::resetAllTraysData() {
+void TraySystem::resetAllTraysData() {
     for (uint8_t i = 0; i < QUEUE_CAPACITY; i++) {
         asparagusDiameters[i] = EMPTY_TRAY;
         asparagusCounts[i] = 0;
@@ -70,7 +92,7 @@ void TrayManager::resetAllTraysData() {
 /**
  * 获取托盘直径数据实现
  */
-int TrayManager::getTrayDiameter(int index) const {
+int TraySystem::getTrayDiameter(int index) const {
     if (index >= 0 && index < QUEUE_CAPACITY) {
         return asparagusDiameters[index];
     }
@@ -80,7 +102,7 @@ int TrayManager::getTrayDiameter(int index) const {
 /**
  * 获取托盘扫描次数实现
  */
-int TrayManager::getTrayScanCount(int index) const {
+int TraySystem::getTrayScanCount(int index) const {
     if (index >= 0 && index < QUEUE_CAPACITY) {
         return asparagusCounts[index];
     }
@@ -90,6 +112,49 @@ int TrayManager::getTrayScanCount(int index) const {
 /**
  * 获取托盘总数实现
  */
-uint8_t TrayManager::getCapacity() {
+uint8_t TraySystem::getCapacity() {
     return QUEUE_CAPACITY;
+}
+
+/**
+ * 保存托盘数据到EEPROM实现
+ */
+void TraySystem::saveToEEPROM(int startAddr) {
+    int addr = startAddr;
+    
+    // 保存魔术值以验证数据有效性
+    EEPROM.write(addr++, 0xCC); // Magic Byte for Tray Data
+    
+    // 保存数组数据
+    for (uint8_t i = 0; i < QUEUE_CAPACITY; i++) {
+        EEPROM.put(addr, asparagusDiameters[i]);
+        addr += sizeof(int);
+        EEPROM.put(addr, asparagusCounts[i]);
+        addr += sizeof(int);
+    }
+    // 注意：调用者负责commit
+}
+
+/**
+ * 从EEPROM加载托盘数据实现
+ */
+void TraySystem::loadFromEEPROM(int startAddr) {
+    int addr = startAddr;
+    
+    // 检查魔术值
+    uint8_t magic = EEPROM.read(addr++);
+    if (magic != 0xCC) {
+        Serial.println("[TRAY] No valid tray data in EEPROM found.");
+        resetAllTraysData();
+        return;
+    }
+    
+    // 加载数组数据
+    for (uint8_t i = 0; i < QUEUE_CAPACITY; i++) {
+        EEPROM.get(addr, asparagusDiameters[i]);
+        addr += sizeof(int);
+        EEPROM.get(addr, asparagusCounts[i]);
+        addr += sizeof(int);
+    }
+    Serial.println("[TRAY] Tray data restored from EEPROM.");
 }

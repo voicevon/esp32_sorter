@@ -2,13 +2,13 @@
 #include "user_interface/oled.h"
 
 // 初始化静态实例变量为NULL
-DiameterScanner* DiameterScanner::instance = NULL;
+// DiameterScanner* DiameterScanner::instance = NULL; // Managed by Singleton template
 
 DiameterScanner::DiameterScanner() : 
     isScanning(false),
     nominalDiameter(0) {
     for (int i = 0; i < 4; i++) {
-        scannerPins[i] = LASER_SCANNER_PINS[i];
+        scannerPins[i] = PINS_SCANNER[i];
         highLevelPulseCounts[i] = 0;
         objectCount[i] = 0;
         lastSensorStates[i] = false;
@@ -16,13 +16,8 @@ DiameterScanner::DiameterScanner() :
     }
 }
 
-// 实现单例模式的getInstance方法
-DiameterScanner* DiameterScanner::getInstance() {
-    if (instance == NULL) {
-        instance = new DiameterScanner();
-    }
-    return instance;
-}
+// 实现单例模式的getInstance方法 - Managed by Singleton template
+// DiameterScanner* DiameterScanner::getInstance() { ... }
 
 void DiameterScanner::initialize() {
     for (int i = 0; i < 4; i++) {
@@ -76,50 +71,61 @@ void DiameterScanner::sample(int phase) {
         lastSensorStates[i] = currentState;
     }
     
+    // 仅负责状态检测和计数
     if (!anyHigh && allFinished) {
-            float correctedCounts[4];
-            int validCount = 0;
+        // 之前在此处的计算逻辑已移至 getDiameterAndStop()
+        // 此处只负责检测结束状态（如果需要）
+    }
+}
+
+int DiameterScanner::getDiameterAndStop() {
+    isScanning = false; // 停止扫描
+    
+    //在此处执行计算逻辑
+    float correctedCounts[4];
+    int validCount = 0;
             
-            for (int i = 0; i < 4; i++) {
-                correctedCounts[i] = highLevelPulseCounts[i] * LASER_SCANNER_WEIGHTS[i];
-                
-                if (correctedCounts[i] >= LASER_SCANNER_MIN_DIAMETER) {
-                    validCount++;
-                }
+    for (int i = 0; i < 4; i++) {
+        correctedCounts[i] = highLevelPulseCounts[i] * SCANNER_WEIGHTS[i];
+        
+        if (correctedCounts[i] >= SCANNER_MIN_DIAMETER_UNIT) {
+            validCount++;
+        }
+    }
+            
+    if (validCount >= 2) {
+        float validValues[4];
+        int validIndex = 0;
+        
+        for (int i = 0; i < 4; i++) {
+            if (correctedCounts[i] >= SCANNER_MIN_DIAMETER_UNIT) {
+                validValues[validIndex++] = correctedCounts[i];
             }
-            
-            if (validCount >= 2) {
-                float validValues[4];
-                int validIndex = 0;
-                
-                for (int i = 0; i < 4; i++) {
-                    if (correctedCounts[i] >= LASER_SCANNER_MIN_DIAMETER) {
-                        validValues[validIndex++] = correctedCounts[i];
-                    }
-                }
-                
-                for (int i = 0; i < validCount - 1; i++) {
-                    for (int j = i + 1; j < validCount; j++) {
-                        if (validValues[i] > validValues[j]) {
-                            float temp = validValues[i];
-                            validValues[i] = validValues[j];
-                            validValues[j] = temp;
-                        }
-                    }
-                }
-                
-                if (validCount == 2) {
-                    nominalDiameter = (int)((validValues[0] + validValues[1]) / 2);
-                } else if (validCount == 3) {
-                    nominalDiameter = (int)validValues[1];
-                } else {
-                    nominalDiameter = (int)((validValues[1] + validValues[2]) / 2);
+        }
+        
+        // 冒泡排序
+        for (int i = 0; i < validCount - 1; i++) {
+            for (int j = i + 1; j < validCount; j++) {
+                if (validValues[i] > validValues[j]) {
+                    float temp = validValues[i];
+                    validValues[i] = validValues[j];
+                    validValues[j] = temp;
                 }
             }
         }
-}
+        
+        // 根据有效值的数量计算标称直径
+        if (validCount == 2) {
+            nominalDiameter = (int)((validValues[0] + validValues[1]) / 2);
+        } else if (validCount == 3) {
+            nominalDiameter = (int)validValues[1]; // 取中间值
+        } else {
+            nominalDiameter = (int)((validValues[1] + validValues[2]) / 2); // 去掉最大最小，取中间平均
+        }
+    } else {
+        nominalDiameter = 0;
+    }
 
-int DiameterScanner::getDiameterAndStop() const {
     return nominalDiameter;
 }
 
@@ -171,7 +177,7 @@ int DiameterScanner::getHighLevelPulseCount(int index) const {
 
 float DiameterScanner::getSensorWeight(int index) const {
     if (index >= 0 && index < 4) {
-        return LASER_SCANNER_WEIGHTS[index];
+        return SCANNER_WEIGHTS[index];
     }
     return 0.0f;
 }

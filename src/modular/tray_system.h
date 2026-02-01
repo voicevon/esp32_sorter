@@ -1,13 +1,14 @@
-#ifndef TRAY_MANAGER_H
-#define TRAY_MANAGER_H
+#ifndef TRAY_SYSTEM_H
+#define TRAY_SYSTEM_H
 
 #include <Arduino.h>
 
 /**
- * 托盘管理类
+ * 托盘系统类
  * 负责管理托盘数据，包括直径数据存储、扫描次数等
+ * 采用单例模式实现，确保系统中只有一个实例
  */
-class TrayManager {
+class TraySystem {
 private:
     // 常量定义
     static const uint8_t QUEUE_CAPACITY = 19; // 索引0-18
@@ -17,17 +18,35 @@ private:
     int asparagusDiameters[QUEUE_CAPACITY];    // 存储每个芦笋的直径数据
     int asparagusCounts[QUEUE_CAPACITY];    // 存储每个位置的芦笋数量
     
+    // 单例实例
+    static TraySystem* instance;
+    
     /**
      * 将所有托盘数据向右移动（索引值+1）
      */
     void shiftToRight();
     
-public:
     /**
      * 构造函数
      * 初始化所有成员变量
      */
-    TrayManager();
+    TraySystem();
+    
+    /**
+     * 析构函数
+     */
+    ~TraySystem();
+    
+    // 禁止拷贝构造和赋值操作
+    TraySystem(const TraySystem&) = delete;
+    TraySystem& operator=(const TraySystem&) = delete;
+    
+public:
+    /**
+     * 获取单例实例
+     * @return TraySystem实例指针
+     */
+    static TraySystem* getInstance();
     
     /**
      * 从单点扫描仪添加新的芦笋数据（插入到索引0）
@@ -61,6 +80,18 @@ public:
      */
     static uint8_t getCapacity();
 
+    /**
+     * 保存托盘数据到EEPROM
+     * @param startAddr EEPROM起始地址
+     */
+    void saveToEEPROM(int startAddr);
+
+    /**
+     * 从EEPROM加载托盘数据
+     * @param startAddr EEPROM起始地址
+     */
+    void loadFromEEPROM(int startAddr);
+
 };
 
-#endif // TRAY_MANAGER_H
+#endif // TRAY_SYSTEM_H

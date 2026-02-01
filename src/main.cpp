@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <EEPROM.h>
+#include "config.h"
 
 // #include "outlet.h"
 #include "user_interface/user_interface.h"
@@ -22,6 +23,8 @@
 // =========================
 // 版本信息
 String firmwareVersion = "ver: 2601";
+// 启动计数
+unsigned long systemBootCount = 0;
 
 // =========================
 // 模式相关变量
@@ -59,8 +62,8 @@ DiameterScanner* diameterScanner = DiameterScanner::getInstance();
 // =========================
 // 系统组件实例
 // =========================
-// 芦笋托盘系统实例
-TrayManager traySystem;
+// 芦笋托盘系统实例（单例模式）
+TraySystem* allTrays = TraySystem::getInstance();
 // 分拣控制器实例
 Sorter sorter;
 // 扫描仪诊断处理类实例
@@ -98,12 +101,31 @@ void setup() {
   // 显式启用所有输出渠道（串口和OLED）
   userInterface->enableOutputChannel(OUTPUT_ALL);
   
+  // 初始化电源监控引脚
+  pinMode(PIN_POWER_MONITOR, INPUT);
+  
   // 设置每个出口对象的指针到出口诊断处理类
-  for (uint8_t i = 0; i < OUTLET_COUNT; i++) {
+  for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
     outletDiagnosticHandler.setOutlet(i, sorter.getOutlet(i));
   }
   
   // 串口初始化完成后无需等待连接建立
+  
+  // 初始化EEPROM并处理启动计数
+  EEPROM.begin(512); // Ensure EEPROM is initialized
+  EEPROM.get(EEPROM_ADDR_BOOT_COUNT, systemBootCount);
+  
+  // 如果读取值为0xFFFFFFFF（首次使用或擦除后），重置为0
+  if (systemBootCount == 0xFFFFFFFF) {
+      systemBootCount = 0;
+  }
+  
+  // 增加计数并保存
+  systemBootCount++;
+  EEPROM.put(EEPROM_ADDR_BOOT_COUNT, systemBootCount);
+  EEPROM.commit();
+  Serial.print("Boot Count: ");
+  Serial.println(systemBootCount);
   
   // 初始化编码器
   encoder->initialize();
@@ -112,6 +134,9 @@ void setup() {
   
   // 初始化Sorter
   sorter.initialize();
+  
+  // 尝试从EEPROM恢复托盘数据（用于断电恢复）
+  allTrays->loadFromEEPROM(EEPROM_ADDR_TRAY_DATA);
   
   // 初始化出口诊断处理类，并传入UserInterface指针
   outletDiagnosticHandler.initialize(userInterface);
@@ -171,6 +196,9 @@ void handleSlaveButton() {
     } else if (currentMode == MODE_DIAGNOSE_SCANNER) {
       // 在扫描仪诊断模式下，切换子显示模式
       scannerDiagnosticHandler.switchToNextSubMode();
+    } else if (currentMode == MODE_CONFIG_OUTLET_POS) {
+      // 在配置出口位置模式下，切换子模式
+      outletPosConfigHandler.switchToNextSubMode();
     } else {
       // 其他模式下，从按钮功能处理（当前未使用，可根据需要扩展）
       Serial.println("[DIAGNOSTIC] Slave button long pressed");
@@ -207,16 +235,16 @@ void handleModeChange() {
       
       // 写入直径范围数据
       EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR, 0xAA); // 写入魔术字节
-      for (uint8_t i = 0; i < OUTLET_COUNT; i++) {
+      for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
         EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2, sorter.getOutletMinDiameter(i));
         EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2 + 1, sorter.getOutletMaxDiameter(i));
       }
       
       // 写入舵机位置数据
       EEPROM.write(EEPROM_SERVO_MAGIC_ADDR, 0xBB); // 写入魔术字节
-      for (uint8_t i = 0; i < OUTLET_COUNT; i++) {
+      for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
         EEPROM.write(EEPROM_SERVO_POSITIONS_ADDR + i, sorter.getOutletClosedPosition(i));
-        EEPROM.write(EEPROM_SERVO_POSITIONS_ADDR + OUTLET_COUNT + i, sorter.getOutletOpenPosition(i));
+        EEPROM.write(EEPROM_SERVO_POSITIONS_ADDR + NUM_OUTLETS + i, sorter.getOutletOpenPosition(i));
       }
       
       // 提交写入
@@ -276,7 +304,8 @@ void processVersionInfoMode() {
     
     // 显示版本信息到OLED
     String versionInfo = "\n\nAsparagus sorter\n\n";
-    versionInfo += "Tel: 133-0640-0990";
+    versionInfo += "Tel: 133-0640-0990\n";
+    versionInfo += "Boot Count: " + String(systemBootCount);
     userInterface->displayDiagnosticInfo(systemName, versionInfo);
   }
 }
@@ -313,16 +342,48 @@ void processNormalMode() {
     userInterface->displayDashboard(speedPerSecond, speedPerMinute, speedPerHour, identifiedCount, transportedTrayCount);
   } else {
     // 子模式1：最新直径
-    int latestDiameter = traySystem.getTrayDiameter(0);
+    int latestDiameter = allTrays->getTrayDiameter(0);
     
     // 调用专用显示方法
     userInterface->displayNormalModeDiameter(latestDiameter);
   }
 }
 
+// 检查掉电情况
+void checkPowerLoss() {
+    // 读取电源监视引脚（假设使用模拟输入）
+    // 如果是数字引脚（例如Input Only），analogRead可能不工作，视硬件而定
+    // Config定义了PIN_POWER_MONITOR = 34 (ADC1_CH6)
+    int powerValue = analogRead(PIN_POWER_MONITOR);
+    
+    // 如果电压低于阈值（掉电检测）
+    if (powerValue < POWER_LOSS_ADC_THRESHOLD) {
+        Serial.println("!!! POWER LOSS DETECTED !!!");
+        Serial.print("ADC Value: ");
+        Serial.println(powerValue);
+        Serial.println("Saving system state...");
+        
+        // 紧急保存托盘数据
+        allTrays->saveToEEPROM(EEPROM_ADDR_TRAY_DATA);
+        
+        // 提交EEPROM（这是最耗时的步骤，希望电容能撑住）
+        EEPROM.commit();
+        
+        Serial.println("System Saved. Halting.");
+        
+        // 进入死循环，防止低电压下的错误行为，直到断电
+        while (true) {
+            delay(10);
+        }
+    }
+}
+
 void loop() {
-  // 处理按钮输入
-  handleMasterButton();
+    // 优先检查掉电
+    checkPowerLoss();
+    
+    // 处理按钮输入
+    handleMasterButton();
   handleSlaveButton();
   
   // 处理模式切换
@@ -335,8 +396,7 @@ void loop() {
     case MODE_NORMAL:
       processNormalMode();
       // 正常模式需要处理所有任务
-      sorter.processScannerTasks();
-      sorter.processOutletTasks();
+      sorter.run();
       break;
       
     case MODE_DIAGNOSE_ENCODER:
@@ -361,7 +421,7 @@ void loop() {
       
     case MODE_DIAGNOSE_OUTLET:
       // 处理从按钮输入，切换子模式
-      if (userInterface->isSlaveButtonPressed()) {
+      if (userInterface->isSlaveButtonLongPressed()) {
         outletDiagnosticHandler.switchToNextSubMode();
       }
       

@@ -15,10 +15,11 @@ class Sorter;
 class OutletDiagnosticHandler {
 private:
     // 出口对象指针数组（从Sorter类获取）
-    Outlet* outlets[OUTLET_COUNT];
+    Outlet* outlets[NUM_OUTLETS];
     
-    // 出口数量定义 - 使用统一的OUTLET_COUNT宏
-    static const int NUM_OUTLETS = OUTLET_COUNT;
+    // 出口数量定义 - 使用统一的NUM_OUTLETS宏
+    // 出口数量定义 - 使用统一的NUM_OUTLETS宏 (Redundant but keeping for class scope if needed)
+    // static const int NUM_OUTLETS = NUM_OUTLETS; // Avoid shadowing warning, just use global
     
     // 诊断模式状态变量
     unsigned long modeStartTime;

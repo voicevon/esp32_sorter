@@ -2,7 +2,9 @@
 #define ENCODER_H
 
 #include "Arduino.h"
-#include "pins.h"
+#include "../config.h"
+
+#include "../utils/singleton.h"
 
 // 回调函数类型定义 - 只保留相位回调
 // 使用void*参数来支持类成员函数回调
@@ -11,7 +13,8 @@ typedef void (*PhaseCallback)(void* context, int phase);
 /**
  * 编码器类 - 提供位置跟踪、中断处理和回调机制
  */
-class Encoder {
+class Encoder : public Singleton<Encoder> {
+    friend class Singleton<Encoder>;
 private:
     // 核心状态变量
     long rawEncoderCount;            // 编码器计数值
@@ -33,11 +36,7 @@ private:
     void triggerPhaseCallback();
     
 public:
-    // 静态成员用于中断处理和单例访问
-    static Encoder* instance;       // 实例指针
-    
-    // 获取单例实例的静态方法
-    static Encoder* getInstance();
+    // initialize方法移至public
     
     // 初始化编码器引脚和中断
     void initialize();

@@ -3,13 +3,9 @@
 
 #include <Arduino.h>
 #include <ESP32Servo.h>
+#include "../config.h"
 
-// 出口数量定义 - 项目中统一使用的出口数量
-#define OUTLET_COUNT 8
-
-// 舵机控制参数
-#define SERVO_CLOSED_POSITION 80      // 关闭位置
-#define SERVO_OPEN_POSITION 0         // 打开位置
+// 出口数量定义 - 项目中统一使用的出口数量 (Now using NUM_OUTLETS from config.h)
 
 /**
  * 出口类 - 单个出口的控制
@@ -26,10 +22,10 @@ private:
     int openPosition;        // 打开位置
     
 public:
-    Outlet() : pin(-1), initialized(false), readyToOpenState(false), matchDiameterMin(0), matchDiameterMax(0), closedPosition(SERVO_CLOSED_POSITION), openPosition(SERVO_OPEN_POSITION) {}
+    Outlet() : pin(-1), initialized(false), readyToOpenState(false), matchDiameterMin(0), matchDiameterMax(0), closedPosition(SERVO_POS_CLOSED), openPosition(SERVO_POS_OPEN) {}
     
     // 初始化出口
-    void initialize(int servoPin, int minD = 0, int maxD = 0, int closedPos = SERVO_CLOSED_POSITION, int openPos = SERVO_OPEN_POSITION) {
+    void initialize(int servoPin, int minD = 0, int maxD = 0, int closedPos = SERVO_POS_CLOSED, int openPos = SERVO_POS_OPEN) {
         if (servoPin >= 0) {
             pin = servoPin;
             closedPosition = closedPos;

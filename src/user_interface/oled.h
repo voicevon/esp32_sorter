@@ -5,7 +5,7 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#include "modular/pins.h"
+#include "../config.h"
 #include "main.h"
 #include "user_interface/display.h"  // 包含Display抽象基类头文件
 // #include "display_data.h"已移除，不再需要

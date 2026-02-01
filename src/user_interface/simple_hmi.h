@@ -3,7 +3,7 @@
 #define SIMPLE_HMI_H
 
 #include <Arduino.h>
-#include "modular/pins.h"
+#include "../config.h"
 
 // 防抖动参数
 #define DEBOUNCE_DELAY 50  // 防抖动延迟时间（毫秒）
@@ -23,10 +23,10 @@ private:
     volatile bool slaveButtonLongPressFlag;    // 长按标志（按下并释放，且时间超过阈值）
     volatile bool masterButtonDownState;   // 临时的按钮按下状态
     volatile bool slaveButtonDownState;    // 临时的按钮按下状态
-    unsigned long lastMasterDebounceTime;
-    unsigned long lastSlaveDebounceTime;
-    unsigned long masterButtonPressStartTime;
-    unsigned long slaveButtonPressStartTime;
+    volatile unsigned long lastMasterDebounceTime;
+    volatile unsigned long lastSlaveDebounceTime;
+    volatile unsigned long masterButtonPressStartTime;
+    volatile unsigned long slaveButtonPressStartTime;
     
     // 私有构造函数，防止外部创建实例
     SimpleHMI();

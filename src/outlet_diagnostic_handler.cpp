@@ -1,5 +1,5 @@
 #include "outlet_diagnostic_handler.h"
-#include "modular/pins.h"
+#include "config.h"
 
 OutletDiagnosticHandler::OutletDiagnosticHandler() {
     // 初始化诊断模式状态变量
@@ -13,7 +13,7 @@ OutletDiagnosticHandler::OutletDiagnosticHandler() {
     userInterface = nullptr;
     
     // 初始化outlets数组为nullptr
-    for (int i = 0; i < OUTLET_COUNT; i++) {
+    for (int i = 0; i < NUM_OUTLETS; i++) {
         outlets[i] = nullptr;
     }
 }

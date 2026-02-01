@@ -47,7 +47,7 @@ OLED* OLED::getInstance() {
 // 初始化OLED显示器
 void OLED::initialize() {
   // 设置I2C引脚
-  Wire.setPins(OLED_SDA_PIN, OLED_SCL_PIN);
+  Wire.setPins(PIN_OLED_SDA, PIN_OLED_SCL);
   
   // 初始化SSD1306显示器
   if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_I2C_ADDRESS)) {

@@ -2,12 +2,15 @@
 #define DIAMETER_SCANNER_H
 
 #include <Arduino.h>
-#include "pins.h"
+#include "../config.h"
 
-class DiameterScanner {
+#include "../utils/singleton.h"
+
+class DiameterScanner : public Singleton<DiameterScanner> {
+    friend class Singleton<DiameterScanner>;
 private:
-    // 单例模式静态实例
-    static DiameterScanner* instance;
+    // 单例模式静态实例 - Managed by Singleton
+    // static DiameterScanner* instance;
     
     // 引脚定义（4个扫描点）
     int scannerPins[4];
@@ -32,20 +35,23 @@ private:
     DiameterScanner();
 
 public:
-    // 单例模式获取实例的静态方法
-    static DiameterScanner* getInstance();
+    // 单例模式获取实例的静态方法 - Managed by Singleton
+    // static DiameterScanner* getInstance();
     
     // 初始化引脚和缓冲区
     void initialize();
     
     // 重置状态和缓冲区
     void start();
+
+    // 检查是否正在扫描
+    bool isScanningActive() const { return isScanning; }
     
     // 采样传感器状态（根据相位进行采样）- 用于直径测量
     void sample(int phase);
     
-    // 获取计算的直径值（整数）并停止扫描
-    int getDiameterAndStop() const;
+    // 获取计算的直径值（整数）并停止扫描 (Calculation moved here)
+    int getDiameterAndStop();
     
     // 获取统计的物体数量
     int getObjectCount(int index) const;

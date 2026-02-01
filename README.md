@@ -30,6 +30,10 @@ d:\Firmware\esp32_sorter\
 │   └── rules/
 │       └── project_rules.md
 ├── doc/                # 文档目录
+│   ├── Hardware_Reference.md     # 硬件参考手册
+│   ├── Software_Architecture.md  # 软件架构手册
+│   ├── Operation_Guide.md        # 操作指南
+│   └── Refactoring_Notes.md      # 重构笔记
 ├── src/                # 源代码目录
 │   ├── main.cpp           # 主程序入口
 │   ├── sorter.cpp         # 系统主控协调器实现
@@ -47,9 +51,17 @@ d:\Firmware\esp32_sorter\
 ├── .gitignore           # Git忽略文件
 ├── CMakeLists.txt       # CMake配置文件
 ├── README.md            # 项目说明文档
-├── compile_commands.json # 编译命令文件
-└── platformio.ini       # PlatformIO配置文件
+├── platformio.ini       # PlatformIO配置文件
 ```
+
+## 文档索引
+
+更详细的系统文档请参考 `doc/` 目录下的手册：
+
+- **[硬件参考](doc/Hardware_Reference.md)**: 包含硬件组件说明、引脚定义、编码器和扫描仪原理。
+- **[软件架构](doc/Software_Architecture.md)**: 包含系统核心逻辑、类结构、分拣规则和时序控制。
+- **[操作指南](doc/Operation_Guide.md)**: 包含系统模式、菜单操作、诊断模式使用说明。
+- **[重构笔记](doc/Refactoring_Notes.md)**: 代码优化和重构建议。
 
 ## 环境搭建
 

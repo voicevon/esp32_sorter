@@ -28,7 +28,7 @@ public:
   // 更新配置模式
   virtual void update() {
     initialize();
-    handleSubModeSwitch();
+    // 这里不再自动检测长按，因为长按检测在handleSlaveButton()中统一处理
     handleButtonInputs();
   }
   
@@ -41,14 +41,14 @@ public:
 protected:
   // 初始化具体模式（由子类实现）
   virtual void initializeMode() = 0;
-  
-  // 处理子模式切换
-  virtual void handleSubModeSwitch() {
-    if (userInterface->isSlaveButtonLongPressed()) {
-      currentSubMode = (currentSubMode + 1) % 16; // 16个子模式
-      handleSubModeChange();
-    }
+  public:
+  // 切换到下一个子模式
+  virtual void switchToNextSubMode() {
+    currentSubMode = (currentSubMode + 1) % 16; // 16个子模式
+    handleSubModeChange();
   }
+  
+protected:
   
   // 处理子模式变化（由子类实现）
   virtual void handleSubModeChange() = 0;
