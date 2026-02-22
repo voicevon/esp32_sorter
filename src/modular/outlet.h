@@ -2,118 +2,115 @@
 #define OUTLET_H
 
 #include <Arduino.h>
-#include <ESP32Servo.h>
-#include "../config.h"
 
-// 出口数量定义 - 项目中统一使用的出口数量 (Now using NUM_OUTLETS from config.h)
-
-/**
- * 出口类 - 单个出口的控制
- */
 class Outlet {
 private:
-    Servo servo;        // 舵机对象
-    int pin;            // 舵机引脚
-    bool initialized;   // 初始化标志
-    bool readyToOpenState;  // 准备打开状态标志
-    int matchDiameterMin;    // 匹配该出口的最小直径
-    int matchDiameterMax;    // 匹配该出口的最大直径
-    int closedPosition;      // 关闭位置
-    int openPosition;        // 打开位置
+    int pinOpen;
+    int pinClose;
+    bool physicalOpen;
+    unsigned long pulseStateChangeTime;
+    bool isPulsing;
+    bool targetPulseState; // true=Opening, false=Closing
+    const unsigned long PULSE_DURATION = 500;
     
+    bool initialized;
+    bool readyToOpenState;
+    int matchDiameterMin;
+    int matchDiameterMax;
+
 public:
-    Outlet() : pin(-1), initialized(false), readyToOpenState(false), matchDiameterMin(0), matchDiameterMax(0), closedPosition(SERVO_POS_CLOSED), openPosition(SERVO_POS_OPEN) {}
-    
-    // 初始化出口
-    void initialize(int servoPin, int minD = 0, int maxD = 0, int closedPos = SERVO_POS_CLOSED, int openPos = SERVO_POS_OPEN) {
-        if (servoPin >= 0) {
-            pin = servoPin;
-            closedPosition = closedPos;
-            openPosition = openPos;
-            servo.attach(pin);
-            servo.write(closedPosition);
-            initialized = true;
-            matchDiameterMin = minD;
-            matchDiameterMax = maxD;
+    Outlet(int openPin, int closePin) 
+        : pinOpen(openPin), pinClose(closePin), physicalOpen(false), 
+          pulseStateChangeTime(0), isPulsing(false), targetPulseState(false),
+          initialized(false), readyToOpenState(false), matchDiameterMin(0), matchDiameterMax(0) {}
+
+    void initialize() {
+        if (pinOpen >= 0) {
+            pinMode(pinOpen, OUTPUT);
+            digitalWrite(pinOpen, LOW);
+        }
+        if (pinClose >= 0) {
+            pinMode(pinClose, OUTPUT);
+            digitalWrite(pinClose, LOW);
+        }
+        // Force close on init
+        executeClose();
+        initialized = true;
+    }
+
+    void update() {
+        if (isPulsing) {
+            if (millis() - pulseStateChangeTime >= PULSE_DURATION) {
+                stopPulse();
+            }
         }
     }
-    
-    // 获取匹配的最小直径
-    int getMatchDiameterMin() const {
-        return matchDiameterMin;
+
+    void execute() {
+        if (!initialized) return;
+
+        // If desired state matches physical state, do nothing
+        if (readyToOpenState == physicalOpen && !isPulsing) {
+            return;
+        }
+
+        // If we are already pulsing towards the target, do nothing
+        if (isPulsing && targetPulseState == readyToOpenState) {
+            return; 
+        }
+
+        // Start new action
+        if (readyToOpenState) {
+            executeOpen();
+        } else {
+            executeClose();
+        }
     }
-    
-    // 获取匹配的最大直径
-    int getMatchDiameterMax() const {
-        return matchDiameterMax;
-    }
-    
-    // 设置匹配的最小直径
-    void setMatchDiameterMin(int minD) {
-        matchDiameterMin = minD;
-    }
-    
-    // 设置匹配的最大直径
-    void setMatchDiameterMax(int maxD) {
-        matchDiameterMax = maxD;
-    }
-    
-    // 设置准备打开状态
+
     void setReadyToOpen(bool state) {
         readyToOpenState = state;
     }
-    
-    // 执行出口控制（根据准备打开状态）
-    void execute() {
-        if (initialized) {
-            if (readyToOpenState) {
-                servo.write(openPosition);
-            } else {
-                servo.write(closedPosition);
-            }
-        }
+
+    bool isReadyToOpen() const {
+        return readyToOpenState;
     }
-    
-    // 获取关闭位置
-    int getClosedPosition() const {
-        return closedPosition;
+
+    void setMatchDiameter(int min, int max) {
+        matchDiameterMin = min;
+        matchDiameterMax = max;
     }
-    
-    // 获取打开位置
-    int getOpenPosition() const {
-        return openPosition;
+
+    int getMatchDiameterMin() const { return matchDiameterMin; }
+    int getMatchDiameterMax() const { return matchDiameterMax; }
+
+    void setMatchDiameterMin(int min) { matchDiameterMin = min; }
+    void setMatchDiameterMax(int max) { matchDiameterMax = max; }
+
+private:
+    void executeOpen() {
+        if (pinOpen >= 0) digitalWrite(pinOpen, HIGH);
+        if (pinClose >= 0) digitalWrite(pinClose, LOW);
+        
+        isPulsing = true;
+        pulseStateChangeTime = millis();
+        targetPulseState = true;
+        physicalOpen = true; // Optimistically set state
     }
-    
-    // 设置舵机位置（同时设置打开和关闭位置）
-    void setServoPositions(int closedPos, int openPos) {
-        closedPosition = closedPos;
-        openPosition = openPos;
-        // 如果已初始化，根据当前状态更新舵机位置
-        if (initialized) {
-            if (readyToOpenState) {
-                servo.write(openPosition);
-            } else {
-                servo.write(closedPosition);
-            }
-        }
+
+    void executeClose() {
+        if (pinOpen >= 0) digitalWrite(pinOpen, LOW);
+        if (pinClose >= 0) digitalWrite(pinClose, HIGH);
+        
+        isPulsing = true;
+        pulseStateChangeTime = millis();
+        targetPulseState = false; // Closing
+        physicalOpen = false;
     }
-    
-    // 设置关闭位置（配置模式专用）
-    void setClosedPosition(int closedPos) {
-        closedPosition = closedPos;
-        // 如果已初始化，立即更新舵机位置到新的关闭位置
-        if (initialized) {
-            servo.write(closedPosition);
-        }
-    }
-    
-    // 设置打开位置（配置模式专用）
-    void setOpenPosition(int openPos) {
-        openPosition = openPos;
-        // 如果已初始化，立即更新舵机位置到新的打开位置
-        if (initialized) {
-            servo.write(openPosition);
-        }
+
+    void stopPulse() {
+        if (pinOpen >= 0) digitalWrite(pinOpen, LOW);
+        if (pinClose >= 0) digitalWrite(pinClose, LOW);
+        isPulsing = false;
     }
 };
 

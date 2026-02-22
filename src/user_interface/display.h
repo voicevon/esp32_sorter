@@ -3,6 +3,8 @@
 
 #include <Arduino.h>
 #include "../main.h"  // 相对路径，因为这个文件将放在user_interface子目录中
+#include "../config.h"
+#include "menu_system.h"
 
 // 系统工作模式前向声明
 enum SystemMode;
@@ -18,6 +20,9 @@ class Display {
 public:
     // 虚析构函数，确保子类能够正确析构
     virtual ~Display() = default;
+    
+    // 渲染菜单系统
+    virtual void renderMenu(MenuNode* node, int cursorIndex, int scrollOffset) = 0;
     
     // 初始化显示设备
     virtual void initialize() = 0;
@@ -75,6 +80,8 @@ public:
     
     // 重置诊断模式
     virtual void resetDiagnosticMode() = 0;
+  // 清理屏幕
+  virtual void clearDisplay() = 0;
 };
 
 #endif // DISPLAY_H

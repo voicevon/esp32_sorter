@@ -13,48 +13,58 @@ constexpr const char* FIRMWARE_VERSION = "2.0.0";
 // Pin Definitions
 // ==========================================
 
-// Servo Pins (Outlets 1-8)
-constexpr int PIN_SERVO_1 = 13;
-constexpr int PIN_SERVO_2 = 12;
-constexpr int PIN_SERVO_3 = 14;
-constexpr int PIN_SERVO_4 = 27;
-constexpr int PIN_SERVO_5 = 26;
-constexpr int PIN_SERVO_6 = 25;
-constexpr int PIN_SERVO_7 = 33;
-constexpr int PIN_SERVO_8 = 32;
+// Feeder Servos (Up to 3)
+constexpr int PIN_FEEDER_SERVO_1 = 27;
+constexpr int PIN_FEEDER_SERVO_2 = 26;
+constexpr int PIN_FEEDER_SERVO_3 = 25;
 
-// User Interface
-constexpr int PIN_BUTTON_MASTER = 4;
-constexpr int PIN_BUTTON_SLAVE = 5;
+// HC595 Shift Registers (Driving 8x 12V Solenoids & 8x LEDs)
+constexpr int PIN_HC595_DS   = 33;
+constexpr int PIN_HC595_SHCP = 4;
+constexpr int PIN_HC595_STCP = 2;
+
+// RS485 Interface
+constexpr int PIN_RS485_TX = 17;
+constexpr int PIN_RS485_RX = 16;
+constexpr int PIN_RS485_EN = 5;
+
+// HMI Module (Rotary Encoder with Push Button)
+constexpr int PIN_HMI_ENC_A = 13;
+constexpr int PIN_HMI_ENC_B = 12;
+constexpr int PIN_HMI_BTN   = 14;
 
 // Power Monitor (Voltage Divider Input)
-constexpr int PIN_POWER_MONITOR = 34; // Input Only Pin, good for ADC or Digital Read
+constexpr int PIN_POWER_MONITOR = 32;
 
-// Scanner (4 Points)
+// Scanner (5 Points Array)
 constexpr int PIN_SCANNER_1 = 36;
-constexpr int PIN_SCANNER_2 = 35;
+constexpr int PIN_SCANNER_2 = 39;
 constexpr int PIN_SCANNER_3 = 34;
-constexpr int PIN_SCANNER_4 = 39;
+constexpr int PIN_SCANNER_4 = 35;
+constexpr int PIN_SCANNER_5 = 15;
 
-// Encoder
-constexpr int PIN_ENCODER_A = 21;
-constexpr int PIN_ENCODER_B = 19;
+// Main Encoder
+constexpr int PIN_ENCODER_A = 19;
+constexpr int PIN_ENCODER_B = 21;
 constexpr int PIN_ENCODER_Z = 18;
 
 // Display (I2C)
 constexpr int PIN_OLED_SDA = 23;
 constexpr int PIN_OLED_SCL = 22;
 
+// Hardware Serial 0 (Debug)
+constexpr int PIN_UART0_TX = 1;
+constexpr int PIN_UART0_RX = 3;
+
 // ==========================================
 // Arrays (Helper for loops)
 // ==========================================
-constexpr int PINS_SERVO[8] = {
-    PIN_SERVO_1, PIN_SERVO_2, PIN_SERVO_3, PIN_SERVO_4,
-    PIN_SERVO_5, PIN_SERVO_6, PIN_SERVO_7, PIN_SERVO_8
+constexpr int PINS_FEEDER_SERVO[3] = {
+    PIN_FEEDER_SERVO_1, PIN_FEEDER_SERVO_2, PIN_FEEDER_SERVO_3
 };
 
-constexpr int PINS_SCANNER[4] = {
-    PIN_SCANNER_1, PIN_SCANNER_2, PIN_SCANNER_3, PIN_SCANNER_4
+constexpr int PINS_SCANNER[5] = {
+    PIN_SCANNER_1, PIN_SCANNER_2, PIN_SCANNER_3, PIN_SCANNER_4, PIN_SCANNER_5
 };
 
 // ==========================================

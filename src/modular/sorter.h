@@ -32,8 +32,8 @@ private:
     // 分流点索引（编码器位置）
     int outletDivergencePoints[SORTER_NUM_OUTLETS];
     
-    // 出口对象数组
-    Outlet outlets[SORTER_NUM_OUTLETS];
+    // 出口对象指针数组
+    Outlet* outlets[SORTER_NUM_OUTLETS];
     
     // 直径扫描仪实例指针
     DiameterScanner* scanner;
@@ -67,6 +67,7 @@ private:
     
     // 私有方法
     void prepareOutlets();
+    void restoreOutletConfig(); // Initializes EEPROM and creates outlets
     void initializeDivergencePoints(const uint8_t positions[SORTER_NUM_OUTLETS]);
     static uint8_t getCapacity();
     
@@ -111,9 +112,4 @@ public:
     void setOutletMinDiameter(uint8_t outletIndex, int minDiameter);
     void setOutletMaxDiameter(uint8_t outletIndex, int maxDiameter);
     
-    // 获取和设置出口开放/关闭位置的方法
-    int getOutletClosedPosition(uint8_t outletIndex) const;
-    int getOutletOpenPosition(uint8_t outletIndex) const;
-    void setOutletClosedPosition(uint8_t outletIndex, int closedPosition);
-    void setOutletOpenPosition(uint8_t outletIndex, int openPosition);
 };

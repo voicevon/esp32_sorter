@@ -514,7 +514,17 @@ void Terminal::displayMultiLineText(const String& title, const String& line1, co
 
 // 重置诊断模式
 void Terminal::resetDiagnosticMode() {
-    // 显示重置信息（使用窗口式显示）
-    Serial.println("\n" + STYLE_NOTIFICATION + "        === System Message ===        " + STYLE_RESET);
-    Serial.println(STYLE_NOTIFICATION + "Diagnostic mode reset               " + STYLE_RESET);
+  // 目前不需要特殊操作
+}
+
+// 清理屏幕
+void Terminal::clearDisplay() {
+  // 串口终端可以通过发送大量换行或 ANSI 转义符来清理
+  // 这里我们简单打印一个分隔符
+  Serial.println("\n--- [Display Cleared] ---\n");
+}
+
+// 渲染菜单系统（串口终端不显示菜单）
+void Terminal::renderMenu(MenuNode* node, int cursorIndex, int scrollOffset) {
+    // 串口暂时可留空不渲染菜单树，或后续根据需要打印
 }

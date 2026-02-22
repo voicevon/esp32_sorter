@@ -88,6 +88,9 @@ public:
     void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount);
     void displayNormalModeDiameter(int latestDiameter);
     
+    // 统一菜单显示代理
+    void renderMenu(MenuNode* node, int cursorIndex, int scrollOffset);
+    
     // 通用显示方法（替代旧的updateDisplay）
   void displaySpeedStats(int speedPerSecond, int speedPerMinute, int speedPerHour, int itemCount, int trayCount);
   void displayDiameter(int latestDiameter);
@@ -103,12 +106,12 @@ public:
     
     void resetDiagnosticMode();
     bool isDisplayAvailable() const;
+    void clearDisplay(); // 新增：清理所有显示设备的屏幕
     
     // 输入相关方法
+    int getEncoderDelta();
     bool isMasterButtonPressed();
-    bool isSlaveButtonPressed();
     bool isMasterButtonLongPressed();
-    bool isSlaveButtonLongPressed();
     
     // 显示设备管理方法
     bool addDisplayDevice(Display* display);  // 添加显示设备

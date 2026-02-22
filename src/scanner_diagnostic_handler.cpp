@@ -1,5 +1,5 @@
 #include "scanner_diagnostic_handler.h"
-#include "user_interface/oled.h"
+// #include "user_interface/oled.h"
 
 ScannerDiagnosticHandler::ScannerDiagnosticHandler() : 
     userInterface(UserInterface::getInstance()),
@@ -73,10 +73,10 @@ void ScannerDiagnosticHandler::displayRawDiameters() {
     }
     
     // OLED显示
-    OLED* oled = OLED::getInstance();
-    if (oled->isAvailable()) {
-        oled->displayDiagnosticInfo("Scanner Diameter", diameters);
-    }
+    // OLED* oled = OLED::getInstance();
+    // if (oled->isAvailable()) {
+    //     oled->displayDiagnosticInfo("Scanner Diameter", diameters);
+    // }
 }
 
 void ScannerDiagnosticHandler::handleIOStatusCheck() {
@@ -144,11 +144,11 @@ void ScannerDiagnosticHandler::handleIOStatusCheck() {
         }
         
         // OLED显示
-        OLED* oled = OLED::getInstance();
-        if (oled->isAvailable()) {
-            // 使用多行显示（使用更新后的statusLine格式）
-            oled->displayMultiLineText("Scanner IO Status", statusLine, countLine, "", "");
-        }
+        // OLED* oled = OLED::getInstance();
+        // if (oled->isAvailable()) {
+        //     // 使用多行显示（使用更新后的statusLine格式）
+        //     oled->displayMultiLineText("Scanner IO Status", statusLine, countLine, "", "");
+        // }
         
         // 更新上一次状态
         lastIOStatus = combinedStatus;
@@ -304,8 +304,8 @@ void ScannerDiagnosticHandler::handleEncoderValues() {
         }
         
         // OLED显示 - 格式化显示
-        OLED* oled = OLED::getInstance();
-        if (oled->isAvailable()) {
+        // OLED* oled = OLED::getInstance();
+        // if (oled->isAvailable()) {
             // 构建紧凑的显示内容
             String line1 = "Min R:";
             String line2 = "Cur R:";
@@ -336,7 +336,7 @@ void ScannerDiagnosticHandler::handleEncoderValues() {
             
             // 使用displayMultiLineText方法，显示所有四行数据
             userInterface->displayMultiLineText(encoderInfo, line1, line2, line3, line4);
-        }
+        // }
     }
 }
 

@@ -25,11 +25,13 @@ public:
     }
   }
   
-  // 更新配置模式
+    // 更新配置模式
   virtual void update() {
     initialize();
-    // 这里不再自动检测长按，因为长按检测在handleSlaveButton()中统一处理
-    handleButtonInputs();
+    handleEncoderInputs();
+    if (userInterface->isMasterButtonPressed()) {
+      switchToNextSubMode();
+    }
   }
   
   // 重置配置模式
@@ -53,17 +55,16 @@ protected:
   // 处理子模式变化（由子类实现）
   virtual void handleSubModeChange() = 0;
   
-  // 处理按钮输入
-  virtual void handleButtonInputs() {
-    handleIncreaseValue();
-    handleDecreaseValue();
+  // 处理旋钮输入
+  virtual void handleEncoderInputs() {
+    int encDelta = userInterface->getEncoderDelta();
+    if (encDelta != 0) {
+      handleValueChange(encDelta);
+    }
   }
   
-  // 处理增加值（由子类实现）
-  virtual void handleIncreaseValue() = 0;
-  
-  // 处理减少值（由子类实现）
-  virtual void handleDecreaseValue() = 0;
+  // 处理配置值变化（由子类实现）
+  virtual void handleValueChange(int delta) = 0;
 };
 
 // 直径配置处理类
@@ -74,20 +75,9 @@ public:
 protected:
   void initializeMode() override;
   void handleSubModeChange() override;
-  void handleIncreaseValue() override;
-  void handleDecreaseValue() override;
+  void handleValueChange(int delta) override;
 };
 
-// 出口位置配置处理类
-class OutletPosConfigHandler : public ConfigHandler {
-public:
-  OutletPosConfigHandler(UserInterface* ui, Sorter* s) : ConfigHandler(ui, s) {}
-  
-protected:
-  void initializeMode() override;
-  void handleSubModeChange() override;
-  void handleIncreaseValue() override;
-  void handleDecreaseValue() override;
-};
+
 
 #endif // CONFIG_HANDLER_H

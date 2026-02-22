@@ -1,9 +1,13 @@
 #include <Arduino.h>
 #include <EEPROM.h>
+#include <Wire.h>
+#define MAIN_H_SOURCE
+#include "main.h"
 #include "config.h"
-
-// #include "outlet.h"
 #include "user_interface/user_interface.h"
+#include "user_interface/oled.h"
+#include "user_interface/terminal.h"
+#include "user_interface/menu_system.h"
 #include "modular/encoder.h"
 #include "modular/sorter.h"
 #include "scanner_diagnostic_handler.h"
@@ -11,16 +15,13 @@
 #include "encoder_diagnostic_handler.h"
 #include "config_handler.h"
 
-// 引入系统工作模式定义
-#include "main.h"
-#include "user_interface/oled.h"
-#include "user_interface/terminal.h"
-
 // 全局变量定义
 
 // =========================
 // 系统配置与版本信息
 // =========================
+// 系统名称
+String systemName = "Feng's AS-L9";
 // 版本信息
 String firmwareVersion = "ver: 2601";
 // 启动计数
@@ -35,6 +36,20 @@ SystemMode currentMode = MODE_NORMAL;
 SystemMode pendingMode = MODE_NORMAL;
 // 模式切换标志
 bool modeChangePending = false;
+
+// 菜单系统与节点
+bool menuModeActive = true;
+MenuSystem menuSystem(5);
+MenuNode rootMenu("Main Menu");
+MenuNode diagMenu("Diagnostics", &rootMenu);
+MenuNode configMenu("Configurations", &rootMenu);
+
+// 函数：切换模式辅助
+void switchToMode(SystemMode mode) {
+    pendingMode = mode;
+    modeChangePending = true;
+    menuModeActive = false;
+}
 
 // =========================
 // 子模式变量
@@ -74,7 +89,6 @@ OutletDiagnosticHandler outletDiagnosticHandler;
 EncoderDiagnosticHandler encoderDiagnosticHandler;
 // 配置处理类实例
 DiameterConfigHandler diameterConfigHandler(userInterface, &sorter);
-OutletPosConfigHandler outletPosConfigHandler(userInterface, &sorter);
 
 // 函数声明
 String getSystemModeName(SystemMode mode);
@@ -84,7 +98,7 @@ void setup() {
   Serial.begin(115200);
   Serial.println("Feng's Sorter system starting...");
   
-  // 初始化用户界面（不包含显示设备）
+  // 初始化用户界面
   userInterface->initialize();
   
   // 创建并初始化显示设备
@@ -94,9 +108,12 @@ void setup() {
   oled->initialize();
   terminal->initialize();
   
-  // 将显示设备注入到UserInterface中
-  UserInterface::addExternalDisplayDevice(oled);
-  UserInterface::addExternalDisplayDevice(terminal);
+  // 将显示设备注册到 UserInterface 管理器中
+  userInterface->addDisplayDevice(oled);
+  userInterface->addDisplayDevice(terminal);
+  
+  // 显式启用所有输出渠道（串口和OLED）
+  userInterface->enableOutputChannel(OUTPUT_ALL);
   
   // 显式启用所有输出渠道（串口和OLED）
   userInterface->enableOutputChannel(OUTPUT_ALL);
@@ -144,9 +161,42 @@ void setup() {
   // 初始化编码器诊断处理类，并传入UserInterface指针
   encoderDiagnosticHandler.initialize(userInterface);
   
+  // =========================
+  // 建立菜单树
+  // =========================
+  // 设置菜单旋转灵敏度：由于采用了 4 倍频采样，此处设置为 4 代表每一格物理刻度移动一行
+  menuSystem.setSensitivity(4); 
+  
+  rootMenu.addItem(MenuItem("Run Sorter", MENU_TYPE_ACTION, nullptr, [](){
+      switchToMode(MODE_NORMAL);
+  }));
+  rootMenu.addItem(MenuItem("Diagnostics >", MENU_TYPE_SUBMENU, &diagMenu));
+  rootMenu.addItem(MenuItem("Configuration >", MENU_TYPE_SUBMENU, &configMenu));
+  rootMenu.addItem(MenuItem("Version Info", MENU_TYPE_ACTION, nullptr, [](){
+      switchToMode(MODE_VERSION_INFO);
+  }));
+
+  diagMenu.addItem(MenuItem("Encoder Test", MENU_TYPE_ACTION, nullptr, [](){
+      switchToMode(MODE_DIAGNOSE_ENCODER);
+  }));
+  diagMenu.addItem(MenuItem("Scanner Test", MENU_TYPE_ACTION, nullptr, [](){
+      switchToMode(MODE_DIAGNOSE_SCANNER);
+  }));
+  diagMenu.addItem(MenuItem("Outlet Test", MENU_TYPE_ACTION, nullptr, [](){
+      switchToMode(MODE_DIAGNOSE_OUTLET);
+  }));
+  diagMenu.addItem(MenuItem("< Back", MENU_TYPE_BACK));
+
+  configMenu.addItem(MenuItem("Diameter Ranges", MENU_TYPE_ACTION, nullptr, [](){
+      switchToMode(MODE_CONFIG_DIAMETER);
+  }));
+  configMenu.addItem(MenuItem("< Back", MENU_TYPE_BACK));
+
+  menuSystem.setRootMenu(&rootMenu);
+
   Serial.println("System ready");
   Serial.println("Current Mode: " + getSystemModeName(currentMode));
-  Serial.println("Use mode button to switch between modes");
+  Serial.println("Use encoder knob to navigate and select");
   
   // 测试代码已注释：自动触发模式切换的测试功能已禁用
   // delay(2000);
@@ -154,59 +204,18 @@ void setup() {
   // modeChangePending = true;
 }
 
-// 处理主按钮（模式切换）
-void handleMasterButton() {
-  // 长按触发模式切换
-  if (userInterface->isMasterButtonLongPressed()) {
-    // 切换到下一个工作模式
-    pendingMode = static_cast<SystemMode>((currentMode + 1) % 8); // 8种模式循环切换
-    modeChangePending = true;
-    
-    // 打印模式切换请求信息
-    Serial.print("[DIAGNOSTIC] Mode switch requested to: ");
-    // 临时保存当前模式，显示待切换的模式名称
-      SystemMode tempMode = currentMode;
-      currentMode = pendingMode;
-      Serial.println(getSystemModeName(currentMode));
-      currentMode = tempMode; // 恢复原模式
-  } else if (userInterface->isMasterButtonPressed()) {
-    // 短按处理（可根据需要扩展）
-    Serial.println("[DIAGNOSTIC] Master button short pressed");
-  }
-}
-
-// 处理从按钮（子模式切换）
-void handleSlaveButton() {
-  // 长按触发子模式切换
-  if (userInterface->isSlaveButtonLongPressed()) {
-    // 从按钮功能处理
-    if (currentMode == MODE_NORMAL) {
-      // 在正常模式下，切换子显示模式
-      normalModeSubmode = (normalModeSubmode + 1) % 2;  // 2个子模式循环切换
-      
-      String subModeName = normalModeSubmode == 0 ? "Stats" : "Latest Diameter";
-      Serial.println("[NORMAL] Switch to Submode: " + subModeName);
-      userInterface->displayDiagnosticInfo("Normal Mode", "SubMode: " + subModeName);
-    } else if (currentMode == MODE_DIAGNOSE_ENCODER) {
-      // 在编码器诊断模式下，切换子显示模式
-      encoderDiagnosticHandler.switchToNextSubMode();
-    } else if (currentMode == MODE_DIAGNOSE_OUTLET) {
-      // 在出口诊断模式下，切换子显示模式
-      outletDiagnosticHandler.switchToNextSubMode();
-    } else if (currentMode == MODE_DIAGNOSE_SCANNER) {
-      // 在扫描仪诊断模式下，切换子显示模式
-      scannerDiagnosticHandler.switchToNextSubMode();
-    } else if (currentMode == MODE_CONFIG_OUTLET_POS) {
-      // 在配置出口位置模式下，切换子模式
-      outletPosConfigHandler.switchToNextSubMode();
-    } else {
-      // 其他模式下，从按钮功能处理（当前未使用，可根据需要扩展）
-      Serial.println("[DIAGNOSTIC] Slave button long pressed");
-    }
-  } else if (userInterface->isSlaveButtonPressed()) {
-    // 短按处理（可根据需要扩展）
-    Serial.println("[DIAGNOSTIC] Slave button short pressed");
-  }
+// 处理返回主菜单（长按退出当前模式）
+void handleReturnToMenu() {
+    // 设置返回主菜单标志
+    menuModeActive = true;
+    userInterface->resetDiagnosticMode();
+    // 触发一个假的 pendingMode 来促使 handleModeChange 保存 EEPROM 并解除当前模式
+    switchToMode(MODE_NORMAL);
+    menuModeActive = true; // 重新覆盖为 true 因为 switchToMode 设为 false
+    Serial.println("[MENU] Returned to Main Menu");
+    // 立即重绘菜单，消除旧界面残留
+    userInterface->clearDisplay();
+    userInterface->renderMenu(menuSystem.getCurrentNode(), menuSystem.getCursorIndex(), menuSystem.getScrollOffset());
 }
 
 // 处理模式切换
@@ -221,7 +230,7 @@ void handleModeChange() {
     }
     
     // 如果当前是配置模式，退出时写入EEPROM
-    if (currentMode == MODE_CONFIG_DIAMETER || currentMode == MODE_CONFIG_OUTLET_POS) {
+    if (currentMode == MODE_CONFIG_DIAMETER) {
       Serial.println("[CONFIG] Saving configuration to EEPROM...");
       
       // 初始化EEPROM
@@ -229,22 +238,12 @@ void handleModeChange() {
       
       // 定义EEPROM中存储直径范围的起始地址
       const int EEPROM_DIAMETER_RANGES_ADDR = 0;
-      // 定义EEPROM中存储舵机位置的起始地址
-      const int EEPROM_SERVO_POSITIONS_ADDR = 0x12;
-      const int EEPROM_SERVO_MAGIC_ADDR = 0x32;
       
       // 写入直径范围数据
       EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR, 0xAA); // 写入魔术字节
       for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
         EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2, sorter.getOutletMinDiameter(i));
         EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2 + 1, sorter.getOutletMaxDiameter(i));
-      }
-      
-      // 写入舵机位置数据
-      EEPROM.write(EEPROM_SERVO_MAGIC_ADDR, 0xBB); // 写入魔术字节
-      for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
-        EEPROM.write(EEPROM_SERVO_POSITIONS_ADDR + i, sorter.getOutletClosedPosition(i));
-        EEPROM.write(EEPROM_SERVO_POSITIONS_ADDR + NUM_OUTLETS + i, sorter.getOutletOpenPosition(i));
       }
       
       // 提交写入
@@ -270,11 +269,9 @@ void handleModeChange() {
     }
     
     // 如果从配置模式切换出，重置配置处理类状态
-    if ((oldMode == MODE_CONFIG_DIAMETER || oldMode == MODE_CONFIG_OUTLET_POS) && 
-        (currentMode != MODE_CONFIG_DIAMETER && currentMode != MODE_CONFIG_OUTLET_POS)) {
+    if (oldMode == MODE_CONFIG_DIAMETER && currentMode != MODE_CONFIG_DIAMETER) {
       // 重置配置处理类状态
       diameterConfigHandler.reset();
-      outletPosConfigHandler.reset();
     }
     
     // 移除模式LED控制，LED现在只用于显示出口状态
@@ -284,7 +281,7 @@ void handleModeChange() {
       Serial.println(getSystemModeName(currentMode));
     
     // 显示模式变化信息到OLED
-    userInterface->displayModeChange(currentMode);
+    // userInterface->displayModeChange(currentMode); // Removed as per instruction
   }
 }
 
@@ -379,77 +376,102 @@ void checkPowerLoss() {
 }
 
 void loop() {
-    // 优先检查掉电
-    checkPowerLoss();
-    
-    // 处理按钮输入
-    handleMasterButton();
-  handleSlaveButton();
+  // 优先检查掉电 (暂时禁用，因为目前是USB供电)
+  // checkPowerLoss();
+  
+  // ===================================
+  // ENCODER DIAGNOSTICS LOGGING
+  // ===================================
+  // 获取输入状态
+  int debugEncoderDelta = userInterface->getEncoderDelta();
+  bool debugBtnPressed = userInterface->isMasterButtonPressed();
+  
+  // ===================================
+
+  // 如果在菜单模式中
+  if (menuModeActive) {
+      bool needsRefresh = false;
+
+      // 检查返回动作 (长按返回上级菜单)
+      if (userInterface->isMasterButtonLongPressed()) {
+          if (menuSystem.getCurrentNode() != nullptr && menuSystem.getCurrentNode()->parent != nullptr) {
+              menuSystem.handleInput(0, false); 
+              needsRefresh = true;
+          }
+      }
+      
+      // 处理导航
+      if (debugEncoderDelta != 0) {
+          menuSystem.handleInput(debugEncoderDelta, false);
+          needsRefresh = true;
+      }
+      
+      // 处理点击选择
+      if (debugBtnPressed) {
+          menuSystem.handleInput(0, true);
+          if (menuModeActive) needsRefresh = true; // 如果点击后仍在菜单中（如进入子菜单），则刷新
+      }
+
+      if (needsRefresh) {
+          userInterface->renderMenu(menuSystem.getCurrentNode(), menuSystem.getCursorIndex(), menuSystem.getScrollOffset());
+      }
+  } 
+  else {
+      // 在功能/诊断模式中
+      // 检查退出动作：现在改为短按即返回
+      if (debugBtnPressed) {
+          handleReturnToMenu();
+          return;
+      }
+      
+      uint32_t currentMs = millis(); 
+      
+      // 执行各模式特定的诊断/处理逻辑
+      int delta = debugEncoderDelta; // 使用之前获取好的 delta
+      
+      switch (currentMode) {
+          case MODE_NORMAL:
+              if (delta != 0) {
+                  normalModeSubmode = (normalModeSubmode + 1) % 2;
+              }
+              processNormalMode();
+              sorter.run();
+              break;
+              
+          case MODE_DIAGNOSE_ENCODER:
+              if (delta != 0) encoderDiagnosticHandler.switchToNextSubMode();
+              encoderDiagnosticHandler.update();
+              break;
+              
+          case MODE_DIAGNOSE_SCANNER:
+              if (delta != 0) scannerDiagnosticHandler.switchToNextSubMode();
+              scannerDiagnosticHandler.update();
+              break;
+              
+          case MODE_DIAGNOSE_OUTLET:
+              if (delta != 0) outletDiagnosticHandler.switchToNextSubMode();
+              outletDiagnosticHandler.update(currentMs);
+              break;
+              
+          case MODE_CONFIG_DIAMETER:
+              diameterConfigHandler.update();
+              break;
+              
+          case MODE_VERSION_INFO:
+              processVersionInfoMode();
+              // 版本信息模式不需要处理任何任务
+              break;
+              
+          default:
+              // 未知模式，输出警告信息
+              Serial.print("Warning: Encountered unhandled system mode: ");
+              Serial.println(currentMode);
+              break;
+      }
+  }
   
   // 处理模式切换
   handleModeChange();
-  
-  // 处理当前工作模式
-  unsigned long currentTime = millis();
-  
-  switch (currentMode) {
-    case MODE_NORMAL:
-      processNormalMode();
-      // 正常模式需要处理所有任务
-      sorter.run();
-      break;
-      
-    case MODE_DIAGNOSE_ENCODER:
-      // 处理从按钮输入，切换子模式
-      if (userInterface->isSlaveButtonPressed()) {
-        encoderDiagnosticHandler.switchToNextSubMode();
-      }
-      
-      // 执行诊断模式的主要逻辑
-      encoderDiagnosticHandler.update();
-      break;
-      
-    case MODE_DIAGNOSE_SCANNER:
-      // 处理从按钮输入，切换子模式
-      if (userInterface->isSlaveButtonPressed()) {
-        scannerDiagnosticHandler.switchToNextSubMode();
-      }
-      
-      // 执行诊断模式的主要逻辑
-      scannerDiagnosticHandler.update();
-      break;
-      
-    case MODE_DIAGNOSE_OUTLET:
-      // 处理从按钮输入，切换子模式
-      if (userInterface->isSlaveButtonLongPressed()) {
-        outletDiagnosticHandler.switchToNextSubMode();
-      }
-      
-      // 执行诊断模式的主要逻辑
-      outletDiagnosticHandler.update(currentTime);
-      break;
-      
-
-      
-    case MODE_CONFIG_DIAMETER:
-      diameterConfigHandler.update();
-      break;
-      
-    case MODE_CONFIG_OUTLET_POS:
-      outletPosConfigHandler.update();
-      break;
-      
-    case MODE_VERSION_INFO:
-      processVersionInfoMode();
-      // 版本信息模式不需要处理任何任务
-      break;
-      
-    default:
-      // 未知模式，输出警告信息
-      Serial.print("Warning: Encountered unhandled system mode: ");
-      Serial.println(currentMode);
-      break;
-  }
 }
 
 // 函数实现
@@ -469,8 +491,7 @@ String getSystemModeName(SystemMode mode) {
       return "Version Info";
     case MODE_CONFIG_DIAMETER:
       return "Config Diameter";
-    case MODE_CONFIG_OUTLET_POS:
-      return "Config Outlet Pos";
+
     default:
       return "Unknown Mode";
   }

@@ -101,9 +101,9 @@ void UserInterface::displayOutletTestGraphic(uint8_t outletCount, unsigned long 
     }
 }
 
-// 显示扫描仪编码器值
+// 显示扫描仪编码器值 - 诊断模式不建议使用统一速率限制，以便观察快速变化
 void UserInterface::displayScannerEncoderValues(const int* risingValues, const int* fallingValues) {
-    // 遍历所有显示设备
+    // 直接遍历所有显示设备并更新
     for (int i = 0; i < displayDeviceCount; i++) {
         displayDevices[i]->displayScannerEncoderValues(risingValues, fallingValues);
     }
@@ -142,6 +142,14 @@ void UserInterface::displayDiameter(int latestDiameter) {
 void UserInterface::displayNormalModeDiameter(int latestDiameter) {
     // 调用新的功能专用方法
     displayDiameter(latestDiameter);
+}
+
+// 代理菜单渲染
+void UserInterface::renderMenu(MenuNode* node, int cursorIndex, int scrollOffset) {
+    // 遍历所有显示设备
+    for (int i = 0; i < displayDeviceCount; i++) {
+        displayDevices[i]->renderMenu(node, cursorIndex, scrollOffset);
+    }
 }
 
 // 通用显示方法实现
@@ -224,24 +232,26 @@ bool UserInterface::isDisplayAvailable() const {
     return false;
 }
 
+// 清理所有显示设备的屏幕
+void UserInterface::clearDisplay() {
+    for (int i = 0; i < displayDeviceCount; i++) {
+        displayDevices[i]->clearDisplay();
+    }
+}
+
+// 获取编码器旋转增量
+int UserInterface::getEncoderDelta() {
+    return hmi->getEncoderDelta();
+}
+
 // 检查主按钮是否被按下
 bool UserInterface::isMasterButtonPressed() {
     return hmi->isMasterButtonPressed();
 }
 
-// 检查从按钮是否被按下
-bool UserInterface::isSlaveButtonPressed() {
-    return hmi->isSlaveButtonPressed();
-}
-
 // 检查主按钮是否被长按
 bool UserInterface::isMasterButtonLongPressed() {
     return hmi->isMasterButtonLongPressed();
-}
-
-// 检查从按钮是否被长按
-bool UserInterface::isSlaveButtonLongPressed() {
-    return hmi->isSlaveButtonLongPressed();
 }
 
 // 启用指定输出渠道

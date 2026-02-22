@@ -85,6 +85,9 @@ public:
   
   // 显示扫描仪编码器值
   void displayScannerEncoderValues(const int* risingValues, const int* fallingValues) override;
+
+  // 菜单渲染代理
+  void renderMenu(MenuNode* node, int cursorIndex, int scrollOffset) override;
   
   // 显示系统仪表盘
   void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount) override;
@@ -115,6 +118,9 @@ public:
   
   // 重置诊断模式
   void resetDiagnosticMode() override;
+  
+  // 清理屏幕 (Terminal可以用换行或清屏指令)
+  void clearDisplay() override;
 };
 
 #endif // TERMINAL_H

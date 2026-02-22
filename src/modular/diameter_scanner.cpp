@@ -1,5 +1,5 @@
 #include "diameter_scanner.h"
-#include "user_interface/oled.h"
+// #include "user_interface/oled.h"
 
 // 初始化静态实例变量为NULL
 // DiameterScanner* DiameterScanner::instance = NULL; // Managed by Singleton template
