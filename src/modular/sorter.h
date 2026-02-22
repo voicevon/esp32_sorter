@@ -71,6 +71,10 @@ private:
     void initializeDivergencePoints(const uint8_t positions[SORTER_NUM_OUTLETS]);
     static uint8_t getCapacity();
     
+    // 74HC595 同步控制逻辑 (支持 3 级联：LED + Open Coils + Close Coils)
+    void updateShiftRegisters();
+    uint32_t lastShiftData = 0xFFFFFF; // 记录上次发送的 24 位数据
+    
 public:
     // 构造函数
     Sorter();

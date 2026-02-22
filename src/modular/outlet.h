@@ -25,15 +25,7 @@ public:
           initialized(false), readyToOpenState(false), matchDiameterMin(0), matchDiameterMax(0) {}
 
     void initialize() {
-        if (pinOpen >= 0) {
-            pinMode(pinOpen, OUTPUT);
-            digitalWrite(pinOpen, LOW);
-        }
-        if (pinClose >= 0) {
-            pinMode(pinClose, OUTPUT);
-            digitalWrite(pinClose, LOW);
-        }
-        // Force close on init
+        // 彻底移除 direct GPIO 控制逻辑，后续由 Sorter 统一推向 HC595
         executeClose();
         initialized = true;
     }
@@ -49,17 +41,17 @@ public:
     void execute() {
         if (!initialized) return;
 
-        // If desired state matches physical state, do nothing
+        // 如果目标状态与物理状态一致且没有在脉冲中，则无需动作
         if (readyToOpenState == physicalOpen && !isPulsing) {
             return;
         }
 
-        // If we are already pulsing towards the target, do nothing
+        // 如果正在朝着目标执行脉冲工作，也保持原样
         if (isPulsing && targetPulseState == readyToOpenState) {
             return; 
         }
 
-        // Start new action
+        // 启动逻辑动作
         if (readyToOpenState) {
             executeOpen();
         } else {
@@ -75,6 +67,27 @@ public:
         return readyToOpenState;
     }
 
+    /** 
+     * 获取逻辑位置状态（对应 595 Index 0）
+     */
+    bool isPositionOpen() const {
+        return physicalOpen;
+    }
+
+    /**
+     * 获取 H 桥吸合脉冲输出请求（对应 595 Index 1）
+     */
+    bool isOpenPulseActive() const {
+        return isPulsing && targetPulseState;
+    }
+
+    /**
+     * 获取 H 桥释放脉冲输出请求（对应 595 Index 2）
+     */
+    bool isClosePulseActive() const {
+        return isPulsing && !targetPulseState;
+    }
+
     void setMatchDiameter(int min, int max) {
         matchDiameterMin = min;
         matchDiameterMax = max;
@@ -86,30 +99,23 @@ public:
     void setMatchDiameterMin(int min) { matchDiameterMin = min; }
     void setMatchDiameterMax(int max) { matchDiameterMax = max; }
 
+
 private:
     void executeOpen() {
-        if (pinOpen >= 0) digitalWrite(pinOpen, HIGH);
-        if (pinClose >= 0) digitalWrite(pinClose, LOW);
-        
         isPulsing = true;
         pulseStateChangeTime = millis();
         targetPulseState = true;
-        physicalOpen = true; // Optimistically set state
+        physicalOpen = true; 
     }
 
     void executeClose() {
-        if (pinOpen >= 0) digitalWrite(pinOpen, LOW);
-        if (pinClose >= 0) digitalWrite(pinClose, HIGH);
-        
         isPulsing = true;
         pulseStateChangeTime = millis();
-        targetPulseState = false; // Closing
+        targetPulseState = false; 
         physicalOpen = false;
     }
 
     void stopPulse() {
-        if (pinOpen >= 0) digitalWrite(pinOpen, LOW);
-        if (pinClose >= 0) digitalWrite(pinClose, LOW);
         isPulsing = false;
     }
 };

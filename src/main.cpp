@@ -42,6 +42,7 @@ bool menuModeActive = true;
 MenuSystem menuSystem(5);
 MenuNode rootMenu("Main Menu");
 MenuNode diagMenu("Diagnostics", &rootMenu);
+MenuNode outletDiagMenu("Outlet Diag", &diagMenu);
 MenuNode configMenu("Configurations", &rootMenu);
 
 // 函数：切换模式辅助
@@ -158,6 +159,11 @@ void setup() {
   // 初始化出口诊断处理类，并传入UserInterface指针
   outletDiagnosticHandler.initialize(userInterface);
   
+  // 将 Sorter 管理的出口对象注入到诊断处理器中
+  for (int i = 0; i < NUM_OUTLETS; i++) {
+      outletDiagnosticHandler.setOutlet(i, sorter.getOutlet(i));
+  }
+  
   // 初始化编码器诊断处理类，并传入UserInterface指针
   encoderDiagnosticHandler.initialize(userInterface);
   
@@ -182,10 +188,22 @@ void setup() {
   diagMenu.addItem(MenuItem("Scanner Test", MENU_TYPE_ACTION, nullptr, [](){
       switchToMode(MODE_DIAGNOSE_SCANNER);
   }));
-  diagMenu.addItem(MenuItem("Outlet Test", MENU_TYPE_ACTION, nullptr, [](){
+  diagMenu.addItem(MenuItem("Outlet Diag >", MENU_TYPE_SUBMENU, &outletDiagMenu));
+  diagMenu.addItem(MenuItem("< Back", MENU_TYPE_BACK));
+
+  outletDiagMenu.addItem(MenuItem("Cycle Drop (NC)", MENU_TYPE_ACTION, nullptr, [](){
+      outletDiagnosticHandler.setSubMode(0);
       switchToMode(MODE_DIAGNOSE_OUTLET);
   }));
-  diagMenu.addItem(MenuItem("< Back", MENU_TYPE_BACK));
+  outletDiagMenu.addItem(MenuItem("Cycle Raise (NO)", MENU_TYPE_ACTION, nullptr, [](){
+      outletDiagnosticHandler.setSubMode(1);
+      switchToMode(MODE_DIAGNOSE_OUTLET);
+  }));
+  outletDiagMenu.addItem(MenuItem("Lifetime Test", MENU_TYPE_ACTION, nullptr, [](){
+      outletDiagnosticHandler.setSubMode(2);
+      switchToMode(MODE_DIAGNOSE_OUTLET);
+  }));
+  outletDiagMenu.addItem(MenuItem("< Back", MENU_TYPE_BACK));
 
   configMenu.addItem(MenuItem("Diameter Ranges", MENU_TYPE_ACTION, nullptr, [](){
       switchToMode(MODE_CONFIG_DIAMETER);
@@ -449,8 +467,14 @@ void loop() {
               break;
               
           case MODE_DIAGNOSE_OUTLET:
-              if (delta != 0) outletDiagnosticHandler.switchToNextSubMode();
-              outletDiagnosticHandler.update(currentMs);
+              // 独占模式：忽略编码器旋转，只通过按键返回菜单
+              if (UserInterface::getInstance()->isMasterButtonPressed()) {
+                  handleReturnToMenu();
+              } else {
+                  outletDiagnosticHandler.update(currentMs);
+                  // 关键修复：诊断模式下也需要驱动物理输出和处理脉冲逻辑
+                  sorter.run(); 
+              }
               break;
               
           case MODE_CONFIG_DIAMETER:

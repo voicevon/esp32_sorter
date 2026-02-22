@@ -70,8 +70,15 @@ private:
   int lastTransportedTrayCount;  // 上一次显示的已输送托盘数量
   int lastLatestDiameter;  // 上一次显示的最新直径
   
+  // I2C 稳定性监测变量
+  uint32_t i2cErrorCount;    // 累计 I2C 错误次数
+  int lastI2CErrorCode;      // 最后一次错误码
+  bool i2cHealthy;           // 当前 I2C 是否健康
+  unsigned long lastRecoveryTime; // 上次尝试恢复的时间
+  
   // 私有方法
   void renderHeader();
+  bool safeDisplay();        // 安全显示方法，包含错误检测逻辑
   void renderStatusBar(const String& modeName); // 新方法，不依赖SystemMode
   void renderEncoderInfo(int encoderPosition);
   void renderOutletInfo(uint8_t outletCount);

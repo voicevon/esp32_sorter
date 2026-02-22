@@ -50,12 +50,8 @@ void UserInterface::initialize() {
 
 // 添加显示设备的静态方法（允许外部注入显示设备）
 void UserInterface::addExternalDisplayDevice(Display* display) {
-    if (display != nullptr) {
-        // 获取UserInterface实例
-        UserInterface* ui = getInstance();
-        // 将显示设备添加到数组中
-        ui->addDisplayDevice(display);
-    }
+    // 获取UserInterface实例，将显示设备添加到数组中
+    getInstance()->addDisplayDevice(display);
 }
 
 // 更新显示内容 - 已移除，改用功能专用方法

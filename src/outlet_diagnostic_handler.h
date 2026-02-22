@@ -29,7 +29,7 @@ private:
     bool displayInitialized;
     int currentSubMode;
     
-    // 舵机寿命测试模式专用变量
+    // 电磁铁寿命测试模式专用变量
     unsigned long cycleCount;  // 循环次数计数器
     
     // 私有方法：处理周期操作的公共逻辑
@@ -55,9 +55,15 @@ public:
     void setOutlet(uint8_t index, Outlet* outlet);
     
     /**
-     * 切换到下一个子模式
+     * 设置特定子模式
+     * @param mode 子模式索引
      */
-    void switchToNextSubMode();
+    void setSubMode(int mode);
+
+    /**
+     * 获取当前子模式
+     */
+    int getSubMode() const { return currentSubMode; }
     
     /**
      * 主更新方法，处理所有诊断逻辑

@@ -14,14 +14,17 @@ Sorter::Sorter() :
     simpleHmi = SimpleHMI::getInstance();
     trayManager = TraySystem::getInstance();
     
-    // 初始化分流点索引为默认值
-    for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
-        outletDivergencePoints[i] = 5 + i * 5;  // 默认间距为5
-    }
+    // 构造函数仅进行基础变量重置，所有硬件和业务参数初始化统一由 initialize() 处理
 }
 
 void Sorter::initialize() {
-    // 获取直径扫描仪单例实例并初始化
+    // 1. 初始化分流点索引为默认值 (如果EEPROM或其他配置层没有覆盖)
+    for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
+        outletDivergencePoints[i] = 1 + i * 2;  // 更合理的默认初始值
+    }
+
+    // 2. 获取直径扫描仪单例实例并初始化
+    // 出口电磁铁已在构造或initializeDivergencePoints中相关的逻辑中准备
     if (!scanner) {
         scanner = DiameterScanner::getInstance();
     }
@@ -40,6 +43,15 @@ void Sorter::initialize() {
     // 初始化托盘系统
     trayManager->resetAllTraysData();
     
+    // 初始化 74HC595 引脚
+    pinMode(PIN_HC595_DS, OUTPUT);
+    pinMode(PIN_HC595_SHCP, OUTPUT);
+    pinMode(PIN_HC595_STCP, OUTPUT);
+    digitalWrite(PIN_HC595_STCP, LOW);
+    
+    // 初始化同步输出
+    updateShiftRegisters();
+
     // 设置编码器回调，将Sorter实例和静态回调函数连接到编码器
     encoder->setPhaseCallback(this, onEncoderPhaseChange);
 }
@@ -174,8 +186,11 @@ void Sorter::onEncoderPhaseChange(void* context, int phase) {
 void Sorter::run() {
     // 轮询更新所有出口状态 (处理电磁铁脉冲等时序)
     for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
-        if (outlets[i]) outlets[i]->update();
+        outlets[i]->update();
     }
+    
+    // 更新物理移位寄存器输出 (同步 LED 和电磁铁)
+    updateShiftRegisters();
 
     switch (currentState) {
         case STATE_SCANNING:
@@ -276,19 +291,13 @@ void Sorter::run() {
 
 // 出口控制公共方法实现
 void Sorter::setOutletState(uint8_t outletIndex, bool open) {
-    if (outletIndex < SORTER_NUM_OUTLETS) {
-        outlets[outletIndex]->setReadyToOpen(open);
-        outlets[outletIndex]->execute();
-        // 公共方法中无需额外LED指示，出口状态已通过舵机动作显示
-    }
+    outlets[outletIndex]->setReadyToOpen(open);
+    outlets[outletIndex]->execute();
 }
 
 // 获取特定出口对象的指针（用于诊断模式）
 Outlet* Sorter::getOutlet(uint8_t index) {
-    if (index < SORTER_NUM_OUTLETS) {
-        return outlets[index];
-    }
-    return nullptr;
+    return outlets[index];
 }
 
 
@@ -390,18 +399,12 @@ float Sorter::getConveyorSpeedPerSecond() {
 // Sorter::getDisplayData方法已移除，改用专用方法
 // 获取出口最小直径
 int Sorter::getOutletMinDiameter(uint8_t outletIndex) const {
-    if (outletIndex < SORTER_NUM_OUTLETS) {
-        return outlets[outletIndex]->getMatchDiameterMin();
-    }
-    return 0;
+    return outlets[outletIndex]->getMatchDiameterMin();
 }
 
 // 获取出口最大直径
 int Sorter::getOutletMaxDiameter(uint8_t outletIndex) const {
-    if (outletIndex < SORTER_NUM_OUTLETS) {
-        return outlets[outletIndex]->getMatchDiameterMax();
-    }
-    return 0;
+    return outlets[outletIndex]->getMatchDiameterMax();
 }
 
 // 设置出口最小直径
@@ -419,4 +422,67 @@ void Sorter::setOutletMaxDiameter(uint8_t outletIndex, int maxDiameter) {
 }
 
 
-// 重置所有托盘数据
+void Sorter::updateShiftRegisters() {
+    uint8_t ledByte = 0;      // Byte 0 (Index 0): 8个 LED
+    uint8_t chip1Byte = 0;    // Byte 1 (Index 1): 出口 0-3 的 H 桥对
+    uint8_t chip2Byte = 0;    // Byte 2 (Index 2): 出口 4-7 的 H 桥对
+    
+    // 构建 LED 指示灯位图 (反映当前物理位置)
+    for (int i = 0; i < NUM_OUTLETS; i++) {
+        if (outlets[i]->isPositionOpen()) {
+            ledByte |= (1 << i);
+        }
+    }
+
+    // 构建电磁铁 H 桥位图 (每 2 位控制一个电磁铁)
+    // Chip 1 控制出口 0-3
+    for (int i = 0; i < 4; i++) {
+        if (outlets[i]->isOpenPulseActive()) {
+            chip1Byte |= (1 << (i * 2));     // Bit 0, 2, 4, 6 为 Open 信号
+        }
+        if (outlets[i]->isClosePulseActive()) {
+            chip1Byte |= (1 << (i * 2 + 1)); // Bit 1, 3, 5, 7 为 Close 信号
+        }
+    }
+    
+    // Chip 2 控制出口 4-7
+    for (int i = 0; i < 4; i++) {
+        if (outlets[i + 4]->isOpenPulseActive()) {
+            chip2Byte |= (1 << (i * 2));     // 对位到 Chip 2 的 Bit 0, 2, 4, 6
+        }
+        if (outlets[i + 4]->isClosePulseActive()) {
+            chip2Byte |= (1 << (i * 2 + 1)); // 对位到 Chip 2 的 Bit 1, 3, 5, 7
+        }
+    }
+    
+    // 组合成 24 位数据以进行变化检测
+    uint32_t currentData = ((uint32_t)chip2Byte << 16) | ((uint32_t)chip1Byte << 8) | ledByte;
+    
+    // 仅在状态变化时刷新物理引脚
+    if (currentData != lastShiftData) {
+        // 如果有任何脉冲处于活动状态，打印详细的出口信息
+        if (chip1Byte != 0 || chip2Byte != 0) {
+            String activeOutlets = "";
+            for(int i=0; i<NUM_OUTLETS; i++) {
+                if(outlets[i]->isOpenPulseActive()) activeOutlets += "O" + String(i) + "(Open) ";
+                if(outlets[i]->isClosePulseActive()) activeOutlets += "O" + String(i) + "(Close) ";
+            }
+            Serial.printf("[595] Data Change! -> 24-bit: 0x%06X | Active: %s\n", currentData, activeOutlets.c_str());
+        } else {
+            Serial.printf("[595] Data Change! -> 24-bit: 0x%06X (Idle Mode, LEDs Only)\n", currentData);
+        }
+                      
+        digitalWrite(PIN_HC595_STCP, LOW);
+        
+        // 发送顺序：最先发出的字节会被推到级联链路的最末端 (Chip 2)
+        // 1. 发送 Chip 2 数据 (出口 4-7)
+        shiftOut(PIN_HC595_DS, PIN_HC595_SHCP, MSBFIRST, chip2Byte);
+        // 2. 发送 Chip 1 数据 (出口 0-3)
+        shiftOut(PIN_HC595_DS, PIN_HC595_SHCP, MSBFIRST, chip1Byte);
+        // 3. 发送 Chip 0 数据 (LED 指示灯)
+        shiftOut(PIN_HC595_DS, PIN_HC595_SHCP, MSBFIRST, ledByte);
+        
+        digitalWrite(PIN_HC595_STCP, HIGH);
+        lastShiftData = currentData;
+    }
+}

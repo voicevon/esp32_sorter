@@ -20,7 +20,7 @@ OutletDiagnosticHandler::OutletDiagnosticHandler() {
 
 void OutletDiagnosticHandler::initialize(UserInterface* ui) {
     // 由于不同模式不会同时运行，这里不再重复初始化硬件资源
-    // 出口舵机已在Sorter类的initialize方法中初始化
+    // 出口电磁铁已在Sorter类的initialize方法中初始化
     
     // 设置UserInterface实例，用于显示诊断信息
     userInterface = ui;
@@ -32,31 +32,29 @@ void OutletDiagnosticHandler::setOutlet(uint8_t index, Outlet* outlet) {
     }
 }
 
-void OutletDiagnosticHandler::switchToNextSubMode() {
-    // 切换子模式（0、1、2之间循环）
-    currentSubMode = (currentSubMode + 1) % 3;
+void OutletDiagnosticHandler::setSubMode(int mode) {
+    if (mode == currentSubMode) return;
     
-    // 打印子模式切换信息
+    currentSubMode = mode;
+    
+    // 每次切换子模式都重置诊断状态，强制重新初始化
+    modeStartTime = 0;
+    
     String subModeName;
     switch (currentSubMode) {
         case 0:
-            subModeName = "Cycle Drop (Normally Closed)";
+            subModeName = "Cycle Drop (NC)";
             break;
         case 1:
-            subModeName = "Cycle Raise (Normally Open)";
+            subModeName = "Cycle Raise (NO)";
             break;
         case 2:
-            subModeName = "Servo Lifetime Test";
+            subModeName = "Solenoid Lifetime Test";
             break;
         default:
             subModeName = "Unknown";
     }
-    Serial.println("[DIAGNOSTIC] Outlet Submode switched: " + subModeName);
-    
-    // 更新显示内容
-    if (userInterface != nullptr) {
-        userInterface->displayDiagnosticInfo("Outlet Diag", "SubMode: " + subModeName);
-    }
+    Serial.println("[DIAGNOSTIC] Outlet Submode set to: " + subModeName);
 }
 
 void OutletDiagnosticHandler::update(unsigned long currentTime) {
@@ -131,12 +129,12 @@ void OutletDiagnosticHandler::update(unsigned long currentTime) {
         }
         case 2: {
             /**
-             * 子模式2：舵机寿命测试模式
+             * 子模式2：电磁铁寿命测试模式
              * 行为：所有出口同时动作，循环打开/关闭
              * 时序：
              *   - 打开状态保持时间：1秒
              *   - 关闭状态保持时间：1秒
-             * 应用场景：测试所有舵机的使用寿命
+             * 应用场景：测试所有电磁铁的使用寿命
              */
             interval = 1000;  // 固定1秒间隔
             testType = "lifetime test";  // 寿命测试类型
@@ -158,10 +156,8 @@ void OutletDiagnosticHandler::update(unsigned long currentTime) {
                 }
                 
                 // 更新显示内容，显示当前循环次数
-                if (userInterface != nullptr) {
-                    // 显示寿命测试信息，使用新的专门方法
-                    userInterface->displayOutletTestGraphic(NUM_OUTLETS, cycleCount, outletState, currentSubMode);
-                }
+                // 显示寿命测试信息，使用新的专门方法
+                userInterface->displayOutletTestGraphic(NUM_OUTLETS, cycleCount, outletState, currentSubMode);
             }
             break;
         }
@@ -245,12 +241,10 @@ void OutletDiagnosticHandler::initializeDiagnosticMode(unsigned long currentTime
         outlets[currentOutlet]->execute();
         
         // 更新显示内容
-        if (userInterface != nullptr) {
-            if (outletState) {
-                userInterface->displayOutletTestGraphic(NUM_OUTLETS, currentOutlet, currentSubMode);
-            } else {
-                userInterface->displayOutletTestGraphic(NUM_OUTLETS, 255, currentSubMode);
-            }
+        if (outletState) {
+            userInterface->displayOutletTestGraphic(NUM_OUTLETS, currentOutlet, currentSubMode);
+        } else {
+            userInterface->displayOutletTestGraphic(NUM_OUTLETS, 255, currentSubMode);
         }
         
         // 输出诊断信息到串口
@@ -270,9 +264,9 @@ void OutletDiagnosticHandler::initializeDiagnosticMode(unsigned long currentTime
             subModeName = "Cycle Raise (Normally Open)";
             break;
         case 2:
-            subModeName = "Servo Lifetime Test";
+            subModeName = "Solenoid Lifetime Test";
             // 只显示两行：标题和初始状态
-            Serial.println("\n=== Servo Lifetime Test ===");
+            Serial.println("\n=== Solenoid Lifetime Test ===");
             Serial.println("Cycle: 0 | State: Closed");
             break;
         default:

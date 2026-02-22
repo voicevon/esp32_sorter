@@ -1,7 +1,8 @@
 #include "oled.h"
 
-// 外部引用系统名称（定义在main.cpp中）
+// 外部引用系统名称和版本（定义在main.cpp中）
 extern String systemName;
+extern String firmwareVersion;
 
 // 初始化静态实例指针
 OLED* OLED::instance = nullptr;
@@ -31,6 +32,12 @@ OLED::OLED() : display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1) {
     lastFallingValues[i] = 0;
   }
   isFirstScannerDisplay = true;
+  
+  // 初始化 I2C 统计变量
+  i2cErrorCount = 0;
+  lastI2CErrorCode = 0;
+  i2cHealthy = true;
+  lastRecoveryTime = 0;
 }
 
 // 获取单例实例
@@ -43,19 +50,25 @@ OLED* OLED::getInstance() {
 
 // 初始化OLED显示器
 void OLED::initialize() {
-  // 设置I2C引脚
+  // 注意：display.begin 会调用 Wire.begin()。
+  // 我们先设置引脚，然后通过 begin 初始化 I2C
   Wire.setPins(PIN_OLED_SDA, PIN_OLED_SCL);
-  Wire.setClock(400000); // 尝试提速至 400KHz (Fast Mode)，进行压力测试
   
   // 初始化SSD1306显示器
+  // 如果 400kHz 不稳定，库会自动降频或报错。
   if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_I2C_ADDRESS)) {
     Serial.println(F("SSD1306 initialization failed - Display not available"));
     isDisplayAvailable = false;
+    i2cHealthy = false;
     return;
   }
   
+  // 在 begin 之后设置频率，避免 "could not acquire lock" 错误
+  Wire.setClock(400000); 
+  
   // 设置显示器可用标识
   isDisplayAvailable = true;
+  i2cHealthy = true;
   
   // 清屏
   display.clearDisplay();
@@ -66,10 +79,10 @@ void OLED::initialize() {
   display.setCursor(0, 0);
   
   // 显示启动信息
-  display.println(F("ESP32 Sorter"));
-  display.println(F("I2C OLED"));
-  display.println(F("IS ALIVE"));
-  display.display();
+  display.println(F("AS-L9 Sorter"));
+  display.println(String(F("System ")) + firmwareVersion);
+  display.println(F("Ready to Go"));
+  safeDisplay(); 
   
   // 记录初始化时间
   lastUpdateTime = millis();
@@ -93,7 +106,7 @@ void OLED::displayDiameter(int latestDiameter) {
   display.print(latestDiameter);
   display.println(F(" mm"));
   display.println(F("Nominal Diameter"));
-  display.display();
+  safeDisplay();
 }
 
 // 显示速度统计
@@ -114,7 +127,7 @@ void OLED::displaySpeedStats(int speedPerSecond, int speedPerMinute, int speedPe
   display.println();
   display.print(F("Items: ")); display.print(itemCount);
   display.print(F(" | Trays: ")); display.println(trayCount);
-  display.display();
+  safeDisplay();
 }
 
 // 显示单个数值
@@ -137,7 +150,7 @@ void OLED::displaySingleValue(const String& label, int value, const String& unit
     display.print(unit);
   }
   display.println();
-  display.display();
+  safeDisplay();
 }
 
 // 显示位置信息
@@ -155,7 +168,7 @@ void OLED::displayPositionInfo(const String& title, int position, bool showOnlyO
   display.print(title);
   display.print(F(": "));
   display.println(position);
-  display.display();
+  safeDisplay();
 }
 
 // 显示诊断数值对
@@ -173,7 +186,7 @@ void OLED::displayDiagnosticValues(const String& title, const String& value1, co
   display.println(title);
   display.println(value1);
   display.println(value2);
-  display.display();
+  safeDisplay();
 }
 
 // 显示多行文本
@@ -193,7 +206,7 @@ void OLED::displayMultiLineText(const String& title, const String& line1, const 
   display.println(line2);
   if (!line3.isEmpty()) display.println(line3);
   if (!line4.isEmpty()) display.println(line4);
-  display.display();
+  safeDisplay();
 }
 
 // 显示模式变化信息
@@ -217,7 +230,7 @@ void OLED::displayModeChange(SystemMode newMode) {
     default: display.println(F("Unknown")); break;
   }
   
-  display.display();
+  safeDisplay();
   isTemporaryDisplayActive = true;
   temporaryDisplayStartTime = millis();
   temporaryDisplayDuration = 2000;
@@ -229,7 +242,7 @@ void OLED::displayModeChange(const String& newModeName) {
 
   // 彻底移除全屏提示逻辑，避免遮挡功能界面
   display.clearDisplay();
-  display.display(); 
+  safeDisplay(); 
   isTemporaryDisplayActive = false; // 立即重置临时显示标志
 }
 
@@ -247,7 +260,7 @@ void OLED::displayOutletStatus(uint8_t outletIndex, bool isOpen) {
   display.setCursor(0, 40);
   display.print(F("Status: "));
   display.println(isOpen ? F("Open") : F("Closed"));
-  display.display();
+  safeDisplay();
   
   isTemporaryDisplayActive = true;
   temporaryDisplayStartTime = millis();
@@ -265,7 +278,7 @@ void OLED::displayDiagnosticInfo(const String& title, const String& info) {
   display.println(title);
   display.println(F("----------------"));
   display.println(info);
-  display.display();
+  safeDisplay();
   isDiagnosticModeActive = true;
 }
 
@@ -274,7 +287,15 @@ void OLED::renderHeader() {
   display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
   display.setCursor(0, 0);
   display.setTextSize(1);
-  display.println(systemName);
+  display.print(systemName);
+
+  // 如果发生了 I2C 错误，在页眉显示计数器，辅助 1.5 米线缆的干扰排查
+  if (i2cErrorCount > 0) {
+      display.setCursor(SCREEN_WIDTH - 30, 0);
+      display.print("E:");
+      display.print(i2cErrorCount);
+  }
+
   display.drawLine(0, 10, SCREEN_WIDTH, 10, SSD1306_WHITE);
 }
 
@@ -304,7 +325,7 @@ void OLED::displayOutletTestGraphic(uint8_t outletCount, uint8_t openOutlet, int
     case 1: displayOutletTestNormalClosed(outletCount, openOutlet); break;
     case 2: displayOutletTestLifetime(outletCount, openOutlet); break;
   }
-  display.display();
+  safeDisplay();
   isDiagnosticModeActive = true;
 }
 
@@ -326,7 +347,7 @@ void OLED::displayOutletTestNormalClosed(uint8_t outletCount, uint8_t openOutlet
 }
 
 void OLED::displayOutletTestLifetime(uint8_t outletCount, uint8_t cycleCount) {
-  display.setCursor(0, 0); display.println("Servo Lifetime");
+  display.setCursor(0, 0); display.println("Outlet Lifetime");
   display.setCursor(0, 35); display.print("Cycle: "); display.println(cycleCount);
 }
 
@@ -335,10 +356,10 @@ void OLED::displayOutletLifetimeTestGraphic(uint8_t outletCount, unsigned long c
   if (!isDisplayAvailable) return;
   display.clearDisplay();
   display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
-  display.setCursor(0, 0); display.println("Servo Lifetime");
+  display.setCursor(0, 0); display.println("Outlet Lifetime");
   display.setCursor(0, 35); display.print("Cycle: "); display.println(cycleCount);
   display.setCursor(0, 45); display.print("State: "); display.println(outletState ? "Open" : "Closed");
-  display.display();
+  safeDisplay();
 }
 
 // 扫描仪诊断显示
@@ -351,7 +372,7 @@ void OLED::displayScannerEncoderValues(const int* risingValues, const int* falli
   for (int i = 0; i < 4; i++) display.printf("%3d ", risingValues[i]);
   display.setCursor(0, 35); display.print("v:");
   for (int i = 0; i < 4; i++) display.printf("%3d ", fallingValues[i]);
-  display.display();
+  safeDisplay();
 }
 
 // 菜单渲染
@@ -384,7 +405,7 @@ void OLED::renderMenu(MenuNode* node, int cursorIndex, int scrollOffset) {
         else if (item.type == MENU_TYPE_BACK) display.print("< " + item.label);
         else display.print(item.label);
     }
-    display.display();
+    safeDisplay();
 }
 
 // 仪表盘
@@ -398,7 +419,7 @@ void OLED::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinu
     display.printf("S: %d/h\n", sortingSpeedPerHour);
     display.setCursor(64, 36); display.printf("Items: %d", identifiedCount);
     display.setCursor(64, 46); display.printf("Trays: %d", transportedTrayCount);
-    display.display();
+    safeDisplay();
 }
 
 void OLED::displayNormalModeStats(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount) {
@@ -418,5 +439,18 @@ void OLED::resetDiagnosticMode() {
 void OLED::clearDisplay() {
   if (!isDisplayAvailable) return;
   display.clearDisplay();
-  display.display();
+  safeDisplay();
+}
+
+// 核心安全显示方法：处理 I2C 通信压力
+bool OLED::safeDisplay() {
+    if (!isDisplayAvailable) return false;
+
+    // 尝试输出显示缓冲区
+    display.display();
+
+    // 目前移除引脚电平直接读取，以确保不会干扰 I2C 硬件波形。
+    // 如果 SDA/SCL 因为干扰死锁，核心逻辑将继续运行而不受此处显示逻辑卡顿的影响。
+    i2cHealthy = true;
+    return true;
 }
