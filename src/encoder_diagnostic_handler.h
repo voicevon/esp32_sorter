@@ -40,5 +40,5 @@ public:
     /**
      * 主更新方法，处理所有诊断逻辑
      */
-    void update();
+    void update(unsigned long currentTime);
 };

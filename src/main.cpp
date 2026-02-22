@@ -457,13 +457,19 @@ void loop() {
               break;
               
           case MODE_DIAGNOSE_ENCODER:
-              if (delta != 0) encoderDiagnosticHandler.switchToNextSubMode();
-              encoderDiagnosticHandler.update();
+              if (UserInterface::getInstance()->isMasterButtonPressed()) {
+                  handleReturnToMenu();
+              } else {
+                  encoderDiagnosticHandler.update(currentMs);
+              }
               break;
               
           case MODE_DIAGNOSE_SCANNER:
-              if (delta != 0) scannerDiagnosticHandler.switchToNextSubMode();
-              scannerDiagnosticHandler.update();
+              if (UserInterface::getInstance()->isMasterButtonPressed()) {
+                  handleReturnToMenu();
+              } else {
+                  scannerDiagnosticHandler.update(currentMs);
+              }
               break;
               
           case MODE_DIAGNOSE_OUTLET:
@@ -478,7 +484,11 @@ void loop() {
               break;
               
           case MODE_CONFIG_DIAMETER:
-              diameterConfigHandler.update();
+              if (UserInterface::getInstance()->isMasterButtonPressed()) {
+                  handleReturnToMenu();
+              } else {
+                  diameterConfigHandler.update();
+              }
               break;
               
           case MODE_VERSION_INFO:

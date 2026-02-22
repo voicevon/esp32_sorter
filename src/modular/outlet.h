@@ -5,31 +5,32 @@
 
 class Outlet {
 private:
-    int pinOpen;
-    int pinClose;
-    bool physicalOpen;
-    unsigned long pulseStateChangeTime;
-    bool isPulsing;
-    bool targetPulseState; // true=Opening, false=Closing
-    const unsigned long PULSE_DURATION = 500;
-    
-    bool initialized;
-    bool readyToOpenState;
-    int matchDiameterMin;
-    int matchDiameterMax;
-
 public:
-    Outlet(int openPin, int closePin) 
-        : pinOpen(openPin), pinClose(closePin), physicalOpen(false), 
-          pulseStateChangeTime(0), isPulsing(false), targetPulseState(false),
-          initialized(false), readyToOpenState(false), matchDiameterMin(0), matchDiameterMax(0) {}
+    // 脉冲持续时间（毫秒），确保 H 桥动作后能够及时断电
+    static const unsigned long PULSE_DURATION = 500;
 
+    Outlet() : 
+          isPulsing(false), 
+          pulseStateChangeTime(0), 
+          targetPulseState(false), 
+          physicalOpen(false), 
+          initialized(false), 
+          readyToOpenState(false), 
+          matchDiameterMin(0), 
+          matchDiameterMax(0) {}
+
+    /**
+     * 初始化出口逻辑状态
+     */
     void initialize() {
-        // 彻底移除 direct GPIO 控制逻辑，后续由 Sorter 统一推向 HC595
+        // 逻辑初始化：强制设定为关闭位置
         executeClose();
         initialized = true;
     }
 
+    /**
+     * 更新脉冲时序（由 Sorter 定时调用）
+     */
     void update() {
         if (isPulsing) {
             if (millis() - pulseStateChangeTime >= PULSE_DURATION) {
@@ -38,20 +39,23 @@ public:
         }
     }
 
+    /**
+     * 执行目标动作（当 readyToOpenState 改变时触发）
+     */
     void execute() {
         if (!initialized) return;
 
-        // 如果目标状态与物理状态一致且没有在脉冲中，则无需动作
+        // 如果目标位置与当前物理留驻位置一致且没有正在发出的脉冲，则忽略
         if (readyToOpenState == physicalOpen && !isPulsing) {
             return;
         }
 
-        // 如果正在朝着目标执行脉冲工作，也保持原样
+        // 如果已经在向目标方向发送脉冲，则维持当前状态
         if (isPulsing && targetPulseState == readyToOpenState) {
             return; 
         }
 
-        // 启动逻辑动作
+        // 根据逻辑目标启动 H 桥换向脉冲
         if (readyToOpenState) {
             executeOpen();
         } else {
@@ -68,26 +72,27 @@ public:
     }
 
     /** 
-     * 获取逻辑位置状态（对应 595 Index 0）
+     * 获取物理位置（对应指示 LED）
      */
     bool isPositionOpen() const {
         return physicalOpen;
     }
 
     /**
-     * 获取 H 桥吸合脉冲输出请求（对应 595 Index 1）
+     * 获取吸合脉冲状态（对应 H 桥 A 通道）
      */
     bool isOpenPulseActive() const {
         return isPulsing && targetPulseState;
     }
 
     /**
-     * 获取 H 桥释放脉冲输出请求（对应 595 Index 2）
+     * 获取释放脉冲状态（对应 H 桥 B 通道）
      */
     bool isClosePulseActive() const {
         return isPulsing && !targetPulseState;
     }
 
+    // 直径匹配配置
     void setMatchDiameter(int min, int max) {
         matchDiameterMin = min;
         matchDiameterMax = max;
@@ -101,6 +106,16 @@ public:
 
 
 private:
+    bool isPulsing;               // 正在发送高电平脉冲
+    unsigned long pulseStateChangeTime; // 脉冲起始时间
+    bool targetPulseState;        // 当前脉冲的目标方向（true=吸合, false=释放）
+    bool physicalOpen;            // 电磁铁物理留驻位置（true=Open, false=Close）
+    bool initialized;
+    bool readyToOpenState;        // 软件下达的目标逻辑状态
+
+    int matchDiameterMin;
+    int matchDiameterMax;
+
     void executeOpen() {
         isPulsing = true;
         pulseStateChangeTime = millis();

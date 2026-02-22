@@ -32,8 +32,8 @@ private:
     // 分流点索引（编码器位置）
     int outletDivergencePoints[SORTER_NUM_OUTLETS];
     
-    // 出口对象指针数组
-    Outlet* outlets[SORTER_NUM_OUTLETS];
+    // 为每个分流出口分配静态出口对象
+    Outlet outlets[NUM_OUTLETS];
     
     // 直径扫描仪实例指针
     DiameterScanner* scanner;

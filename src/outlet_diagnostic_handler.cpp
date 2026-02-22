@@ -57,10 +57,10 @@ void OutletDiagnosticHandler::setSubMode(int mode) {
     Serial.println("[DIAGNOSTIC] Outlet Submode set to: " + subModeName);
 }
 
-void OutletDiagnosticHandler::update(unsigned long currentTime) {
+void OutletDiagnosticHandler::update(unsigned long currentMs) {
     // 模式开始时初始化
     if (modeStartTime == 0) {
-        initializeDiagnosticMode(currentTime);
+        initializeDiagnosticMode(currentMs);
     }
     
     // 声明局部变量
@@ -83,7 +83,7 @@ void OutletDiagnosticHandler::update(unsigned long currentTime) {
              */
             interval = outletState ? 1500 : 4500;
             testType = "normally closed";  // 表示出口在非测试状态下是常闭的
-            processCycleOperation(currentTime, interval, testType);
+            processCycleOperation(currentMs, interval, testType);
             break;
         }
         case 1: {
@@ -96,9 +96,9 @@ void OutletDiagnosticHandler::update(unsigned long currentTime) {
              * 应用场景：测试推杆上升式出口的正常工作
              */
             // 不使用processCycleOperation函数，直接实现逻辑
-            if (currentTime - lastOutletTime >= (outletState ? 4500 : 1500)) {
+            if (currentMs - lastOutletTime >= (outletState ? 4500 : 1500)) {
                 // 更新时间戳
-                lastOutletTime = currentTime;
+                lastOutletTime = currentMs;
                 
                 // 切换出口状态（开<->关）
                 outletState = !outletState;
@@ -139,24 +139,19 @@ void OutletDiagnosticHandler::update(unsigned long currentTime) {
             interval = 1000;  // 固定1秒间隔
             testType = "lifetime test";  // 寿命测试类型
             
-            // 使用单独的寿命测试逻辑
-            if (currentTime - lastOutletTime >= interval) {
-                lastOutletTime = currentTime;
+            // 独占寿命测试逻辑
+            if (currentMs - lastOutletTime >= interval) {
+                lastOutletTime = currentMs;
                 outletState = !outletState;
                 
-                // 当状态从关闭切换到打开时，增加循环计数
-                if (outletState) {
-                    cycleCount++;
-                }
+                if (outletState) cycleCount++;
                 
-                // 控制所有出口同时执行相同动作
+                // 动作生成
                 for (int i = 0; i < NUM_OUTLETS; i++) {
                     outlets[i]->setReadyToOpen(outletState);
                     outlets[i]->execute();
                 }
                 
-                // 更新显示内容，显示当前循环次数
-                // 显示寿命测试信息，使用新的专门方法
                 userInterface->displayOutletTestGraphic(NUM_OUTLETS, cycleCount, outletState, currentSubMode);
             }
             break;

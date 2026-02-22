@@ -360,7 +360,7 @@ void ScannerDiagnosticHandler::handleRawDiameterDisplay() {
     }
 }
 
-void ScannerDiagnosticHandler::update() {
+void ScannerDiagnosticHandler::update(unsigned long currentTime) {
     // 检查子模式是否变化
     if (lastSubMode != currentSubMode) {
         lastSubMode = currentSubMode;

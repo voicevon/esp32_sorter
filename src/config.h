@@ -18,10 +18,10 @@ constexpr int PIN_FEEDER_SERVO_1 = 27;
 constexpr int PIN_FEEDER_SERVO_2 = 26;
 constexpr int PIN_FEEDER_SERVO_3 = 25;
 
-// HC595 Shift Registers (Driving 8x 12V Solenoids & 8x LEDs)
-constexpr int PIN_HC595_DS   = 33;
-constexpr int PIN_HC595_SHCP = 4;
-constexpr int PIN_HC595_STCP = 2;
+// 级联 74HC595 移位寄存器引脚 (控制指示 LED 与 Solenoids H-Bridge)
+constexpr int PIN_HC595_DS   = 33;  // 数据输入
+constexpr int PIN_HC595_SHCP = 4;   // 移位脉冲
+constexpr int PIN_HC595_STCP = 2;   // 锁存脉冲
 
 // RS485 Interface
 constexpr int PIN_RS485_TX = 17;

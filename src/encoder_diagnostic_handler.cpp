@@ -42,11 +42,10 @@ void EncoderDiagnosticHandler::switchToNextSubMode() {
 /**
  * 主更新方法，处理所有诊断逻辑
  */
-void EncoderDiagnosticHandler::update() {
+void EncoderDiagnosticHandler::update(unsigned long currentTime) {
     // 初始化子模式
     if (!subModeInitialized) {
         subModeInitialized = true;
-        Serial.println("[DIAGNOSTIC] Encoder Diagnostic Mode Activated");
         Serial.println("[DIAGNOSTIC] Submode: " + String(currentSubMode == 0 ? "Position" : "Phase Change"));
         Serial.println("[DIAGNOSTIC] Use slave button to switch submode");
     }
