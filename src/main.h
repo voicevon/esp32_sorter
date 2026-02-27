@@ -10,6 +10,7 @@ enum SystemMode {
   MODE_DIAGNOSE_SCANNER = 2,  // 诊断扫描仪模式
   MODE_DIAGNOSE_OUTLET = 3,   // 诊断出口模式
   MODE_CONFIG_DIAMETER = 4,    // 配置出口直径范围模式
+  MODE_DIAGNOSE_POTENTIOMETER = 5, // 诊断电位器模式
   MODE_VERSION_INFO = 6        // 版本信息模式
 };
 

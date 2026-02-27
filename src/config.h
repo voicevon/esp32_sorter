@@ -16,7 +16,7 @@ constexpr const char* FIRMWARE_VERSION = "2.0.0";
 // Feeder Servos (Up to 3)
 constexpr int PIN_FEEDER_SERVO_1 = 27;
 constexpr int PIN_FEEDER_SERVO_2 = 26;
-constexpr int PIN_FEEDER_SERVO_3 = 25;
+constexpr int PIN_POTENTIOMETER  = 25; // ADC Input for external Servo Motor Speed
 
 // 级联 74HC595 移位寄存器引脚 (控制指示 LED 与 Solenoids H-Bridge)
 constexpr int PIN_HC595_DS   = 33;  // 数据输入
@@ -59,8 +59,8 @@ constexpr int PIN_UART0_RX = 3;
 // ==========================================
 // Arrays (Helper for loops)
 // ==========================================
-constexpr int PINS_FEEDER_SERVO[3] = {
-    PIN_FEEDER_SERVO_1, PIN_FEEDER_SERVO_2, PIN_FEEDER_SERVO_3
+constexpr int PINS_FEEDER_SERVO[2] = {
+    PIN_FEEDER_SERVO_1, PIN_FEEDER_SERVO_2
 };
 
 constexpr int PINS_SCANNER[5] = {
@@ -79,6 +79,14 @@ constexpr int PULSES_PER_TRAY = 200;
 constexpr int SERVO_POS_CLOSED = 80;
 constexpr int SERVO_POS_OPEN = 0;
 constexpr int NUM_OUTLETS = 8;
+
+// RS485 Modbus Servo Motor Parameters
+constexpr uint8_t  MODBUS_SERVO_SLAVE_ID = 0x08;      // Station ID
+constexpr uint16_t MODBUS_SERVO_SPEED_REG = 0x002B;   // Target speed register
+constexpr uint32_t MODBUS_BAUD_RATE = 9600;
+constexpr uint32_t MODBUS_SERIAL_CONFIG = SERIAL_8N1; // 8 Data, No Parity, 1 Stop
+constexpr int MODBUS_SPEED_MIN = 0;                   // 0 RPM
+constexpr int MODBUS_SPEED_MAX = 3000;                // 3000 RPM (Typical, adjust as needed)
 
 // Scanner
 constexpr float SCANNER_WEIGHTS[4] = {1.01f, 1.02f, 1.05f, 1.15f};

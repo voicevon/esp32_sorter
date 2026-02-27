@@ -91,6 +91,56 @@ EncoderDiagnosticHandler encoderDiagnosticHandler;
 // 配置处理类实例
 DiameterConfigHandler diameterConfigHandler(userInterface, &sorter);
 
+// =========================
+// Modbus RS485 控制辅助
+// =========================
+unsigned long lastModbusSendTime = 0;
+int lastSentSpeed = -1;
+
+// 计算 Modbus RTU CRC16 的辅助函数
+uint16_t calculateCRC16(const uint8_t *data, uint16_t length) {
+    uint16_t crc = 0xFFFF;
+    for (uint16_t pos = 0; pos < length; pos++) {
+        crc ^= (uint16_t)data[pos];    // XOR byte into least sig. byte of crc
+        for (int i = 8; i != 0; i--) {    // Loop over each bit
+            if ((crc & 0x0001) != 0) {    // If the LSB is set
+                crc >>= 1;              // Shift right and XOR 0xA001
+                crc ^= 0xA001;
+            }
+            else                        // Else LSB is not set
+                crc >>= 1;              // Just shift right
+        }
+    }
+    return crc;
+}
+
+// 发送 Modbus 速度指令
+void sendModbusSpeed(int speedRpm) {
+    if (speedRpm < MODBUS_SPEED_MIN) speedRpm = MODBUS_SPEED_MIN;
+    if (speedRpm > MODBUS_SPEED_MAX) speedRpm = MODBUS_SPEED_MAX;
+
+    uint8_t frame[8];
+    frame[0] = MODBUS_SERVO_SLAVE_ID; // 0x08
+    frame[1] = 0x06;                  // Function Code 0x06 (Write Single Register)
+    frame[2] = (MODBUS_SERVO_SPEED_REG >> 8) & 0xFF;
+    frame[3] = MODBUS_SERVO_SPEED_REG & 0xFF;
+    frame[4] = (speedRpm >> 8) & 0xFF;
+    frame[5] = speedRpm & 0xFF;
+
+    uint16_t crc = calculateCRC16(frame, 6);
+    frame[6] = crc & 0xFF;        // CRC LOW
+    frame[7] = (crc >> 8) & 0xFF; // CRC HIGH
+
+    // 启用 RS485 发送
+    digitalWrite(PIN_RS485_EN, HIGH);
+    Serial1.write(frame, 8);
+    Serial1.flush(); // 等待发送完成
+    // 关闭发送，转为接收模式
+    digitalWrite(PIN_RS485_EN, LOW);
+    
+    // Serial.printf("[Modbus] Sent Speed: %d RPM\n", speedRpm);
+}
+
 // 函数声明
 String getSystemModeName(SystemMode mode);
 
@@ -121,6 +171,14 @@ void setup() {
   
   // 初始化电源监控引脚
   pinMode(PIN_POWER_MONITOR, INPUT);
+  
+  // 初始化 RS485 (Serial1) 和 控制引脚
+  pinMode(PIN_RS485_EN, OUTPUT);
+  digitalWrite(PIN_RS485_EN, LOW); // 默认接收模式
+  Serial1.begin(MODBUS_BAUD_RATE, MODBUS_SERIAL_CONFIG, PIN_RS485_RX, PIN_RS485_TX);
+
+  // 初始化电位器引脚
+  pinMode(PIN_POTENTIOMETER, INPUT);
   
   // 设置每个出口对象的指针到出口诊断处理类
   for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
@@ -187,6 +245,9 @@ void setup() {
   }));
   diagMenu.addItem(MenuItem("Scanner Test", MENU_TYPE_ACTION, nullptr, [](){
       switchToMode(MODE_DIAGNOSE_SCANNER);
+  }));
+  diagMenu.addItem(MenuItem("Speed Control", MENU_TYPE_ACTION, nullptr, [](){
+      switchToMode(MODE_DIAGNOSE_POTENTIOMETER);
   }));
   diagMenu.addItem(MenuItem("Outlet Diag >", MENU_TYPE_SUBMENU, &outletDiagMenu));
   diagMenu.addItem(MenuItem("< Back", MENU_TYPE_BACK));
@@ -397,6 +458,24 @@ void loop() {
   // 优先检查掉电 (暂时禁用，因为目前是USB供电)
   // checkPowerLoss();
   
+  // 定期处理 Modbus 调速 (避免过于频繁，每 100ms 检查一次)
+  if (millis() - lastModbusSendTime > 100) {
+      lastModbusSendTime = millis();
+      
+      // 读取电位器 ADC (0-4095)
+      int adcValue = analogRead(PIN_POTENTIOMETER);
+      
+      // 映射 ADC 到速度范围
+      // 考虑到 ADC 噪声，可以加个死区或者简单过滤
+      int targetSpeed = map(adcValue, 0, 4095, MODBUS_SPEED_MIN, MODBUS_SPEED_MAX);
+      
+      // 添加阈值避免抖动不停发送 (如果变化大于设定阈值才发送)
+      if (abs(targetSpeed - lastSentSpeed) > 50 || lastSentSpeed == -1) {
+          sendModbusSpeed(targetSpeed);
+          lastSentSpeed = targetSpeed;
+      }
+  }
+  
   // ===================================
   // ENCODER DIAGNOSTICS LOGGING
   // ===================================
@@ -472,6 +551,20 @@ void loop() {
               }
               break;
               
+          case MODE_DIAGNOSE_POTENTIOMETER:
+              if (UserInterface::getInstance()->isMasterButtonPressed()) {
+                  handleReturnToMenu();
+              } else {
+                  static unsigned long lastPotDispTime = 0;
+                  if (currentMs - lastPotDispTime > 200) {
+                      lastPotDispTime = currentMs;
+                      int adcValue = analogRead(PIN_POTENTIOMETER);
+                      int targetSpeed = map(adcValue, 0, 4095, MODBUS_SPEED_MIN, MODBUS_SPEED_MAX);
+                      userInterface->displayDiagnosticValues("Speed Control", "ADC: " + String(adcValue), "RPM: " + String(targetSpeed));
+                  }
+              }
+              break;
+              
           case MODE_DIAGNOSE_OUTLET:
               // 独占模式：忽略编码器旋转，只通过按键返回菜单
               if (UserInterface::getInstance()->isMasterButtonPressed()) {
@@ -519,6 +612,8 @@ String getSystemModeName(SystemMode mode) {
       return "Encoder Diag";
     case MODE_DIAGNOSE_SCANNER:
       return "Scanner Diag";
+    case MODE_DIAGNOSE_POTENTIOMETER:
+      return "Speed Ctrl";
     case MODE_DIAGNOSE_OUTLET:
       return "Outlet Diag";
     case MODE_VERSION_INFO:

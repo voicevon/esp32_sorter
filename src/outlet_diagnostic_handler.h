@@ -28,6 +28,8 @@ private:
     uint8_t currentOutlet;
     bool displayInitialized;
     int currentSubMode;
+    int lastSubMode;
+    unsigned long lastUpdateTime;
     
     // 电磁铁寿命测试模式专用变量
     unsigned long cycleCount;  // 循环次数计数器

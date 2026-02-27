@@ -1,18 +1,17 @@
 #include "outlet_diagnostic_handler.h"
 #include "config.h"
 
-OutletDiagnosticHandler::OutletDiagnosticHandler() {
-    // 初始化诊断模式状态变量
-    modeStartTime = 0;
-    lastOutletTime = 0;
-    outletState = false;
-    currentOutlet = 0;
-    displayInitialized = false;
-    currentSubMode = 0;
-    cycleCount = 0;
-    userInterface = nullptr;
-    
-    // 初始化outlets数组为nullptr
+OutletDiagnosticHandler::OutletDiagnosticHandler() : 
+    modeStartTime(0), 
+    lastOutletTime(0), 
+    outletState(false), 
+    currentOutlet(0), 
+    displayInitialized(false), 
+    currentSubMode(0),
+    lastSubMode(-1),
+    lastUpdateTime(0),
+    cycleCount(0), 
+    userInterface(nullptr) {
     for (int i = 0; i < NUM_OUTLETS; i++) {
         outlets[i] = nullptr;
     }
@@ -33,34 +32,26 @@ void OutletDiagnosticHandler::setOutlet(uint8_t index, Outlet* outlet) {
 }
 
 void OutletDiagnosticHandler::setSubMode(int mode) {
-    if (mode == currentSubMode) return;
-    
     currentSubMode = mode;
+    lastSubMode = -1; // 强制触发一次显示刷新
+    cycleCount = 0;
+    outletState = false;
     
-    // 每次切换子模式都重置诊断状态，强制重新初始化
-    modeStartTime = 0;
-    
-    String subModeName;
-    switch (currentSubMode) {
-        case 0:
-            subModeName = "Cycle Drop (NC)";
-            break;
-        case 1:
-            subModeName = "Cycle Raise (NO)";
-            break;
-        case 2:
-            subModeName = "Solenoid Lifetime Test";
-            break;
-        default:
-            subModeName = "Unknown";
+    String subModeName = "";
+    switch(mode) {
+        case 0: subModeName = "Normally Closed Test"; break;
+        case 1: subModeName = "Normally Open Test"; break;
+        case 2: subModeName = "Lifetime Cycle Test"; break;
+        default: subModeName = "Unknown Mode"; break;
     }
-    Serial.println("[DIAGNOSTIC] Outlet Submode set to: " + subModeName);
+    Serial.println("[DIAGNOSTIC] Outlet Mode explicitly set to: " + subModeName);
 }
 
 void OutletDiagnosticHandler::update(unsigned long currentMs) {
     // 模式开始时初始化
-    if (modeStartTime == 0) {
+    if (modeStartTime == 0 || currentSubMode != lastSubMode) { // Re-initialize if submode changes
         initializeDiagnosticMode(currentMs);
+        lastSubMode = currentSubMode;
     }
     
     // 声明局部变量
