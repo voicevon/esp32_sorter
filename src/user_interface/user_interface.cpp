@@ -195,10 +195,10 @@ void UserInterface::displayDiagnosticValues(const String& title, const String& v
     }
 }
 
-void UserInterface::displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3, const String& line4) {
+void UserInterface::displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3, const String& line4, const String& line5) {
     // 遍历所有显示设备
     for (int i = 0; i < displayDeviceCount; i++) {
-        displayDevices[i]->displayMultiLineText(title, line1, line2, line3, line4);
+        displayDevices[i]->displayMultiLineText(title, line1, line2, line3, line4, line5);
     }
 }
 
@@ -352,6 +352,9 @@ String UserInterface::translate(const String& key) const {
         if (key == "Scanner Diag") return "扫描仪诊断";
         if (key == "Outlet Diag") return "出口诊断";
         if (key == "Feeder Test") return "上料器测试";
+        if (key == "Pot Test") return "电位器测试";
+        if (key == "Speed Ctrl (Enc)") return "速度控制-旋钮";
+        if (key == "Speed Ctrl (Pot)") return "速度控制-电位器";
         if (key == "Version Info") return "版本信息";
         if (key == "Submode") return "子模式";
         if (key == "Switch to Submode") return "切换到子模式";

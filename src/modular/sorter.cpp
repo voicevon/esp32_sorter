@@ -115,6 +115,8 @@ void Sorter::onEncoderPhaseChange(void* context, int phase) {
 
 // 主循环处理函数 (FSM Executor)
 void Sorter::run() {
+    // [隔离测试] 暂时屏蔽数字 IO 翻转，观察 ADC 跳变
+    /*
     // 轮询物理出口的逻辑状态更新 (处理 H 桥脉冲等时序)
     for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
         outlets[i].update();
@@ -122,6 +124,7 @@ void Sorter::run() {
     
     // 关键原子操作：将 24 位逻辑映射推送到级联 HC595
     updateShiftRegisters();
+    */
 
     switch (currentState) {
         case STATE_SCANNING:
@@ -347,9 +350,13 @@ void Sorter::updateShiftRegisters() {
     uint8_t chip2Byte = 0;    // Byte 2 (Index 2): 出口 4-7 的 H 桥对
     
     // 构建 LED 指示灯位图 (反映当前物理位置)
-    for (int i = 0; i < NUM_OUTLETS; i++) {
-        if (outlets[i].isPositionOpen()) {
-            ledByte |= (1 << i);
+    if (testLedModeActive) {
+        ledByte = testLedByte;
+    } else {
+        for (int i = 0; i < NUM_OUTLETS; i++) {
+            if (outlets[i].isPositionOpen()) {
+                ledByte |= (1 << i);
+            }
         }
     }
 

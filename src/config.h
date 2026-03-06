@@ -81,8 +81,8 @@ constexpr int SERVO_POS_OPEN = 0;
 constexpr int NUM_OUTLETS = 8;
 
 // RS485 Modbus Servo Motor Parameters
-constexpr uint8_t  MODBUS_SERVO_SLAVE_ID = 0x08;      // Station ID
-constexpr uint16_t MODBUS_SERVO_SPEED_REG = 0x002B;   // Target speed register
+constexpr uint8_t  MODBUS_SERVO_SLAVE_ID = 0x01;      // PSBase Default Station ID
+constexpr uint16_t MODBUS_SERVO_SPEED_REG = 0x0018;   // PA24 Target speed register (Address 0x0018)
 constexpr uint32_t MODBUS_BAUD_RATE = 9600;
 constexpr uint32_t MODBUS_SERIAL_CONFIG = SERIAL_8N1; // 8 Data, No Parity, 1 Stop
 constexpr int MODBUS_SPEED_MIN = 0;                   // 0 RPM

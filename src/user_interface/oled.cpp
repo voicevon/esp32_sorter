@@ -8,7 +8,8 @@ extern String firmwareVersion;
 OLED* OLED::instance = nullptr;
 
 // 私有构造函数实现
-OLED::OLED() : display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1) {
+// 使用 Wire1 以避开可能的系统级总线冲突
+OLED::OLED() : display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire1, -1) {
   lastUpdateTime = 0;
   isTemporaryDisplayActive = false;
   temporaryDisplayStartTime = 0;
@@ -50,21 +51,68 @@ OLED* OLED::getInstance() {
 
 // 初始化OLED显示器
 void OLED::initialize() {
-  // 注意：display.begin 会调用 Wire.begin()。
-  // 我们先设置引脚，然后通过 begin 初始化 I2C
-  Wire.setPins(PIN_OLED_SDA, PIN_OLED_SCL);
+  Serial.println(F("[OLED] Starting initialization..."));
+  
+  // 在初始化之前尝试恢复总线（针对 1.5 米线缆可能产生的挂死）
+  Serial.println(F("[OLED] Attempting I2C bus recovery (20 pulses)..."));
+  pinMode(PIN_OLED_SCL, OUTPUT);
+  pinMode(PIN_OLED_SDA, INPUT_PULLUP);
+  
+  // 探测初始电平
+  bool sda_init = digitalRead(PIN_OLED_SDA);
+  bool scl_init = digitalRead(PIN_OLED_SCL);
+  Serial.printf("[OLED] Pre-recovery levels: SDA=%d, SCL=%d\n", sda_init, scl_init);
+
+  for (int i = 0; i < 20; i++) {
+    digitalWrite(PIN_OLED_SCL, LOW);
+    delayMicroseconds(10);
+    digitalWrite(PIN_OLED_SCL, HIGH);
+    delayMicroseconds(10);
+  }
+  
+  // 探测恢复后电平
+  pinMode(PIN_OLED_SCL, INPUT_PULLUP);
+  delayMicroseconds(10);
+  bool sda_post = digitalRead(PIN_OLED_SDA);
+  bool scl_post = digitalRead(PIN_OLED_SCL);
+  Serial.printf("[OLED] Post-recovery levels (as Inputs): SDA=%d, SCL=%d\n", sda_post, scl_post);
+  
+  // 使用 Wire1 重新设置引脚并以 100kHz 标准速率初始化
+  Wire1.begin(PIN_OLED_SDA, PIN_OLED_SCL, 100000);
+  Serial.printf("[OLED] Wire1.begin(SDA=%d, SCL=%d, 100kHz) done.\n", PIN_OLED_SDA, PIN_OLED_SCL);
   
   // 初始化SSD1306显示器
-  // 如果 400kHz 不稳定，库会自动降频或报错。
-  if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_I2C_ADDRESS)) {
-    Serial.println(F("SSD1306 initialization failed - Display not available"));
+  Serial.println(F("[OLED] Calling display.begin() on Wire1..."));
+  if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_I2C_ADDRESS, false, false)) { 
+    Serial.printf("[OLED] SSD1306 initialization failed at address 0x%02X\n", OLED_I2C_ADDRESS);
     isDisplayAvailable = false;
     i2cHealthy = false;
     return;
   }
   
-  // 在 begin 之后设置频率，避免 "could not acquire lock" 错误
-  Wire.setClock(400000); 
+  Serial.println(F("[OLED] display.begin() successful."));
+  
+  // 执行总线扫描以二次确认
+  Serial.println(F("[OLED] Scanning I2C bus (Wire1) at 1kHz (SDA=23, SCL=22)..."));
+  byte error, address;
+  int nDevices = 0;
+  for(address = 1; address < 127; address++ ) {
+    Wire1.beginTransmission(address);
+    error = Wire1.endTransmission();
+    if (error == 0) {
+      Serial.printf("[OLED] I2C device found at address 0x%02X\n", address);
+      nDevices++;
+    }
+    delay(2); // 给 1.5 米线缆留出回收时间
+  }
+  
+  if (nDevices == 0) {
+    Serial.println(F("[OLED] No I2C devices found on bus (Wire1). Check physical connections."));
+  }
+
+  // 将速率锁定在 100kHz
+  Wire1.setClock(100000); 
+  Serial.println(F("[OLED] I2C Clock set to 100kHz."));
   
   // 设置显示器可用标识
   isDisplayAvailable = true;
@@ -82,12 +130,15 @@ void OLED::initialize() {
   display.println(F("AS-L9 Sorter"));
   display.println(String(F("System ")) + firmwareVersion);
   display.println(F("Ready to Go"));
-  safeDisplay(); 
+  
+  Serial.println(F("[OLED] Performing initial safeDisplay()..."));
+  bool success = safeDisplay(); 
+  Serial.printf("[OLED] initial safeDisplay() result: %s\n", success ? "SUCCESS" : "FAILED");
   
   // 记录初始化时间
   lastUpdateTime = millis();
   
-  Serial.println("OLED display (Adafruit) initialized successfully");
+  Serial.println("OLED display (Adafruit) initialization sequence completed");
 }
 
 // 显示宽度信息
@@ -190,7 +241,7 @@ void OLED::displayDiagnosticValues(const String& title, const String& value1, co
 }
 
 // 显示多行文本
-void OLED::displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3, const String& line4) {
+void OLED::displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3, const String& line4, const String& line5) {
   if (!isDisplayAvailable) return;
   if (isTemporaryDisplayActive) {
     checkTemporaryDisplayEnd();
@@ -206,6 +257,7 @@ void OLED::displayMultiLineText(const String& title, const String& line1, const 
   display.println(line2);
   if (!line3.isEmpty()) display.println(line3);
   if (!line4.isEmpty()) display.println(line4);
+  if (!line5.isEmpty()) display.println(line5);
   safeDisplay();
 }
 
@@ -448,9 +500,35 @@ bool OLED::safeDisplay() {
 
     // 尝试输出显示缓冲区
     display.display();
+    
+    // 给系统留一点处理时间，特别是在长线缆情况下
+    // 增加到 50ms 以确保 SSD1306 完成内部处理
+    delay(50);
 
-    // 目前移除引脚电平直接读取，以确保不会干扰 I2C 硬件波形。
-    // 如果 SDA/SCL 因为干扰死锁，核心逻辑将继续运行而不受此处显示逻辑卡顿的影响。
+    // 针对 1.5 米线缆的通信稳定性：通过心跳探针检查 I2C 是否挂死
+    Wire1.beginTransmission(OLED_I2C_ADDRESS);
+    uint8_t error = Wire1.endTransmission();
+    
+    if (error != 0) {
+        i2cErrorCount++;
+        lastI2CErrorCode = error;
+        i2cHealthy = false;
+        
+        // 详细日志输出
+        Serial.printf("[OLED] safeDisplay Heartbeat FAILED! Error: %d, Count: %d\n", error, i2cErrorCount);
+        
+        // 如果错误是 2 (NACK on Address)，说明物理连接可能有瞬间抖动
+        // 如果错误是 3 (NACK on Data) 或 4 (Other)，通常是总线卡死
+        
+        // 自动恢复机制：如果连续失败，尝试重新初始化 I2C 总线
+        if (i2cErrorCount % 50 == 0) {
+            Serial.printf("[OLED] Re-initializing Wire bus... (Internal Error: %d)\n", error);
+            Wire.begin(PIN_OLED_SDA, PIN_OLED_SCL);
+            Wire.setClock(100000);
+        }
+        return false;
+    }
+
     i2cHealthy = true;
     return true;
 }
