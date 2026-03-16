@@ -4,12 +4,16 @@
 #include <Arduino.h>
 #include "main.h"
 
+// 前向声明
+class BaseDiagnosticHandler;
+
 // 系统状态相关的全局变量
 extern SystemMode currentMode;
 extern SystemMode pendingMode;
 extern bool modeChangePending;
 extern unsigned long systemBootCount;
 extern String firmwareVersion;
+extern BaseDiagnosticHandler* activeHandler;
 
 // 切换模式辅助
 void switchToMode(SystemMode mode);

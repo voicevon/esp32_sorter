@@ -17,6 +17,22 @@ OutletDiagnosticHandler::OutletDiagnosticHandler() :
     }
 }
 
+void OutletDiagnosticHandler::begin() {
+    Serial.println("[DIAGNOSTIC] Outlet Diagnostic Started");
+    modeStartTime = 0; // Trigger initialization in update()
+}
+
+void OutletDiagnosticHandler::end() {
+    Serial.println("[DIAGNOSTIC] Outlet Diagnostic Ended");
+    // Ensure all outlets are closed on exit
+    for (int i = 0; i < NUM_OUTLETS; i++) {
+        if (outlets[i]) {
+            outlets[i]->setReadyToOpen(false);
+            outlets[i]->execute();
+        }
+    }
+}
+
 void OutletDiagnosticHandler::initialize(UserInterface* ui) {
     // 由于不同模式不会同时运行，这里不再重复初始化硬件资源
     // 出口电磁铁已在Sorter类的initialize方法中初始化

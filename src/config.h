@@ -104,10 +104,7 @@ constexpr int PHASE_OUTLET_RESET = 195;  // Outlets close
 constexpr int PHASE_FEEDER_OPEN = 200;
 constexpr int PHASE_FEEDER_CLOSE = 220;
 
-// Legacy Phase Triggers (keeping for compatibility during refactor)
-constexpr int PHASE_RESET_OUTLETS_LEGACY = 110;
-constexpr int PHASE_CALC_DIAMETER_LEGACY = 120;
-constexpr int PHASE_EXECUTE_OUTLETS_LEGACY = 175;
+
 
 // ==========================================
 // EEPROM Addresses

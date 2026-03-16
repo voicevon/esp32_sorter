@@ -16,7 +16,7 @@ void RS485DiagnosticHandler::initialize(UserInterface* ui, Sorter* s) {
     sorter = s;
 }
 
-void RS485DiagnosticHandler::initializeDiagnosticMode() {
+void RS485DiagnosticHandler::begin() {
     lastSendTime = millis();
     counter = 0;
     hasReceived = false;
@@ -41,11 +41,8 @@ void RS485DiagnosticHandler::update(unsigned long currentTime) {
         lastSendTime = currentTime;
         pollIdx = (pollIdx + 1) % 8;
         
-    // 执行轮询逻辑
-    ModbusController::getInstance()->requestRegisterRead(pollAddrs[pollIdx]);
-    
-    // 强制使能（如果在测试模式下，这一步通常由 main.cpp 处理，但此处保留以防万一）
-    // ModbusController::getInstance()->setEnable(true); 
+        // 执行轮询逻辑
+        ModbusController::getInstance()->requestRegisterRead(pollAddrs[pollIdx]);
     }
     
     // 2. 接收逻辑 (解析 Modbus 0x03 响应)

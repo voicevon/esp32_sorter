@@ -8,13 +8,10 @@
 class UserInterface;
 class Sorter;
 
-/**
- * 出口诊断模式处理类
- * 负责处理出口诊断模式下的所有功能
- */
-class OutletDiagnosticHandler {
+#include "base_diagnostic_handler.h"
+
+class OutletDiagnosticHandler : public BaseDiagnosticHandler {
 private:
-    // 出口对象指针数组（从Sorter类获取）
     Outlet* outlets[NUM_OUTLETS];
     
     // 出口数量定义 - 使用统一的NUM_OUTLETS宏
@@ -67,19 +64,15 @@ public:
      */
     int getSubMode() const { return currentSubMode; }
     
-    /**
-     * 主更新方法，处理所有诊断逻辑
-     * @param currentTime 当前系统时间
-     */
-    void update(unsigned long currentTime);
-    
-    /**
-     * 初始化诊断模式
-     * @param currentTime 当前系统时间
-     */
-    void initializeDiagnosticMode(unsigned long currentTime);
+    // 实现基类接口
+    void begin() override;
+    void update(unsigned long currentTime) override;
+    void end() override;
     
 private:
     // UserInterface指针，用于显示诊断信息
     UserInterface* userInterface;
+    
+    // 私有初始化方法
+    void initializeDiagnosticMode(unsigned long currentTime);
 };

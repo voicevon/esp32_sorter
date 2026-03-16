@@ -142,81 +142,78 @@ void loop() {
             return;
         }
         
-        switch (currentMode) {
-            case MODE_NORMAL:
-                if (delta != 0) normalModeSubmode = (normalModeSubmode + 1) % 2;
-                processNormalMode();
-                sorter.run();
-                if (millis() - lastModbusSendTime > 1000) {
-                    lastModbusSendTime = millis();
-                    // 正常模式：确保使能并下发基础转速 (500 RPM)
-                    ModbusController::getInstance()->setEnable(true); 
-                    if (ModbusController::getInstance()->getLastSentSpeed() <= 0) {
-                        ModbusController::getInstance()->setSpeed(500);
-                    } else {
-                        ModbusController::getInstance()->setSpeed(ModbusController::getInstance()->getLastSentSpeed());
+        // 核心更新逻辑：如果存在活动处理器，则调用其 update
+        if (activeHandler) {
+            activeHandler->update(currentMs);
+            // 特定模式需要额外的每帧逻辑
+            if (currentMode == MODE_DIAGNOSE_OUTLET) sorter.run();
+        } else {
+            // 处理非处理器托管的模式
+            switch (currentMode) {
+                case MODE_NORMAL:
+                    if (delta != 0) normalModeSubmode = (normalModeSubmode + 1) % 2;
+                    processNormalMode();
+                    sorter.run();
+                    if (millis() - lastModbusSendTime > 1000) {
+                        lastModbusSendTime = millis();
+                        ModbusController::getInstance()->setEnable(true); 
+                        if (ModbusController::getInstance()->getLastSentSpeed() <= 0) {
+                            ModbusController::getInstance()->setSpeed(500);
+                        } else {
+                            ModbusController::getInstance()->setSpeed(ModbusController::getInstance()->getLastSentSpeed());
+                        }
                     }
-                }
-                break;
-            case MODE_DIAGNOSE_ENCODER:
-                encoderDiagnosticHandler.update(currentMs);
-                break;
-            case MODE_DIAGNOSE_SCANNER:
-                scannerDiagnosticHandler.update(currentMs);
-                break;
-            case MODE_DIAGNOSE_POTENTIOMETER:
-                {
-                    static unsigned long lp = 0;
-                    if (currentMs - lp > 100) {
-                        lp = currentMs;
-                        userInterface->displayDiagnosticValues("Potentiometer Test", "Pin: 25", "Raw: " + String(analogRead(PIN_POTENTIOMETER)));
+                    break;
+                case MODE_DIAGNOSE_POTENTIOMETER:
+                    {
+                        static unsigned long lp = 0;
+                        if (currentMs - lp > 100) {
+                            lp = currentMs;
+                            userInterface->displayDiagnosticValues("Potentiometer Test", "Pin: 25", "Raw: " + String(analogRead(PIN_POTENTIOMETER)));
+                        }
                     }
-                }
-                break;
-                if (delta != 0) {
-                    int newSpeed = constrain(ModbusController::getInstance()->getLastSentSpeed() + (-delta * 50), MODBUS_SPEED_MIN, MODBUS_SPEED_MAX);
-                    ModbusController::getInstance()->setSpeed(newSpeed);
-                }
-                {
-                    static unsigned long lp = 0;
-                    if (currentMs - lp > 500) {
-                        lp = currentMs;
-                        ModbusController::getInstance()->setEnable(true);
-                        userInterface->displayDiagnosticValues("Speed Ctrl (Enc)", "Step: 50rpm", "Set: " + String(ModbusController::getInstance()->getLastSentSpeed()) + " RPM");
+                    break;
+                case MODE_SERVO_SPEED_ENCODER:
+                    if (delta != 0) {
+                        int newSpeed = constrain(ModbusController::getInstance()->getLastSentSpeed() + (-delta * 50), MODBUS_SPEED_MIN, MODBUS_SPEED_MAX);
+                        ModbusController::getInstance()->setSpeed(newSpeed);
                     }
-                }
-                break;
-                if (currentMs - lastPotSampleTime >= 100) {
-                    lastPotSampleTime = currentMs;
-                    int targetSpeed = map(getSmoothedPot(), 0, 4095, MODBUS_SPEED_MIN, MODBUS_SPEED_MAX);
-                    if (abs(targetSpeed - ModbusController::getInstance()->getLastSentSpeed()) > 20) {
-                        ModbusController::getInstance()->setSpeed(targetSpeed);
+                    {
+                        static unsigned long lp = 0;
+                        if (currentMs - lp > 500) {
+                            lp = currentMs;
+                            ModbusController::getInstance()->setEnable(true);
+                            userInterface->displayDiagnosticValues("Speed Ctrl (Enc)", "Step: 50rpm", "Set: " + String(ModbusController::getInstance()->getLastSentSpeed()) + " RPM");
+                        }
                     }
-                }
-                {
-                    static unsigned long lp = 0;
-                    if (currentMs - lp > 500) {
-                        lp = currentMs;
-                        ModbusController::getInstance()->setEnable(true);
-                        userInterface->displayDiagnosticValues("Speed Ctrl (Pot)", "1s Smoothing", "Set: " + String(ModbusController::getInstance()->getLastSentSpeed()) + " RPM");
+                    break;
+                case MODE_SERVO_SPEED_POTENTIOMETER:
+                    if (currentMs - lastPotSampleTime >= 100) {
+                        lastPotSampleTime = currentMs;
+                        int targetSpeed = map(getSmoothedPot(), 0, 4095, MODBUS_SPEED_MIN, MODBUS_SPEED_MAX);
+                        if (abs(targetSpeed - ModbusController::getInstance()->getLastSentSpeed()) > 20) {
+                            ModbusController::getInstance()->setSpeed(targetSpeed);
+                        }
                     }
-                }
-                break;
-            case MODE_DIAGNOSE_OUTLET:
-                outletDiagnosticHandler.update(currentMs);
-                sorter.run(); 
-                break;
-            case MODE_CONFIG_DIAMETER:
-                diameterConfigHandler.update();
-                break;
-            case MODE_DIAGNOSE_RS485:
-                rs485DiagnosticHandler.update(currentMs);
-                break;
-                break;
-            case MODE_VERSION_INFO:
-                processVersionInfoMode();
-                break;
+                    {
+                        static unsigned long lp = 0;
+                        if (currentMs - lp > 500) {
+                            lp = currentMs;
+                            ModbusController::getInstance()->setEnable(true);
+                            userInterface->displayDiagnosticValues("Speed Ctrl (Pot)", "1s Smoothing", "Set: " + String(ModbusController::getInstance()->getLastSentSpeed()) + " RPM");
+                        }
+                    }
+                    break;
+                case MODE_CONFIG_DIAMETER:
+                    diameterConfigHandler.update();
+                    break;
+                case MODE_VERSION_INFO:
+                    processVersionInfoMode();
+                    break;
+                default:
+                    break;
+            }
         }
+        handleModeChange();
     }
-    handleModeChange();
 }

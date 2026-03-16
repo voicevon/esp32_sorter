@@ -15,6 +15,15 @@ EncoderDiagnosticHandler::EncoderDiagnosticHandler() {
     userInterface = nullptr;
 }
 
+void EncoderDiagnosticHandler::begin() {
+    Serial.println("[DIAGNOSTIC] Encoder Diagnostic Started");
+    subModeInitialized = false;
+}
+
+void EncoderDiagnosticHandler::end() {
+    Serial.println("[DIAGNOSTIC] Encoder Diagnostic Ended");
+}
+
 /**
  * 初始化编码器诊断模式
  * @param ui UserInterface指针，用于显示诊断信息

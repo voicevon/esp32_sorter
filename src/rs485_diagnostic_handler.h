@@ -4,6 +4,7 @@
 #include "main.h"
 #include "user_interface/user_interface.h"
 #include "modular/sorter.h"
+#include "base_diagnostic_handler.h"
 
 /**
  * @class RS485DiagnosticHandler
@@ -13,16 +14,14 @@
  * and the reception of data from the RS485 interface, which is then
  * displayed on the system LEDs and OLED.
  */
-class RS485DiagnosticHandler {
+class RS485DiagnosticHandler : public BaseDiagnosticHandler {
 private:
     UserInterface* userInterface;
     Sorter* sorter;
     
     unsigned long lastSendTime;
-    uint8_t counter;
+    int counter;
     uint8_t lastReceivedByte;
-    String receivedMessage; // 存储完整的接收字符串
-    String lastRecvDisplayStr; // 用于 OLED 显示的最后一条完整消息
     bool hasReceived;
     
     unsigned long lastDisplayUpdateTime;
@@ -30,6 +29,8 @@ private:
 public:
     RS485DiagnosticHandler();
     void initialize(UserInterface* ui, Sorter* s);
-    void initializeDiagnosticMode();
-    void update(unsigned long currentTime);
+    
+    // 实现基类接口
+    void begin() override;
+    void update(unsigned long currentTime) override;
 };

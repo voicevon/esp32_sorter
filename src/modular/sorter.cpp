@@ -88,15 +88,15 @@ void Sorter::onPhaseChange(int phase) {
             currentState = STATE_SCANNING;
             break;
             
-        case PHASE_RESET_OUTLETS_LEGACY: // 110
+        case PHASE_OUTLET_RESET: // 195
             currentState = STATE_RESETTING_OUTLETS;
             break;
             
-        case PHASE_CALC_DIAMETER_LEGACY: // 120
+        case PHASE_DATA_LATCH: // 50
             currentState = STATE_CALCULATING_DIAMETER;
             break;
 
-        case PHASE_EXECUTE_OUTLETS_LEGACY: // 175
+        case PHASE_OUTLET_EXECUTE: // 80
             currentState = STATE_EXECUTING_OUTLETS;
             break;
             

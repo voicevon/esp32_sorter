@@ -1,28 +1,18 @@
-#pragma once
-
+#ifndef SCANNER_DIAGNOSTIC_HANDLER_H
+#define SCANNER_DIAGNOSTIC_HANDLER_H
 #include "modular/diameter_scanner.h"
 #include "main.h"
 #include "user_interface/user_interface.h"
 #include "modular/encoder.h"
+#include "base_diagnostic_handler.h"
 
-/**
- * 扫描仪诊断模式处理类
- * 负责处理扫描仪诊断模式下的所有功能
- */
-class ScannerDiagnosticHandler {
+class ScannerDiagnosticHandler : public BaseDiagnosticHandler {
 private:
-    // 直径扫描仪实例指针
     DiameterScanner* scanner;
-    
-    // 编码器实例指针
     Encoder* encoder;
-    
-    // 用户界面实例指针，用于显示操作
     UserInterface* userInterface;
-    
-    // 子模式管理变量
-    int currentSubMode;      // 当前子模式
-    int lastSubMode;         // 上一次子模式，用于检测子模式变化
+    int currentSubMode;
+    int lastSubMode;
     
     // 编码器值记录
     long risingEdgeEncoderValues[4];  // 上升沿编码器值
@@ -59,7 +49,7 @@ public:
     /**
      * 主更新方法，处理所有诊断逻辑
      */
-    void update(unsigned long currentTime);
+    void update(unsigned long currentTime) override;
     
     /**
      * 切换到下一个子模式
@@ -71,3 +61,4 @@ public:
      */
     int getCurrentSubMode() const;
 };
+#endif // SCANNER_DIAGNOSTIC_HANDLER_H

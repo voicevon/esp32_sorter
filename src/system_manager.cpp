@@ -4,8 +4,11 @@
 #include "modular/sorter.h"
 #include "modbus_controller.h"
 #include "scanner_diagnostic_handler.h"
+#include "outlet_diagnostic_handler.h"
+#include "encoder_diagnostic_handler.h"
 #include "rs485_diagnostic_handler.h"
 #include "config_handler.h"
+#include "base_diagnostic_handler.h"
 #include <EEPROM.h>
 
 // 全局变量定义
@@ -14,6 +17,7 @@ SystemMode pendingMode = MODE_NORMAL;
 bool modeChangePending = false;
 unsigned long systemBootCount = 0;
 String firmwareVersion = "ver: 2601";
+BaseDiagnosticHandler* activeHandler = nullptr;
 
 // 外部引用（由 main.cpp 或其他模块定义）
 extern MenuSystem menuSystem;
@@ -21,6 +25,9 @@ extern bool menuModeActive;
 extern Sorter sorter;
 extern DiameterConfigHandler diameterConfigHandler;
 extern RS485DiagnosticHandler rs485DiagnosticHandler;
+extern ScannerDiagnosticHandler scannerDiagnosticHandler;
+extern OutletDiagnosticHandler outletDiagnosticHandler;
+extern EncoderDiagnosticHandler encoderDiagnosticHandler;
 
 void switchToMode(SystemMode mode) {
     pendingMode = mode;
@@ -29,6 +36,10 @@ void switchToMode(SystemMode mode) {
 }
 
 void handleReturnToMenu() {
+    if (activeHandler) {
+        activeHandler->end();
+        activeHandler = nullptr;
+    }
     menuModeActive = true;
     UserInterface::getInstance()->resetDiagnosticMode();
     sorter.clearTestLedByte();
@@ -65,8 +76,30 @@ void handleModeChange() {
     currentMode = pendingMode;
     modeChangePending = false;
     
-    if (currentMode == MODE_DIAGNOSE_RS485) {
-        rs485DiagnosticHandler.initializeDiagnosticMode();
+    // 重置并设置新的 activeHandler
+    if (activeHandler) activeHandler->end();
+    activeHandler = nullptr;
+
+    switch (currentMode) {
+        case MODE_DIAGNOSE_RS485:
+            activeHandler = &rs485DiagnosticHandler;
+            break;
+        case MODE_DIAGNOSE_ENCODER:
+            activeHandler = &encoderDiagnosticHandler;
+            break;
+        case MODE_DIAGNOSE_SCANNER:
+            activeHandler = &scannerDiagnosticHandler;
+            break;
+        case MODE_DIAGNOSE_OUTLET:
+            activeHandler = &outletDiagnosticHandler;
+            break;
+        default:
+            activeHandler = nullptr;
+            break;
+    }
+
+    if (activeHandler) {
+        activeHandler->begin();
     }
     
     if (oldMode == MODE_CONFIG_DIAMETER && currentMode != MODE_CONFIG_DIAMETER) {
