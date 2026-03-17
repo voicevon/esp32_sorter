@@ -13,31 +13,43 @@ Sorter::Sorter() :
     encoder = Encoder::getInstance();
     simpleHmi = SimpleHMI::getInstance();
     trayManager = TraySystem::getInstance();
+    scanner = DiameterScanner::getInstance(); // 初始化scanner指针，防止空指针异常
     
     // 构造函数仅进行基础变量重置，所有硬件和业务参数初始化统一由 initialize() 处理
 }
 
 void Sorter::initialize() {
-    // 1. 初始化出口间的默认几何分流点
-    for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
-        outletDivergencePoints[i] = 1 + i * 2; 
-        outlets[i].initialize();
-    }
-    // 初始化出口位置
-    uint8_t defaultDivergencePoints[NUM_OUTLETS] = {1, 3, 5, 7, 9, 11, 13, 15};
-    initializeDivergencePoints(defaultDivergencePoints);
-    
-    // 初始化托盘系统
-    trayManager->resetAllTraysData();
-    
-    // 初始化 74HC595 引脚
+    // 1. 初始化 74HC595 引脚（必须在初始化物理出口前完成，才能推入数据）
     pinMode(PIN_HC595_DS, OUTPUT);
     pinMode(PIN_HC595_SHCP, OUTPUT);
     pinMode(PIN_HC595_STCP, OUTPUT);
     digitalWrite(PIN_HC595_STCP, LOW);
+
+    // 2. 初始化出口位置
+    uint8_t defaultDivergencePoints[NUM_OUTLETS] = {1, 3, 5, 7, 9, 11, 13, 15};
+    initializeDivergencePoints(defaultDivergencePoints);
     
-    // 初始化同步输出
-    updateShiftRegisters();
+    // 3. 逐个初始化物理出口，间隔 2 秒（总共约 16 秒），避免瞬间启动电流过大
+    Serial.println("Starting staged 16-second electromagnet initialization...");
+    for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
+        outletDivergencePoints[i] = 1 + i * 2; 
+        
+        // 触发单个电磁铁的初始化动作（发送Close脉冲）
+        Serial.printf("Initializing outlet %d...\n", i);
+        outlets[i].initialize();
+        
+        // 持续 1 秒钟的非阻塞延时循环（用于刷新物理引脚和更新脉冲状态）
+        unsigned long startWait = millis();
+        while (millis() - startWait < 1000) {
+            outlets[i].update();          // 500ms后结束脉冲
+            updateShiftRegisters();       // 推送当前的H桥信号
+            delay(10);                    // 防止看门狗超时或CPU占用过高
+            yield();                      // 显式喂狗，防止在setup的 8 秒长循环中触发Task WDT复位
+        }
+    }
+    
+    // 初始化托盘系统
+    trayManager->resetAllTraysData();
 
     // 设置编码器回调，将Sorter实例和静态回调函数连接到编码器
     encoder->setPhaseCallback(this, onEncoderPhaseChange);
@@ -115,8 +127,6 @@ void Sorter::onEncoderPhaseChange(void* context, int phase) {
 
 // 主循环处理函数 (FSM Executor)
 void Sorter::run() {
-    // [隔离测试] 暂时屏蔽数字 IO 翻转，观察 ADC 跳变
-    /*
     // 轮询物理出口的逻辑状态更新 (处理 H 桥脉冲等时序)
     for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
         outlets[i].update();
@@ -124,7 +134,6 @@ void Sorter::run() {
     
     // 关键原子操作：将 24 位逻辑映射推送到级联 HC595
     updateShiftRegisters();
-    */
 
     switch (currentState) {
         case STATE_SCANNING:
@@ -361,22 +370,22 @@ void Sorter::updateShiftRegisters() {
     }
 
     // 构建电磁铁 H 桥位图 (每 2 位控制一个电磁铁)
-    // Chip 1 控制出口 0-3
+    // 根据硬件修正：Chip 1 控制出口 4-7
     for (int i = 0; i < 4; i++) {
-        if (outlets[i].isOpenPulseActive()) {
+        if (outlets[i + 4].isOpenPulseActive()) {
             chip1Byte |= (1 << (i * 2));     // Bit 0, 2, 4, 6 为 Open 信号
         }
-        if (outlets[i].isClosePulseActive()) {
+        if (outlets[i + 4].isClosePulseActive()) {
             chip1Byte |= (1 << (i * 2 + 1)); // Bit 1, 3, 5, 7 为 Close 信号
         }
     }
     
-    // Chip 2 控制出口 4-7
+    // 根据硬件修正：Chip 2 控制出口 0-3
     for (int i = 0; i < 4; i++) {
-        if (outlets[i + 4].isOpenPulseActive()) {
+        if (outlets[i].isOpenPulseActive()) {
             chip2Byte |= (1 << (i * 2));     // 对位到 Chip 2 的 Bit 0, 2, 4, 6
         }
-        if (outlets[i + 4].isClosePulseActive()) {
+        if (outlets[i].isClosePulseActive()) {
             chip2Byte |= (1 << (i * 2 + 1)); // 对位到 Chip 2 的 Bit 1, 3, 5, 7
         }
     }
@@ -388,12 +397,12 @@ void Sorter::updateShiftRegisters() {
     if (currentData != lastShiftData) {
         // 如果有任何脉冲处于活动状态，打印详细的出口信息
         if (chip1Byte != 0 || chip2Byte != 0) {
-            String activeOutlets = "";
+            Serial.printf("[595] Data Change! -> 24-bit: 0x%06X | Active: ", currentData);
             for(int i=0; i<NUM_OUTLETS; i++) {
-                if(outlets[i].isOpenPulseActive()) activeOutlets += "O" + String(i) + "(Open) ";
-                if(outlets[i].isClosePulseActive()) activeOutlets += "O" + String(i) + "(Close) ";
+                if(outlets[i].isOpenPulseActive()) Serial.printf("O%d(Open) ", i);
+                if(outlets[i].isClosePulseActive()) Serial.printf("O%d(Close) ", i);
             }
-            Serial.printf("[595] Data Change! -> 24-bit: 0x%06X | Active: %s\n", currentData, activeOutlets.c_str());
+            Serial.println();
         } else {
             Serial.printf("[595] Data Change! -> 24-bit: 0x%06X (Idle Mode, LEDs Only)\n", currentData);
         }

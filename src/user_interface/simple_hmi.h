@@ -26,13 +26,13 @@ private:
     volatile unsigned long masterButtonPressStartTime;
 
     // 中断相关变量 (Encoder)
-    volatile int lastEncoderLevelA;
-    // 累积旋转增量：记录自上次读取以来的总步数。
-    // 可能值：0(无位移), ±1(正常步进), ±N(极速旋转累加)。
-    // 调用 getEncoderDelta() 后会自动清零，确保每次获取的都是相对位移。
-    volatile int encoderDelta;
-    volatile int encoderState;           // 新增：记录编码器当前状态逻辑值 (0-3)
-    volatile unsigned long lastEncoderInterruptTime; // 新增：记录上次计数时间，用于防抖
+    volatile int encoderTotalSteps;      // 累计旋转总步数（不自动清零）
+    volatile int encoderState;           // 记录编码器当前状态逻辑值 (0-3) 
+    volatile uint32_t lastHmiStepTime;   // 软件防抖计时
+    volatile uint32_t illegalTransitions; // 记录非法的对角线跳转次数（指示有干扰）
+
+    // 上次消耗后的状态（用于 getEncoderDelta 的独立消费逻辑）
+    int lastConsumedTotalSteps;
     
     // 私有构造函数，防止外部创建实例
     SimpleHMI();
@@ -58,9 +58,17 @@ public:
     // 注意：此方法会自动清除标志
     bool isMasterButtonLongPressed();
     
-    // 获取编码器旋转增量
-    // 返回自上次调用以来的增量，并重置累计值
+    // 获取编码器总步数（自系统启动起）
+    int getEncoderTotalSteps();
+    
+    // 获取编码器旋转增量（基于 2:1 分频，且本地维护消费记录，不影响他人）
     int getEncoderDelta();
+
+    // 获取原始旋转增量（不分频，不影响他人）
+    int getRawEncoderDelta();
+
+    // 获取干扰统计
+    uint32_t getIllegalTransitionCount();
 
     // 中断处理函数需要访问私有成员
     friend void IRAM_ATTR masterButtonISR();

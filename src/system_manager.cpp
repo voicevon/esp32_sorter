@@ -8,6 +8,7 @@
 #include "encoder_diagnostic_handler.h"
 #include "rs485_diagnostic_handler.h"
 #include "config_handler.h"
+#include "hmi_diagnostic_handler.h"
 #include "base_diagnostic_handler.h"
 #include <EEPROM.h>
 
@@ -28,6 +29,7 @@ extern RS485DiagnosticHandler rs485DiagnosticHandler;
 extern ScannerDiagnosticHandler scannerDiagnosticHandler;
 extern OutletDiagnosticHandler outletDiagnosticHandler;
 extern EncoderDiagnosticHandler encoderDiagnosticHandler;
+extern HMIDiagnosticHandler hmiDiagnosticHandler;
 
 void switchToMode(SystemMode mode) {
     pendingMode = mode;
@@ -92,6 +94,9 @@ void handleModeChange() {
             break;
         case MODE_DIAGNOSE_OUTLET:
             activeHandler = &outletDiagnosticHandler;
+            break;
+        case MODE_DIAGNOSE_HMI:
+            activeHandler = &hmiDiagnosticHandler;
             break;
         default:
             activeHandler = nullptr;

@@ -58,6 +58,7 @@ String getSystemModeName(SystemMode mode) {
         case MODE_VERSION_INFO: return "Version Info";
         case MODE_CONFIG_DIAMETER: return "Config Diameter";
         case MODE_DIAGNOSE_RS485: return "RS485 Diag";
+        case MODE_DIAGNOSE_HMI: return "HMI Encoder Diag";
         default: return "Unknown Mode";
     }
 }

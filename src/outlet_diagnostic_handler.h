@@ -60,6 +60,12 @@ public:
     void setSubMode(int mode);
 
     /**
+     * 处理编码器输入 (用于单点测试模式切换选中出口)
+     * @param delta 编码器变化量 (+1 or -1)
+     */
+    void handleEncoderInput(int delta);
+
+    /**
      * 获取当前子模式
      */
     int getSubMode() const { return currentSubMode; }

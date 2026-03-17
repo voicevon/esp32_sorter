@@ -46,27 +46,30 @@ void IRAM_ATTR masterButtonISR() {
 }
 
     // 临时的按钮按下状态
-// HMI 专用编码器中断 - 专业级状态机解码方案
-// 此方案模仿工业编码器逻辑，要求状态必须在灰度码序列中移动
+// HMI 专用编码器中断 - 极速解码 & 降噪方案
 void IRAM_ATTR hmiEncoderISR() {
     SimpleHMI* hmi = SimpleHMI::instance;
     if (hmi == nullptr) return;
     
-    // 读取当前 A/B 状态 (0-3)
-    int s = (digitalRead(hmi->encoderPinA) << 1) | digitalRead(hmi->encoderPinB);
+    // 软件电平读取
+    int s = (gpio_get_level((gpio_num_t)hmi->encoderPinA) << 1) | gpio_get_level((gpio_num_t)hmi->encoderPinB);
     
     if (s != hmi->encoderState) {
-        // 全相位转换表 (4x 分辨率)
-        // 此表能自动抵消抖动：3 -> 2 -> 3 会产生 -1 + 1 = 0
         static const int8_t trans[] = {
-            0, -1,  1,  0,
-            1,  0,  0, -1,
-           -1,  0,  0,  1,
-            0,  1, -1,  0
+            0, -1,  1,  2, 
+            1,  0,  2, -1, 
+           -1,  2,  0,  1, 
+            2,  1, -1,  0  
         };
         
-        int full_state = (hmi->encoderState << 2) | s;
-        hmi->encoderDelta += trans[full_state & 0x0F];
+        int full_state = (hmi->encoderState << 2) | (s & 0x03);
+        int8_t step = trans[full_state & 0x0F];
+        
+        if (step == 2) {
+            hmi->illegalTransitions++;
+        } else if (step != 0) {
+            hmi->encoderTotalSteps += step;
+        }
         
         hmi->encoderState = s;
     }
@@ -82,10 +85,11 @@ SimpleHMI::SimpleHMI() :
     masterButtonDownState(false),
     lastMasterDebounceTime(0),
     masterButtonPressStartTime(0),
-    lastEncoderLevelA(HIGH),
-    encoderDelta(0),
+    encoderTotalSteps(0),
     encoderState(0),
-    lastEncoderInterruptTime(0)
+    lastConsumedTotalSteps(0),
+    lastHmiStepTime(0),
+    illegalTransitions(0)
 {
     // 私有构造函数，不应该在外部直接调用
 }
@@ -115,20 +119,44 @@ void SimpleHMI::initialize() {
     attachInterrupt(digitalPinToInterrupt(encoderPinB), hmiEncoderISR, CHANGE);
 }
 
-// 获取编码器旋转增量
+// 获取编码器总步数
+int SimpleHMI::getEncoderTotalSteps() {
+    return encoderTotalSteps;
+}
+
+// 获取编码器旋转增量（应用 2:1 分频，独立消耗，不干扰他人）
 int SimpleHMI::getEncoderDelta() {
     int delta = 0;
-    // 简单的临界区保护，避免读取时被中断修改
-    noInterrupts();
-    delta = encoderDelta;
-    encoderDelta = 0;
-    interrupts();
-
+    
+    // 读取当前总数
+    int currentTotal = encoderTotalSteps;
+    int rawDiff = currentTotal - lastConsumedTotalSteps;
+    
+    // 应用 4:1 分频（1个物理咔哒声 = 4个脉冲 = 1个逻辑步）
+    if (abs(rawDiff) >= 4) {
+        delta = rawDiff / 4;
+        // 更新消耗记录（步进 4 的倍数）
+        lastConsumedTotalSteps += delta * 4;
+    }
+    
     if (delta != 0) {
-        Serial.printf("[HMI_ENC] Delta: %d\n", delta);
+        Serial.printf("[HMI_ENC] Logical Delta: %d, RawDiff: %d\n", delta, rawDiff);
     }
     
     return delta;
+}
+
+// 获取原始旋转增量（独立消费）
+int SimpleHMI::getRawEncoderDelta() {
+    // 这里我们可以给 Handler 一个专门的接口，或者 Handler 自己维护 lastCount。
+    // 为了方便，这里我们也维护一个隐含的 lastRawCount 吗？
+    // 不，最好让 Handler 自己在 update 中维护。
+    // 但为了兼容现有的 handler 调用，我们在这里定义一个静态变量来跟踪。
+    static int lastRawCounter = 0;
+    int current = encoderTotalSteps;
+    int diff = current - lastRawCounter;
+    lastRawCounter = current;
+    return diff;
 }
 
 // 检查按钮状态（通过中断标志）- 自动清除标志
@@ -147,4 +175,9 @@ bool SimpleHMI::isMasterButtonLongPressed() {
         masterButtonLongPressFlag = false;
     }
     return result;
+}
+
+// 获取干扰统计
+uint32_t SimpleHMI::getIllegalTransitionCount() {
+    return illegalTransitions;
 }

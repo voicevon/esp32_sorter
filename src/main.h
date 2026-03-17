@@ -14,7 +14,8 @@ enum SystemMode {
   MODE_SERVO_SPEED_ENCODER = 6,    // 伺服速度控制 (编码器)
   MODE_SERVO_SPEED_POTENTIOMETER = 7, // 伺服速度控制 (电位器)
   MODE_VERSION_INFO = 8,       // 版本信息模式
-  MODE_DIAGNOSE_RS485 = 9      // 诊断RS485模式
+  MODE_DIAGNOSE_RS485 = 9,     // 诊断RS485模式
+  MODE_DIAGNOSE_HMI = 10       // 诊断HMI编码器模式
 };
 
 // 全局系统名称变量

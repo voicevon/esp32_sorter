@@ -14,7 +14,6 @@ public:
           pulseStateChangeTime(0), 
           targetPulseState(false), 
           physicalOpen(false), 
-          initialized(false), 
           readyToOpenState(false), 
           matchDiameterMin(0), 
           matchDiameterMax(0) {}
@@ -25,7 +24,6 @@ public:
     void initialize() {
         // 逻辑初始化：强制设定为关闭位置
         executeClose();
-        initialized = true;
     }
 
     /**
@@ -43,7 +41,6 @@ public:
      * 执行目标动作（当 readyToOpenState 改变时触发）
      */
     void execute() {
-        if (!initialized) return;
 
         // 如果目标位置与当前物理留驻位置一致且没有正在发出的脉冲，则忽略
         if (readyToOpenState == physicalOpen && !isPulsing) {
@@ -110,7 +107,6 @@ private:
     unsigned long pulseStateChangeTime; // 脉冲起始时间
     bool targetPulseState;        // 当前脉冲的目标方向（true=吸合, false=释放）
     bool physicalOpen;            // 电磁铁物理留驻位置（true=Open, false=Close）
-    bool initialized;
     bool readyToOpenState;        // 软件下达的目标逻辑状态
 
     int matchDiameterMin;

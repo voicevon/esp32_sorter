@@ -56,7 +56,7 @@ void OutletDiagnosticHandler::setSubMode(int mode) {
     String subModeName = "";
     switch(mode) {
         case 0: subModeName = "Normally Closed Test"; break;
-        case 1: subModeName = "Normally Open Test"; break;
+        case 1: subModeName = "Single Outlet Test"; break;
         case 2: subModeName = "Lifetime Cycle Test"; break;
         default: subModeName = "Unknown Mode"; break;
     }
@@ -95,40 +95,30 @@ void OutletDiagnosticHandler::update(unsigned long currentMs) {
         }
         case 1: {
             /**
-             * 子模式1：轮巡上升测试（常态打开模式）
-             * 行为：出口默认保持打开状态，定期短暂闭合后恢复打开
+             * 子模式1：单点测试模式 (Single Outlet Test)
+             * 行为：用户选择特定出口，周期性打开/关闭
              * 时序：
-             *   - 打开状态保持时间：4.5秒（outletState为true时）
-             *   - 闭合状态保持时间：1.5秒（outletState为false时）
-             * 应用场景：测试推杆上升式出口的正常工作
+             *   - 打开状态保持时间：1.5秒
+             *   - 关闭状态保持时间：1.5秒
              */
-            // 不使用processCycleOperation函数，直接实现逻辑
-            if (currentMs - lastOutletTime >= (outletState ? 4500 : 1500)) {
-                // 更新时间戳
+            interval = 1500;
+            if (currentMs - lastOutletTime >= interval) {
                 lastOutletTime = currentMs;
+                outletState = !outletState; // 切换状态
                 
-                // 切换出口状态（开<->关）
-                outletState = !outletState;
-                
-                // 当状态从关闭切换到打开时，移动到下一个出口
-                if (outletState) {
-                    currentOutlet = (currentOutlet + 1) % NUM_OUTLETS;
-                    
-                    // 输出诊断信息到串口
-                    Serial.print("[DIAGNOSTIC] Now testing outlet normally open: ");
-                    Serial.println(currentOutlet);
+                // 确保只有当前选中的出口动作
+                for (int i = 0; i < NUM_OUTLETS; i++) {
+                    if (i == currentOutlet) {
+                        outlets[i]->setReadyToOpen(outletState);
+                    } else {
+                        outlets[i]->setReadyToOpen(false); // 其他强制关闭
+                    }
+                    outlets[i]->execute();
                 }
                 
-                // 直接控制当前出口执行相应动作
-                outlets[currentOutlet]->setReadyToOpen(outletState);
-                outlets[currentOutlet]->execute();
-                
-                // 更新显示屏内容，指示当前测试状态
                 if (outletState) {
-                    // 出口打开时，显示当前测试的出口编号
                     userInterface->displayOutletTestGraphic(NUM_OUTLETS, currentOutlet, currentSubMode);
                 } else {
-                    // 出口关闭时，显示无出口打开状态（255为特殊标记值）
                     userInterface->displayOutletTestGraphic(NUM_OUTLETS, 255, currentSubMode);
                 }
             }
@@ -137,25 +127,31 @@ void OutletDiagnosticHandler::update(unsigned long currentMs) {
         case 2: {
             /**
              * 子模式2：电磁铁寿命测试模式
-             * 行为：所有出口同时动作，循环打开/关闭
+             * 行为：轮流打开关闭每个出口 (1开->1关->2开->2关...)
              * 时序：
-             *   - 打开状态保持时间：1秒
-             *   - 关闭状态保持时间：1秒
-             * 应用场景：测试所有电磁铁的使用寿命
+             *   - 状态维持时间：0.5秒
              */
-            interval = 1000;  // 固定1秒间隔
-            testType = "lifetime test";  // 寿命测试类型
+            interval = 500;  // 0.5s 响应
+            testType = "lifetime test";  
             
-            // 独占寿命测试逻辑
             if (currentMs - lastOutletTime >= interval) {
                 lastOutletTime = currentMs;
                 outletState = !outletState;
                 
-                if (outletState) cycleCount++;
+                if (outletState) {
+                    cycleCount++;
+                } else {
+                    // 当关闭时，准备切换到下一个出口
+                    currentOutlet = (currentOutlet + 1) % NUM_OUTLETS;
+                }
                 
-                // 动作生成
+                // 动作生成，只操作当前的出口
                 for (int i = 0; i < NUM_OUTLETS; i++) {
-                    outlets[i]->setReadyToOpen(outletState);
+                    if (i == currentOutlet) {
+                        outlets[i]->setReadyToOpen(outletState);
+                    } else {
+                        outlets[i]->setReadyToOpen(false);
+                    }
                     outlets[i]->execute();
                 }
                 
@@ -225,13 +221,8 @@ void OutletDiagnosticHandler::initializeDiagnosticMode(unsigned long currentTime
     
     // 根据子模式设置不同的初始outletState
     // 子模式0：常态闭合模式，初始状态为关闭
-    // 子模式1：常态打开模式，初始状态为打开
-    // 子模式2：寿命测试模式，初始状态为关闭
-    if (currentSubMode == 1) {
-        outletState = true;  // 子模式1默认打开
-    } else {
-        outletState = false; // 其他模式默认关闭
-    }
+    // 子模式1：寿命测试模式，初始状态为关闭
+    outletState = false; // 所有模式默认关闭
     
     currentOutlet = 0;
     displayInitialized = false;
@@ -250,7 +241,7 @@ void OutletDiagnosticHandler::initializeDiagnosticMode(unsigned long currentTime
         }
         
         // 输出诊断信息到串口
-        Serial.print("[DIAGNOSTIC] Initial outlet state " + String(currentSubMode == 0 ? "normally closed" : "normally open") + ": ");
+        Serial.print("[DIAGNOSTIC] Initial outlet state normally closed: ");
         Serial.print(currentOutlet);
         Serial.print(" - ");
         Serial.println(outletState ? "Open" : "Closed");
@@ -263,7 +254,7 @@ void OutletDiagnosticHandler::initializeDiagnosticMode(unsigned long currentTime
             subModeName = "Cycle Drop (Normally Closed)";
             break;
         case 1:
-            subModeName = "Cycle Raise (Normally Open)";
+            subModeName = "Single Outlet Test";
             break;
         case 2:
             subModeName = "Solenoid Lifetime Test";
@@ -277,5 +268,33 @@ void OutletDiagnosticHandler::initializeDiagnosticMode(unsigned long currentTime
     if (currentSubMode != 2) {
         Serial.println("[DIAGNOSTIC] Outlet Diagnostic Mode Activated - Submode: " + subModeName);
         Serial.println("[DIAGNOSTIC] Use slave button to switch submode");
+    }
+}
+
+// 增加处理编码器输入的函数
+void OutletDiagnosticHandler::handleEncoderInput(int delta) {
+    if (currentSubMode == 1) { // 仅在 Single Outlet Test 模式下生效
+        if (delta != 0) {
+            // 改变当前选中的出口，处理向下溢出和向上溢出的安全包裹
+            int newOutlet = (int)currentOutlet + delta;
+            while (newOutlet < 0) {
+                newOutlet += NUM_OUTLETS;
+            }
+            currentOutlet = (uint8_t)(newOutlet % NUM_OUTLETS);
+            
+            // 立即重置状态，关闭所有并重新开始测试选中的出口
+            outletState = false;
+            lastOutletTime = millis(); // 重置计时器
+            
+            for (int i = 0; i < NUM_OUTLETS; i++) {
+                outlets[i]->setReadyToOpen(false);
+                outlets[i]->execute();
+            }
+            
+            userInterface->displayOutletTestGraphic(NUM_OUTLETS, 255, currentSubMode);
+            
+            Serial.print("[DIAGNOSTIC] Selected outlet changed to: ");
+            Serial.println(currentOutlet);
+        }
     }
 }

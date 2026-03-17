@@ -1,6 +1,7 @@
 #include "menu_config.h"
 #include "system_manager.h"
 #include "outlet_diagnostic_handler.h"
+#include "hmi_diagnostic_handler.h"
 
 // 全局变量定义
 MenuSystem menuSystem(5);
@@ -15,6 +16,7 @@ MenuNode configMenu("Configurations", &rootMenu);
 
 // 外部引用
 extern OutletDiagnosticHandler outletDiagnosticHandler;
+extern HMIDiagnosticHandler hmiDiagnosticHandler;
 
 void setupMenuTree() {
     menuSystem.setSensitivity(4); 
@@ -33,6 +35,9 @@ void setupMenuTree() {
     }));
     diagMenu.addItem(MenuItem("Laser Scanner", MENU_TYPE_ACTION, nullptr, [](){
         switchToMode(MODE_DIAGNOSE_SCANNER);
+    }));
+    diagMenu.addItem(MenuItem("HMI Encoder", MENU_TYPE_ACTION, nullptr, [](){
+        switchToMode(MODE_DIAGNOSE_HMI);
     }));
     diagMenu.addItem(MenuItem("Servo Drive >", MENU_TYPE_SUBMENU, &servoDiagMenu));
     diagMenu.addItem(MenuItem("Divert Outlet >", MENU_TYPE_SUBMENU, &outletDiagMenu));
@@ -57,7 +62,7 @@ void setupMenuTree() {
         outletDiagnosticHandler.setSubMode(0);
         switchToMode(MODE_DIAGNOSE_OUTLET);
     }));
-    outletDiagMenu.addItem(MenuItem("Cycle Raise (NO)", MENU_TYPE_ACTION, nullptr, [](){
+    outletDiagMenu.addItem(MenuItem("Single Test", MENU_TYPE_ACTION, nullptr, [](){
         outletDiagnosticHandler.setSubMode(1);
         switchToMode(MODE_DIAGNOSE_OUTLET);
     }));

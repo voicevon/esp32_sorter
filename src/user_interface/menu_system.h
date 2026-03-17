@@ -7,9 +7,9 @@
 
 // 菜单项类型
 enum MenuItemType {
-    MENU_TYPE_SUBMENU,
-    MENU_TYPE_ACTION,
-    MENU_TYPE_BACK
+    MENU_TYPE_SUBMENU,  // 子菜单类型，点击进入下一级菜单
+    MENU_TYPE_ACTION,   // 动作类型，点击执行特定功能
+    MENU_TYPE_BACK      // 返回类型，返回上一级菜单
 };
 
 class MenuNode;

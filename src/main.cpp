@@ -16,6 +16,7 @@
 #include "encoder_diagnostic_handler.h"
 #include "config_handler.h"
 #include "rs485_diagnostic_handler.h"
+#include "hmi_diagnostic_handler.h"
 
 // 新模块包含
 #include "modbus_controller.h"
@@ -36,6 +37,7 @@ Sorter sorter;
 ScannerDiagnosticHandler scannerDiagnosticHandler;
 OutletDiagnosticHandler outletDiagnosticHandler;
 EncoderDiagnosticHandler encoderDiagnosticHandler;
+HMIDiagnosticHandler hmiDiagnosticHandler(UserInterface::getInstance());
 DiameterConfigHandler diameterConfigHandler(userInterface, &sorter);
 RS485DiagnosticHandler rs485DiagnosticHandler;
 
@@ -93,6 +95,8 @@ void setup() {
         outletDiagnosticHandler.setOutlet(i, sorter.getOutlet(i));
     }
     
+    encoderDiagnosticHandler.initialize(userInterface);
+    
     EEPROM.begin(512);
     EEPROM.get(EEPROM_ADDR_BOOT_COUNT, systemBootCount);
     if (systemBootCount == 0xFFFFFFFF) systemBootCount = 0;
@@ -146,7 +150,12 @@ void loop() {
         if (activeHandler) {
             activeHandler->update(currentMs);
             // 特定模式需要额外的每帧逻辑
-            if (currentMode == MODE_DIAGNOSE_OUTLET) sorter.run();
+            if (currentMode == MODE_DIAGNOSE_OUTLET) {
+                sorter.run();
+                if (delta != 0) {
+                    outletDiagnosticHandler.handleEncoderInput(delta);
+                }
+            }
         } else {
             // 处理非处理器托管的模式
             switch (currentMode) {
@@ -190,8 +199,13 @@ void loop() {
                 case MODE_SERVO_SPEED_POTENTIOMETER:
                     if (currentMs - lastPotSampleTime >= 100) {
                         lastPotSampleTime = currentMs;
-                        int targetSpeed = map(getSmoothedPot(), 0, 4095, MODBUS_SPEED_MIN, MODBUS_SPEED_MAX);
-                        if (abs(targetSpeed - ModbusController::getInstance()->getLastSentSpeed()) > 20) {
+                        // 根据需求，将最大值映射到600，然后减去10，防止负数，使得最大范围在0-590
+                        int rawSpeed = map(getSmoothedPot(), 0, 4095, 0, 600);
+                        int targetSpeed = rawSpeed - 10;
+                        if (targetSpeed < 0) targetSpeed = 0;
+                        
+                        // 死区
+                        if (abs(targetSpeed - ModbusController::getInstance()->getLastSentSpeed()) > 2) {
                             ModbusController::getInstance()->setSpeed(targetSpeed);
                         }
                     }
@@ -200,7 +214,7 @@ void loop() {
                         if (currentMs - lp > 500) {
                             lp = currentMs;
                             ModbusController::getInstance()->setEnable(true);
-                            userInterface->displayDiagnosticValues("Speed Ctrl (Pot)", "1s Smoothing", "Set: " + String(ModbusController::getInstance()->getLastSentSpeed()) + " RPM");
+                            userInterface->displayDiagnosticValues("Speed Ctrl (Pot)", "Max 590 RPM", "Set: " + String(ModbusController::getInstance()->getLastSentSpeed()) + " RPM");
                         }
                     }
                     break;
