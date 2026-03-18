@@ -85,8 +85,8 @@ private:
   void checkTemporaryDisplayEnd();  // 检查临时显示是否结束
   
   // 出口测试模式的子模式专用显示方法
-  void displayOutletTestNormalOpen(uint8_t outletCount, uint8_t openOutlet);
-  void displayOutletTestNormalClosed(uint8_t outletCount, uint8_t openOutlet);
+  void displayOutletTestNormalOpen(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen);
+  void displayOutletTestNormalClosed(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen);
   void displayOutletTestLifetime(uint8_t outletCount, uint8_t cycleCount);
   
 public:
@@ -110,7 +110,7 @@ public:
   void displayDiagnosticInfo(const String& title, const String& info) override;
   
   // 显示出口测试模式图形
-  void displayOutletTestGraphic(uint8_t outletCount, uint8_t openOutlet, int subMode) override;
+  void displayOutletTestGraphic(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen, int subMode) override;
   
   // 显示出口寿命测试专用图形
   void displayOutletLifetimeTestGraphic(uint8_t outletCount, unsigned long cycleCount, bool outletState, int subMode) override;

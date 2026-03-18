@@ -367,35 +367,52 @@ void OLED::checkTemporaryDisplayEnd() {
 }
 
 // 显示出口测试图形
-void OLED::displayOutletTestGraphic(uint8_t outletCount, uint8_t openOutlet, int subMode) {
+void OLED::displayOutletTestGraphic(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen, int subMode) {
   if (!isDisplayAvailable) return;
   display.clearDisplay();
   display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
   display.setTextSize(1);
   switch (subMode) {
-    case 0: displayOutletTestNormalOpen(outletCount, openOutlet); break;
-    case 1: displayOutletTestNormalClosed(outletCount, openOutlet); break;
-    case 2: displayOutletTestLifetime(outletCount, openOutlet); break;
+    case 0: displayOutletTestNormalOpen(outletCount, selectedOutlet, isOpen); break;
+    case 1: displayOutletTestNormalClosed(outletCount, selectedOutlet, isOpen); break;
+    case 2: displayOutletTestLifetime(outletCount, selectedOutlet); break; // cycleCount reused as selectedOutlet
   }
   safeDisplay();
   isDiagnosticModeActive = true;
 }
 
 // 出口测试子模式实现（简化版恢复）
-void OLED::displayOutletTestNormalOpen(uint8_t outletCount, uint8_t openOutlet) {
-  display.setCursor(0, 0); display.println("Outlet Test - NO");
+void OLED::displayOutletTestNormalOpen(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen) {
+  display.setCursor(0, 0); display.println("Outlet Test - Cycle");
   display.setCursor(0, 35);
   for (uint8_t i = 0; i < (outletCount < 8 ? outletCount : 8); i++) {
-    if (i == openOutlet) display.print("  "); else { display.print(i + 1); display.print(" "); }
+    if (i == selectedOutlet && isOpen) display.print("  "); 
+    else { display.print(i + 1); display.print(" "); }
   }
 }
 
-void OLED::displayOutletTestNormalClosed(uint8_t outletCount, uint8_t openOutlet) {
-  display.setCursor(0, 0); display.println("Outlet Test - NC");
-  display.setCursor(0, 35);
-  for (uint8_t i = 0; i < (outletCount < 8 ? outletCount : 8); i++) {
-    if (i == openOutlet) { display.print(i + 1); display.print(" "); } else display.print("  ");
+void OLED::displayOutletTestNormalClosed(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen) {
+  display.setCursor(0, 0); display.println("Single Outlet Test");
+  
+  display.setTextSize(1);
+  display.setCursor(0, 20);
+  display.print("Outlet Index: ");
+  display.setTextSize(2);
+  display.print(selectedOutlet + 1);
+  
+  display.setTextSize(1);
+  display.setCursor(0, 45);
+  display.print("Status: ");
+  display.setTextSize(2);
+  if (isOpen) {
+    display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+    display.print(" OPEN ");
+  } else {
+    display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
+    display.print("CLOSED");
   }
+  display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
+  display.setTextSize(1);
 }
 
 void OLED::displayOutletTestLifetime(uint8_t outletCount, uint8_t cycleCount) {
@@ -466,9 +483,9 @@ void OLED::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinu
     display.clearDisplay();
     renderHeader();
     display.setCursor(0, 12);
-    display.printf("S: %.1f/s\n", sortingSpeedPerSecond);
-    display.printf("S: %d/m\n", sortingSpeedPerMinute);
-    display.printf("S: %d/h\n", sortingSpeedPerHour);
+    display.printf("    %5d.%1d /s\n", (int)sortingSpeedPerSecond, (int)(sortingSpeedPerSecond * 10 + 0.5) % 10);
+    display.printf("    %5d   /m\n", (int)sortingSpeedPerMinute);
+    display.printf("    %5d   /h\n", (int)sortingSpeedPerHour);
     display.setCursor(64, 36); display.printf("Items: %d", identifiedCount);
     display.setCursor(64, 46); display.printf("Trays: %d", transportedTrayCount);
     safeDisplay();

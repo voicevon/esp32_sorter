@@ -42,10 +42,13 @@ public:
         if (currentTime - lastDisplayTime >= 100) {
             lastDisplayTime = currentTime;
             
-            String val1 = "Raw:" + String(totalRawPulses) + " | Err:" + String(hmi->getIllegalTransitionCount());
-            String val2 = "Steps(1:4):" + String(totalRawPulses / 4) + " | (1:2):" + String(totalRawPulses / 2);
+            String line1 = ""; // Spacer
+            String line2 = "Raw Pol: " + String(totalRawPulses);
+            String line3 = "Log 1:4: " + String(totalRawPulses / 4);
+            String line4 = "Log 1:2: " + String(totalRawPulses / 2);
+            String line5 = "Errors:  " + String(hmi->getIllegalTransitionCount());
             
-            userInterface->displayDiagnosticValues("HMI Encoder Diag", val1, val2);
+            userInterface->displayMultiLineText("HMI Encoder", line1, line2, line3, line4, line5);
         }
     }
 };

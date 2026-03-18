@@ -26,7 +26,6 @@ void RS485DiagnosticHandler::begin() {
         userInterface->displayDiagnosticValues("RS485 Diag", "Initializing...", "");
     }
     if (sorter) {
-        sorter->clearTestLedByte();
     }
     Serial.println("[RS485] Diagnostic Mode Started");
 }

@@ -5,7 +5,7 @@
 
 // 全局变量定义
 MenuSystem menuSystem(5);
-bool menuModeActive = true;
+bool menuModeActive = false;
 
 // 菜单节点定义
 MenuNode rootMenu("Main Menu");
@@ -19,7 +19,7 @@ extern OutletDiagnosticHandler outletDiagnosticHandler;
 extern HMIDiagnosticHandler hmiDiagnosticHandler;
 
 void setupMenuTree() {
-    menuSystem.setSensitivity(4); 
+    menuSystem.setSensitivity(1); 
     
     rootMenu.addItem(MenuItem("Run Sorter", MENU_TYPE_ACTION, nullptr, [](){
         switchToMode(MODE_NORMAL);

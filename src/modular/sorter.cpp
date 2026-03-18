@@ -1,5 +1,6 @@
 #include "sorter.h"
 #include "HardwareSerial.h"
+#include "user_interface/oled.h"
 #include "../config.h"
 #include "tray_system.h"
 #include <Arduino.h>
@@ -36,6 +37,10 @@ void Sorter::initialize() {
         
         // 触发单个电磁铁的初始化动作（发送Close脉冲）
         Serial.printf("Initializing outlet %d...\n", i);
+        
+        // 在 OLED 上显示开机进度
+        OLED::getInstance()->displayDiagnosticValues("Hardware Init", "Outlet " + String(i + 1) + "/" + String(NUM_OUTLETS), "Readying coils...");
+
         outlets[i].initialize();
         
         // 持续 1 秒钟的非阻塞延时循环（用于刷新物理引脚和更新脉冲状态）
@@ -359,12 +364,14 @@ void Sorter::updateShiftRegisters() {
     uint8_t chip2Byte = 0;    // Byte 2 (Index 2): 出口 4-7 的 H 桥对
     
     // 构建 LED 指示灯位图 (反映当前物理位置)
-    if (testLedModeActive) {
-        ledByte = testLedByte;
-    } else {
-        for (int i = 0; i < NUM_OUTLETS; i++) {
-            if (outlets[i].isPositionOpen()) {
+    for (int i = 0; i < NUM_OUTLETS; i++) {
+        if (outlets[i].isPositionOpen()) {
+            // 硬件映射修正：0-3 位正常映射，4-7 位反向映射 (7-6-5-4)
+            if (i < 4) {
                 ledByte |= (1 << i);
+            } else {
+                // i=4 -> bit 7, i=5 -> bit 6, i=6 -> bit 5, i=7 -> bit 4
+                ledByte |= (1 << (7 - (i - 4)));
             }
         }
     }

@@ -81,10 +81,10 @@ void UserInterface::displayDiagnosticInfo(const String& title, const String& inf
 }
 
 // 显示出口测试模式图形
-void UserInterface::displayOutletTestGraphic(uint8_t outletCount, uint8_t openOutlet, int subMode) {
+void UserInterface::displayOutletTestGraphic(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen, int subMode) {
     // 遍历所有显示设备
     for (int i = 0; i < displayDeviceCount; i++) {
-        displayDevices[i]->displayOutletTestGraphic(outletCount, openOutlet, subMode);
+        displayDevices[i]->displayOutletTestGraphic(outletCount, selectedOutlet, isOpen, subMode);
     }
 }
 

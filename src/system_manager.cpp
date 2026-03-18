@@ -44,7 +44,6 @@ void handleReturnToMenu() {
     }
     menuModeActive = true;
     UserInterface::getInstance()->resetDiagnosticMode();
-    sorter.clearTestLedByte();
     // 安全退出：返回主菜单时强制停转电机
     ModbusController::getInstance()->setSpeed(0);
     

@@ -75,9 +75,6 @@ private:
     void updateShiftRegisters();
     uint32_t lastShiftData = 0xFFFFFF; // 记录上次发送的 24 位数据
 
-    // 诊断测试相关的 LED 控制
-    uint8_t testLedByte = 0;
-    bool testLedModeActive = false;
     
 public:
     // 构造函数
@@ -120,7 +117,4 @@ public:
     void setOutletMinDiameter(uint8_t outletIndex, int minDiameter);
     void setOutletMaxDiameter(uint8_t outletIndex, int maxDiameter);
     
-    // 诊断 LED 控制
-    void setTestLedByte(uint8_t byte) { testLedByte = byte; testLedModeActive = true; }
-    void clearTestLedByte() { testLedModeActive = false; }
 };

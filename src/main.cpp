@@ -68,6 +68,21 @@ int getSmoothedPot() {
     return potSum / POT_FILTER_WINDOW;
 }
 
+void updateSpeedFromPot(uint32_t currentMs) {
+    if (currentMs - lastPotSampleTime >= 100) {
+        lastPotSampleTime = currentMs;
+        // 根据需求，将最大值映射到600，然后减去10，防止负数，使得最大范围在0-590
+        int rawSpeed = map(getSmoothedPot(), 0, 4095, 0, 600);
+        int targetSpeed = rawSpeed - 10;
+        if (targetSpeed < 0) targetSpeed = 0;
+        
+        // 死区
+        if (abs(targetSpeed - ModbusController::getInstance()->getLastSentSpeed()) > 2) {
+            ModbusController::getInstance()->setSpeed(targetSpeed);
+        }
+    }
+}
+
 void setup() {
     Serial.begin(115200);
     Serial.println("Feng's Sorter system starting...");
@@ -163,14 +178,12 @@ void loop() {
                     if (delta != 0) normalModeSubmode = (normalModeSubmode + 1) % 2;
                     processNormalMode();
                     sorter.run();
+                    
+                    updateSpeedFromPot(currentMs);
+                    
                     if (millis() - lastModbusSendTime > 1000) {
                         lastModbusSendTime = millis();
                         ModbusController::getInstance()->setEnable(true); 
-                        if (ModbusController::getInstance()->getLastSentSpeed() <= 0) {
-                            ModbusController::getInstance()->setSpeed(500);
-                        } else {
-                            ModbusController::getInstance()->setSpeed(ModbusController::getInstance()->getLastSentSpeed());
-                        }
                     }
                     break;
                 case MODE_DIAGNOSE_POTENTIOMETER:
@@ -197,18 +210,7 @@ void loop() {
                     }
                     break;
                 case MODE_SERVO_SPEED_POTENTIOMETER:
-                    if (currentMs - lastPotSampleTime >= 100) {
-                        lastPotSampleTime = currentMs;
-                        // 根据需求，将最大值映射到600，然后减去10，防止负数，使得最大范围在0-590
-                        int rawSpeed = map(getSmoothedPot(), 0, 4095, 0, 600);
-                        int targetSpeed = rawSpeed - 10;
-                        if (targetSpeed < 0) targetSpeed = 0;
-                        
-                        // 死区
-                        if (abs(targetSpeed - ModbusController::getInstance()->getLastSentSpeed()) > 2) {
-                            ModbusController::getInstance()->setSpeed(targetSpeed);
-                        }
-                    }
+                    updateSpeedFromPot(currentMs);
                     {
                         static unsigned long lp = 0;
                         if (currentMs - lp > 500) {

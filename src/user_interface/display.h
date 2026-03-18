@@ -43,7 +43,7 @@ public:
     virtual void displayDiagnosticInfo(const String& title, const String& info) = 0;
     
     // 显示出口测试模式图形
-    virtual void displayOutletTestGraphic(uint8_t outletCount, uint8_t openOutlet, int subMode) = 0;
+    virtual void displayOutletTestGraphic(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen, int subMode) = 0;
     
     // 显示出口寿命测试专用图形
     virtual void displayOutletLifetimeTestGraphic(uint8_t outletCount, unsigned long cycleCount, bool outletState, int subMode) = 0;

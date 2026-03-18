@@ -78,7 +78,7 @@ public:
   void displayDiagnosticInfo(const String& title, const String& info) override;
   
   // 显示出口测试模式图形
-  void displayOutletTestGraphic(uint8_t outletCount, uint8_t openOutlet, int subMode) override;
+  void displayOutletTestGraphic(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen, int subMode) override;
   
   // 显示出口寿命测试专用图形
   void displayOutletLifetimeTestGraphic(uint8_t outletCount, unsigned long cycleCount, bool outletState, int subMode) override;

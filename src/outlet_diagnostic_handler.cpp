@@ -116,11 +116,7 @@ void OutletDiagnosticHandler::update(unsigned long currentMs) {
                     outlets[i]->execute();
                 }
                 
-                if (outletState) {
-                    userInterface->displayOutletTestGraphic(NUM_OUTLETS, currentOutlet, currentSubMode);
-                } else {
-                    userInterface->displayOutletTestGraphic(NUM_OUTLETS, 255, currentSubMode);
-                }
+                userInterface->displayOutletTestGraphic(NUM_OUTLETS, currentOutlet, outletState, currentSubMode);
             }
             break;
         }
@@ -204,13 +200,7 @@ void OutletDiagnosticHandler::processCycleOperation(unsigned long currentTime, u
         outlets[currentOutlet]->execute();
         
         // 更新显示屏内容，指示当前测试状态
-        if (outletState) {
-            // 出口打开时，显示当前测试的出口编号
-            userInterface->displayOutletTestGraphic(NUM_OUTLETS, currentOutlet, currentSubMode);
-        } else {
-            // 出口关闭时，显示无出口打开状态（255为特殊标记值）
-            userInterface->displayOutletTestGraphic(NUM_OUTLETS, 255, currentSubMode);
-        }
+        userInterface->displayOutletTestGraphic(NUM_OUTLETS, currentOutlet, outletState, currentSubMode);
     }
 }
 
@@ -234,11 +224,7 @@ void OutletDiagnosticHandler::initializeDiagnosticMode(unsigned long currentTime
         outlets[currentOutlet]->execute();
         
         // 更新显示内容
-        if (outletState) {
-            userInterface->displayOutletTestGraphic(NUM_OUTLETS, currentOutlet, currentSubMode);
-        } else {
-            userInterface->displayOutletTestGraphic(NUM_OUTLETS, 255, currentSubMode);
-        }
+        userInterface->displayOutletTestGraphic(NUM_OUTLETS, currentOutlet, outletState, currentSubMode);
         
         // 输出诊断信息到串口
         Serial.print("[DIAGNOSTIC] Initial outlet state normally closed: ");
@@ -291,7 +277,7 @@ void OutletDiagnosticHandler::handleEncoderInput(int delta) {
                 outlets[i]->execute();
             }
             
-            userInterface->displayOutletTestGraphic(NUM_OUTLETS, 255, currentSubMode);
+            userInterface->displayOutletTestGraphic(NUM_OUTLETS, currentOutlet, false, currentSubMode);
             
             Serial.print("[DIAGNOSTIC] Selected outlet changed to: ");
             Serial.println(currentOutlet);

@@ -120,40 +120,46 @@ void Terminal::displayDiagnosticInfo(const String& title, const String& info) {
 }
 
 // 显示出口测试模式图形
-void Terminal::displayOutletTestGraphic(uint8_t outletCount, uint8_t openOutlet, int subMode) {
-    String subModeName = (subMode == 0) ? "Cycle Drop" : "Cycle Raise";
+void Terminal::displayOutletTestGraphic(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen, int subMode) {
+    String subModeName;
+    switch(subMode) {
+        case 0: subModeName = "Cycle Drop"; break;
+        case 1: subModeName = "Single Test"; break;
+        case 2: subModeName = "Lifetime Test"; break;
+        default: subModeName = "Unknown"; break;
+    }
     
     // 检查是否是第一次显示
     static bool firstDisplay = true;
     
     if (firstDisplay) {
-        // 第一次显示时，打印四行格式（蓝色背景，红色标题，白色正文）
+        // 第一次显示时，打印四行格式
         Serial.println("\n" + STYLE_DATA_WINDOW_TITLE + "      === Outlet Test Mode ===      " + STYLE_RESET);
         Serial.println(STYLE_DATA_WINDOW_CONTENT + "Outlet Count: 0                     " + STYLE_RESET);
-        Serial.println(STYLE_DATA_WINDOW_CONTENT + "Open Outlet: 0                      " + STYLE_RESET);
-        Serial.println(STYLE_DATA_WINDOW_CONTENT + "Submode: Cycle Drop                 " + STYLE_RESET);
+        Serial.println(STYLE_DATA_WINDOW_CONTENT + "Selected Outlet: 0                  " + STYLE_RESET);
+        Serial.println(STYLE_DATA_WINDOW_CONTENT + "Status: Closed                      " + STYLE_RESET);
         firstDisplay = false;
     } else {
         // 使用回到行首的方式更新四行数据
         Serial.print("\033[4A"); // 向上移动4行到标题行
         
-        // 重新打印标题行（蓝色背景，红色标题）
-        Serial.print(STYLE_DATA_WINDOW_TITLE + "      === Outlet Test Mode ===      " + STYLE_RESET); Serial.println();
+        // 重新打印标题行
+        Serial.print(STYLE_DATA_WINDOW_TITLE + "      === " + subModeName + " ===      " + STYLE_RESET); Serial.println();
         
-        // 更新出口数量行（蓝色背景，白色正文）
+        // 更新出口数量行
         Serial.print(STYLE_DATA_WINDOW_CONTENT + "Outlet Count: ");
         Serial.print(outletCount);
         Serial.print("                     " + STYLE_RESET); Serial.println();
         
-        // 更新打开的出口行（蓝色背景，白色正文）
-        Serial.print(STYLE_DATA_WINDOW_CONTENT + "Open Outlet: ");
-        Serial.print(openOutlet);
+        // 更新选中的出口行
+        Serial.print(STYLE_DATA_WINDOW_CONTENT + "Selected Outlet: ");
+        Serial.print(selectedOutlet + 1);
         Serial.print("                      " + STYLE_RESET); Serial.println();
         
-        // 更新子模式行（蓝色背景，白色正文）
-        Serial.print(STYLE_DATA_WINDOW_CONTENT + "Submode: ");
-        Serial.print(subModeName);
-        Serial.print("                 " + STYLE_RESET); Serial.println();
+        // 更新状态行
+        Serial.print(STYLE_DATA_WINDOW_CONTENT + "Status: ");
+        Serial.print(isOpen ? "OPEN  " : "CLOSED");
+        Serial.print("                      " + STYLE_RESET); Serial.println();
     }
 }
 

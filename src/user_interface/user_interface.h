@@ -78,7 +78,7 @@ public:
     void displayModeChange(SystemMode newMode);
     void displayOutletStatus(uint8_t outletIndex, bool isOpen);
     void displayDiagnosticInfo(const String& title, const String& info);// 显示出口测试模式图形
-    void displayOutletTestGraphic(uint8_t outletCount, uint8_t openOutlet, int subMode);
+    void displayOutletTestGraphic(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen, int subMode);
     
     // 专门用于寿命测试的显示方法
     void displayOutletTestGraphic(uint8_t outletCount, unsigned long cycleCount, bool outletState, int subMode);
