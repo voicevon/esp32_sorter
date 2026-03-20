@@ -14,10 +14,6 @@ class OutletDiagnosticHandler : public BaseDiagnosticHandler {
 private:
     Outlet* outlets[NUM_OUTLETS];
     
-    // 出口数量定义 - 使用统一的NUM_OUTLETS宏
-    // 出口数量定义 - 使用统一的NUM_OUTLETS宏 (Redundant but keeping for class scope if needed)
-    // static const int NUM_OUTLETS = NUM_OUTLETS; // Avoid shadowing warning, just use global
-    
     // 诊断模式状态变量
     uint32_t modeStartTime;
     uint32_t lastOutletTime;

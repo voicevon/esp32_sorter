@@ -72,11 +72,6 @@ void ScannerDiagnosticHandler::displayRawDiameters() {
         }
     }
     
-    // OLED显示
-    // OLED* oled = OLED::getInstance();
-    // if (oled->isAvailable()) {
-    //     oled->displayDiagnosticInfo("Scanner Diameter", diameters);
-    // }
 }
 
 void ScannerDiagnosticHandler::handleIOStatusCheck() {
@@ -142,13 +137,6 @@ void ScannerDiagnosticHandler::handleIOStatusCheck() {
             // 更新计数器数据行（蓝色背景，白色正文）
             Serial.println("\033[44m\033[37m" + countLine + "                      \033[0m");
         }
-        
-        // OLED显示
-        // OLED* oled = OLED::getInstance();
-        // if (oled->isAvailable()) {
-        //     // 使用多行显示（使用更新后的statusLine格式）
-        //     oled->displayMultiLineText("Scanner IO Status", statusLine, countLine, "", "");
-        // }
         
         // 更新上一次状态
         lastIOStatus = combinedStatus;

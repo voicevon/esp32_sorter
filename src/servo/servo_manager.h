@@ -58,7 +58,6 @@ private:
     int _lastSentCommand;
     uint32_t _lastMonitorMs;
     uint32_t _stateTimer;
-    int _rebootStep;
 
     void updateMonitor();      // 周期采集
 };

@@ -33,7 +33,7 @@
 UserInterface* userInterface = UserInterface::getInstance();
 Encoder* encoder = Encoder::getInstance();
 DiameterScanner* diameterScanner = DiameterScanner::getInstance();
-TraySystem* allTrays = TraySystem::getInstance();
+TraySystem* traySystem = TraySystem::getInstance();
 Sorter sorter;
 
 // 诊断处理器
@@ -52,14 +52,14 @@ ServoControlHandler servoTorqueHandler(userInterface, CTRL_TORQUE_KNOB);
 int normalModeSubmode = 0;
 bool hasVersionInfoDisplayed = false;
 String systemName = "Feng's AS-L9";
-Potentiometer pot(PIN_POTENTIOMETER);
+Potentiometer speedPot(PIN_POTENTIOMETER);
 unsigned long lastPotSampleTime = 0;
 
 void updateSpeedFromPot(uint32_t currentMs) {
     if (currentMs - lastPotSampleTime >= 200) {
         lastPotSampleTime = currentMs;
-        pot.update();
-        int targetSpeed = map(pot.getSmoothedValue(), 0, 4095, 0, 600) - 10;
+        speedPot.update();
+        int targetSpeed = map(speedPot.getSmoothedValue(), 0, 4095, 0, 600) - 10;
         if (targetSpeed < 0) targetSpeed = 0;
         
         // 使用单例管理者统一调度
@@ -74,7 +74,7 @@ void setup() {
     userInterface->initialize();
     OLED::getInstance()->initialize();
     Terminal::getInstance()->initialize();
-    pot.initialize();
+    speedPot.initialize();
     userInterface->enableOutputChannel(OUTPUT_ALL);
     
     delay(500);
@@ -104,7 +104,7 @@ void setup() {
     
     encoder->initialize();
     sorter.initialize();
-    allTrays->loadFromEEPROM(EEPROM_ADDR_TRAY_DATA);
+    traySystem->loadFromEEPROM(EEPROM_ADDR_TRAY_DATA);
     
     outletDiagnosticHandler.initialize(userInterface);
     encoderDiagnosticHandler.initialize(userInterface);
@@ -168,9 +168,6 @@ void loop() {
                     sorter.run();
                     
                     updateSpeedFromPot(currentMs);
-                    
-                    // 移除此处的自动使能逻辑，以保安全
-                    // if (millis() - lastModbusSendTime > 1000) { ... }
                     break;
                 case MODE_DIAGNOSE_POTENTIOMETER:
                     {
