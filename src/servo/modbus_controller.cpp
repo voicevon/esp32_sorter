@@ -1,5 +1,5 @@
 #include "modbus_controller.h"
-#include "config.h"
+#include "../config.h"
 
 // 全局变量映射（为了兼容性或内部使用）
 unsigned long lastModbusSendTime = 0;

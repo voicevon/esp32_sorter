@@ -2,8 +2,8 @@
 #define HMI_DIAGNOSTIC_HANDLER_H
 
 #include "base_diagnostic_handler.h"
-#include "user_interface/user_interface.h"
-#include "user_interface/simple_hmi.h"
+#include "../user_interface/user_interface.h"
+#include "../user_interface/simple_hmi.h"
 
 class HMIDiagnosticHandler : public BaseDiagnosticHandler {
 private:

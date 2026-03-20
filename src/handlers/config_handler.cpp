@@ -53,7 +53,7 @@ void DiameterConfigHandler::handleValueChange(int delta) {
 // ServoConfigHandler 实现
 // =========================
 
-#include "modbus_controller.h"
+#include "../servo/modbus_controller.h"
 
 void ServoConfigHandler::loadFromEEPROM() {
     uint8_t magic = EEPROM.read(EEPROM_BASE_ADDR);

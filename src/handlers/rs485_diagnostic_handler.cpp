@@ -1,6 +1,6 @@
 #include "rs485_diagnostic_handler.h"
-#include "config.h"
-#include "modbus_controller.h"
+#include "../config.h"
+#include "../servo/modbus_controller.h"
 
 RS485DiagnosticHandler::RS485DiagnosticHandler() : 
     userInterface(nullptr), 

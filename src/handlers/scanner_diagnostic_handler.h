@@ -1,9 +1,9 @@
 #ifndef SCANNER_DIAGNOSTIC_HANDLER_H
 #define SCANNER_DIAGNOSTIC_HANDLER_H
-#include "modular/diameter_scanner.h"
-#include "main.h"
-#include "user_interface/user_interface.h"
-#include "modular/encoder.h"
+#include "../modular/diameter_scanner.h"
+#include "../main.h"
+#include "../user_interface/user_interface.h"
+#include "../modular/encoder.h"
 #include "base_diagnostic_handler.h"
 
 class ScannerDiagnosticHandler : public BaseDiagnosticHandler {

@@ -1,8 +1,8 @@
 #include "menu_config.h"
 #include "system_manager.h"
-#include "outlet_diagnostic_handler.h"
-#include "hmi_diagnostic_handler.h"
-#include "config_handler.h"
+#include "../handlers/outlet_diagnostic_handler.h"
+#include "../handlers/hmi_diagnostic_handler.h"
+#include "../handlers/config_handler.h"
 
 extern ServoConfigHandler servoConfigHandler;
 

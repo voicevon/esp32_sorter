@@ -1,8 +1,8 @@
 #include "mode_processors.h"
-#include "user_interface/user_interface.h"
-#include "modular/sorter.h"
-#include "modular/encoder.h"
-#include "modular/diameter_scanner.h"
+#include "../user_interface/user_interface.h"
+#include "../modular/sorter.h"
+#include "../modular/encoder.h"
+#include "../modular/diameter_scanner.h"
 #include "system_manager.h"
 
 // 外部引用

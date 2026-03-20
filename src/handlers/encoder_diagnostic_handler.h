@@ -1,7 +1,7 @@
 #ifndef ENCODER_DIAGNOSTIC_HANDLER_H
 #define ENCODER_DIAGNOSTIC_HANDLER_H
-#include "user_interface/user_interface.h"
-#include "modular/encoder.h"
+#include "../user_interface/user_interface.h"
+#include "../modular/encoder.h"
 #include "base_diagnostic_handler.h"
 
 class EncoderDiagnosticHandler : public BaseDiagnosticHandler {

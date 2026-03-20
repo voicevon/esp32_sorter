@@ -1,5 +1,6 @@
 #include "encoder_diagnostic_handler.h"
-#include "servo_manager.h"
+#include "../servo/servo_manager.h"
+#include "../modular/encoder.h"
 
 EncoderDiagnosticHandler::EncoderDiagnosticHandler() {
     encoder = Encoder::getInstance();

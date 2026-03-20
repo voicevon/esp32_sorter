@@ -2,8 +2,8 @@
 #define SERVO_CONTROL_HANDLER_H
 
 #include "base_diagnostic_handler.h"
-#include "servo_manager.h"
-#include "user_interface/user_interface.h"
+#include "../servo/servo_manager.h"
+#include "../user_interface/user_interface.h"
 
 enum ControlType {
     CTRL_SPEED_KNOB,

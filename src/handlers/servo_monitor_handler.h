@@ -2,8 +2,8 @@
 #define SERVO_MONITOR_HANDLER_H
 
 #include "base_diagnostic_handler.h"
-#include "modbus_controller.h"
-#include "user_interface/user_interface.h"
+#include "../servo/modbus_controller.h"
+#include "../user_interface/user_interface.h"
 
 class ServoMonitorHandler : public BaseDiagnosticHandler {
 private:

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "modular/outlet.h"
-#include "main.h"
-#include "user_interface/user_interface.h"
+#include "../modular/outlet.h"
+#include "../main.h"
+#include "../user_interface/user_interface.h"
 
 // 前向声明UserInterface和Sorter类，避免循环依赖
 class UserInterface;

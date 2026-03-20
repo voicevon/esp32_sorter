@@ -1,5 +1,5 @@
 #include "servo_manager.h"
-#include "config.h"
+#include "../config.h"
 
 void ServoManager::begin() {
     ModbusController::getInstance()->initialize();

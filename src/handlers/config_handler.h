@@ -1,8 +1,8 @@
 #ifndef CONFIG_HANDLER_H
 #define CONFIG_HANDLER_H
 
-#include "user_interface/user_interface.h"
-#include "modular/sorter.h"
+#include "../user_interface/user_interface.h"
+#include "../modular/sorter.h"
 #include "base_diagnostic_handler.h"
 #include <EEPROM.h>
 
