@@ -3,12 +3,14 @@
 
 void ServoManager::begin() {
     ModbusController::getInstance()->initialize();
-    _state = SYS_IDLE;
-    _stateTimer = millis();
-    _targetMode = 1; // 默认速度模式，可由外部 setTargetMode 修改
-    _targetCommand = 0;
+    _state          = SYS_IDLE;
+    _stateTimer     = millis();
+    _targetMode     = 1;
+    _targetCommand  = 0;
     _lastSentCommand = -9999;
-    _lastMonitorMs = 0;
+    _lastMonitorMs  = 0;
+    _monitorStep    = 0;
+    _monitorPending = false;
 }
 
 void ServoManager::update() {
@@ -123,22 +125,48 @@ void ServoManager::update() {
 }
 
 void ServoManager::updateMonitor() {
-    // 工业方案通常一次读取多个寄存器，这里简化为连续同步读取
-    _data.statusWord = ModbusController::getInstance()->readRegisterSync(0x2001);
-    
-    // 只有在通讯正常时才读取其它数据
-    if (_data.statusWord != 0xFFFF) {
-        _data.alarmCode = ModbusController::getInstance()->readRegisterSync(0x1013);
-        _data.currentMode = (int)ModbusController::getInstance()->readRegisterSync(0x1009); // 物理当前模式
-        _data.actualSpeed = (int16_t)ModbusController::getInstance()->readRegisterSync(0x1000);
-        _data.actualTorque = (float)((int16_t)ModbusController::getInstance()->readRegisterSync(0x1007));
-    } else {
-        // 通讯丢失
-        if (_state != SYS_INIT && _state != SYS_IDLE) {
-            _state = SYS_INIT; // 自动重连进入初始化
-            _stateTimer = millis();
+    auto* m = ModbusController::getInstance();
+
+    // --- 阶段 A: 若上次请求尚未完成，先尝试接收 ---
+    if (_monitorPending) {
+        uint16_t val;
+        if (!m->pollReadResult(val)) return; // 数据还没到，本次 loop 跳过
+        _monitorPending = false;
+
+        // 根据当前 step 将结果填入对应字段
+        switch (_monitorStep) {
+            case 0: _data.statusWord  = val; break;
+            case 1: _data.alarmCode   = val; break;
+            case 2: _data.currentMode = (int)val; break;
+            case 3: _data.actualSpeed = (int16_t)val; break;
+            case 4: _data.actualTorque = (float)((int16_t)val); break;
         }
+
+        // 通讯丢失检测 (只在 statusWord 回来时判断)
+        if (_monitorStep == 0 && val == 0xFFFF) {
+            if (_state != SYS_INIT && _state != SYS_IDLE) {
+                _state = SYS_INIT;
+                _stateTimer = millis();
+            }
+            _monitorStep = 0; // 通讯丢失，重新从第 0 步开始
+            return;
+        }
+
+        // 推进到下一个寄存器
+        _monitorStep = (_monitorStep + 1) % 5;
+        return;
     }
+
+    // --- 阶段 B: 发起下一个寄存器的读请求 ---
+    static const uint16_t kRegs[5] = {
+        0x2001,  // statusWord
+        0x1013,  // alarmCode
+        0x1009,  // currentMode
+        0x1000,  // actualSpeed
+        0x1007,  // actualTorque
+    };
+    m->requestRegisterRead(kRegs[_monitorStep]);
+    _monitorPending = true;
 }
 
 const char* ServoManager::getStateName() const {

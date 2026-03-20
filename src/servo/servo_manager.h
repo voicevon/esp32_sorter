@@ -59,7 +59,11 @@ private:
     uint32_t _lastMonitorMs;
     uint32_t _stateTimer;
 
-    void updateMonitor();      // 周期采集
+    void updateMonitor();      // 非阻塞异步采集
+
+    // 异步监控状态
+    uint8_t  _monitorStep;    // 当前轮询的寄存器序号 (0-4)
+    bool     _monitorPending; // 是否有一个正在等待 pollReadResult 的请求
 };
 
 #endif

@@ -7,7 +7,7 @@
 
 // 外部引用
 extern Sorter sorter;
-extern TraySystem* allTrays;
+extern TraySystem* traySystem;
 extern Encoder* encoder;
 extern bool hasVersionInfoDisplayed;
 extern int normalModeSubmode;
@@ -41,7 +41,7 @@ void processNormalMode() {
         int transportedTrayCount = encoderPosition / pulsesPerTray;
         UserInterface::getInstance()->displayDashboard(speedPerSecond, speedPerMinute, speedPerHour, identifiedCount, transportedTrayCount);
     } else {
-        int latestDiameter = allTrays->getTrayDiameter(0);
+        int latestDiameter = traySystem->getTrayDiameter(0);
         UserInterface::getInstance()->displayNormalModeDiameter(latestDiameter);
     }
 }
