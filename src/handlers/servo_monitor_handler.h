@@ -48,9 +48,8 @@ private:
         auto m = ModbusController::getInstance();
         
         if (currentPage == 0) {
-            // PAGE 0: 概览 (Overview)
+            // PAGE 0: 概览
             uint16_t mode  = m->readRegisterSync(0x0004);
-            delay(10);
             uint16_t alarm = m->readRegisterSync(0x1013);
             
             String modeStr = "Unknown";
@@ -67,27 +66,24 @@ private:
                 "  < Knob to Flip >");
         } 
         else if (currentPage == 1) {
-            // PAGE 1: 实时数据 (Live Data)
+            // PAGE 1: 实时数据
             uint16_t speed   = m->readRegisterSync(0x1000);
-            delay(15);
             uint16_t torque  = m->readRegisterSync(0x1007);
-            delay(15);
             uint16_t current = m->readRegisterSync(0x1008);
 
-            String speedStr  = (speed == 0xFFFF)  ? "ERR" : String((int16_t)speed) + " RPM";
-            String torqueStr = (torque == 0xFFFF) ? "ERR" : String((int16_t)torque) + " %";
-            String currStr   = (current == 0xFFFF)? "ERR" : String(current / 10.0f, 1) + " A";
+            String speedStr  = (speed   == 0xFFFF) ? "ERR" : String((int16_t)speed)  + " RPM";
+            String torqueStr = (torque  == 0xFFFF) ? "ERR" : String((int16_t)torque) + " %";
+            String currStr   = (current == 0xFFFF) ? "ERR" : String(current / 10.0f, 1) + " A";
 
             userInterface->displayDiagnosticInfo("Servo Dashboard [2/3]", 
-                "Speed:  " + speedStr + "\n" +
+                "Speed:  " + speedStr  + "\n" +
                 "Torque: " + torqueStr + "\n" +
-                "Curr:   " + currStr + "\n" +
+                "Curr:   " + currStr   + "\n" +
                 "  < Knob to Flip >");
         }
         else {
-            // PAGE 2: 电气与通讯 (Electrical)
+            // PAGE 2: 电气与通讯
             uint16_t busV = m->readRegisterSync(0x1012);
-            
             String vStr = (busV == 0xFFFF) ? "COMM ERR" : String(busV) + " V";
 
             userInterface->displayDiagnosticInfo("Servo Dashboard [3/3]", 

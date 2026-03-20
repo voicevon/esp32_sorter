@@ -517,10 +517,6 @@ bool OLED::safeDisplay() {
 
     // 尝试输出显示缓冲区
     display.display();
-    
-    // 给系统留一点处理时间，特别是在长线缆情况下
-    // 增加到 50ms 以确保 SSD1306 完成内部处理
-    delay(50);
 
     // 针对 1.5 米线缆的通信稳定性：通过心跳探针检查 I2C 是否挂死
     Wire1.beginTransmission(OLED_I2C_ADDRESS);
