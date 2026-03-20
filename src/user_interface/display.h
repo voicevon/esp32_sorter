@@ -46,7 +46,7 @@ public:
     virtual void displayOutletTestGraphic(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen, int subMode) = 0;
     
     // 显示出口寿命测试专用图形
-    virtual void displayOutletLifetimeTestGraphic(uint8_t outletCount, unsigned long cycleCount, bool outletState, int subMode) = 0;
+    virtual void displayOutletLifetimeTestGraphic(uint8_t outletCount, uint32_t cycleCount, bool outletState, int subMode) = 0;
     
     // 显示扫描仪编码器值
     virtual void displayScannerEncoderValues(const int* risingValues, const int* fallingValues) = 0;

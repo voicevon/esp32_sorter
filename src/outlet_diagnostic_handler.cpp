@@ -63,7 +63,12 @@ void OutletDiagnosticHandler::setSubMode(int mode) {
     Serial.println("[DIAGNOSTIC] Outlet Mode explicitly set to: " + subModeName);
 }
 
-void OutletDiagnosticHandler::update(unsigned long currentMs) {
+void OutletDiagnosticHandler::update(uint32_t currentMs, bool btnPressed) {
+    if (btnPressed) {
+        handleReturnToMenu();
+        return;
+    }
+    
     // 模式开始时初始化
     if (modeStartTime == 0 || currentSubMode != lastSubMode) { // Re-initialize if submode changes
         initializeDiagnosticMode(currentMs);
@@ -71,7 +76,7 @@ void OutletDiagnosticHandler::update(unsigned long currentMs) {
     }
     
     // 声明局部变量
-    unsigned long interval;    // 出口状态保持时间间隔（毫秒）
+    uint32_t interval;    // 出口状态保持时间间隔（毫秒）
     String testType;          // 测试类型描述（用于日志输出）
     
     /**
@@ -151,7 +156,7 @@ void OutletDiagnosticHandler::update(unsigned long currentMs) {
                     outlets[i]->execute();
                 }
                 
-                userInterface->displayOutletTestGraphic(NUM_OUTLETS, cycleCount, outletState, currentSubMode);
+                userInterface->displayOutletLifetimeGraphic(NUM_OUTLETS, cycleCount, outletState, currentSubMode);
             }
             break;
         }
@@ -177,7 +182,7 @@ void OutletDiagnosticHandler::update(unsigned long currentMs) {
  * - 添加新子模式时，只需在switch语句中添加新case，设置合适的interval和testType
  * - 无需修改此函数即可支持新的子模式行为
  */
-void OutletDiagnosticHandler::processCycleOperation(unsigned long currentTime, unsigned long interval, const String& testType) {
+void OutletDiagnosticHandler::processCycleOperation(uint32_t currentTime, uint32_t interval, const String& testType) {
     // 检查是否达到状态切换时间间隔
     if (currentTime - lastOutletTime >= interval) {
         // 更新时间戳
@@ -204,7 +209,7 @@ void OutletDiagnosticHandler::processCycleOperation(unsigned long currentTime, u
     }
 }
 
-void OutletDiagnosticHandler::initializeDiagnosticMode(unsigned long currentTime) {
+void OutletDiagnosticHandler::initializeDiagnosticMode(uint32_t currentTime) {
     // 模式开始时初始化
     modeStartTime = currentTime;
     lastOutletTime = currentTime;

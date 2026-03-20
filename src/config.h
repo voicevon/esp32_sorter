@@ -74,6 +74,7 @@ constexpr int PINS_SCANNER[5] = {
 // Encoder / Conveyor
 constexpr int ENCODER_MAX_PHASE = 200;
 constexpr int PULSES_PER_TRAY = 200;
+constexpr bool ENCODER_REVERSE_DIRECTION = false; // 软件反转编码器计数方向
 
 // Servos
 constexpr int SERVO_POS_CLOSED = 80;
@@ -81,8 +82,16 @@ constexpr int SERVO_POS_OPEN = 0;
 constexpr int NUM_OUTLETS = 8;
 
 // RS485 Modbus Servo Motor Parameters
-constexpr uint8_t  MODBUS_SERVO_SLAVE_ID = 0x01;      // PSBase Default Station ID
-constexpr uint16_t MODBUS_SERVO_SPEED_REG = 0x0018;   // PA24 Target speed register (Address 0x0018)
+constexpr uint8_t  MODBUS_SERVO_SLAVE_ID = 0x01;      
+constexpr uint16_t MODBUS_SERVO_SPEED_REG = 0x0018;   
+constexpr uint16_t MODBUS_SERVO_ACCEL_REG = 0x000B;   
+constexpr uint16_t MODBUS_SERVO_DECEL_REG = 0x000C;   
+constexpr uint16_t MODBUS_SERVO_MAX_SPD_REG = 0x001E; 
+constexpr uint16_t MODBUS_SERVO_TRQ_LIMIT_SPD_REG = 0x001F; 
+constexpr uint16_t MODBUS_SERVO_FWD_TRQ_REG = 0x0022; // PA34
+constexpr uint16_t MODBUS_SERVO_REV_TRQ_REG = 0x0024; // PA36 (躲开 PA35)
+constexpr uint16_t MODBUS_SERVO_SAFE_SON_REG = 0x0035; // PA53 (SON 来源配置)
+constexpr uint16_t MODBUS_SERVO_ENABLE_REG = 0x00B5;  // PA53 + 0x80 (暂存使能)
 constexpr uint32_t MODBUS_BAUD_RATE = 9600;
 constexpr uint32_t MODBUS_SERIAL_CONFIG = SERIAL_8N1; // 8 Data, No Parity, 1 Stop
 constexpr int MODBUS_SPEED_MIN = 0;                   // 0 RPM

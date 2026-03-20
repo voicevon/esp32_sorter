@@ -30,7 +30,12 @@ void RS485DiagnosticHandler::begin() {
     Serial.println("[RS485] Diagnostic Mode Started");
 }
 
-void RS485DiagnosticHandler::update(unsigned long currentTime) {
+void RS485DiagnosticHandler::update(uint32_t currentTime, bool btnPressed) {
+    if (btnPressed) {
+        handleReturnToMenu();
+        return;
+    }
+    
     static int pollIdx = 0;
     static uint16_t pollAddrs[] = {0x0000, 0x0004, 0x0035, 0x0018, 0x0016, 0x0002, 0x0028, 0x0029}; // PA0, PA4, PA53, PA24, PA22, PA2, PA40, PA41
     static uint16_t pollVals[8] = {0, 0, 0, 0, 0, 0, 0, 0};

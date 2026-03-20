@@ -56,8 +56,8 @@ private:
     // 输出控制
     uint8_t outputChannels;  // 输出渠道掩码
     Language currentLanguage;  // 当前语言
-    unsigned long lastUpdateTime;  // 上次更新时间（用于限制刷新速率）
-    const unsigned long UPDATE_INTERVAL = 2000;  // 更新间隔（毫秒）
+    uint32_t lastUpdateTime;  // 上次更新时间（用于限制刷新速率）
+    const uint32_t UPDATE_INTERVAL = 2000;  // 更新间隔（毫秒）
     
     // 辅助方法
     String translate(const String& key) const;  // 根据当前语言翻译文本
@@ -77,11 +77,13 @@ public:
     // 显示相关方法 - updateDisplay已移除，改用功能专用方法
     void displayModeChange(SystemMode newMode);
     void displayOutletStatus(uint8_t outletIndex, bool isOpen);
-    void displayDiagnosticInfo(const String& title, const String& info);// 显示出口测试模式图形
+    void displayDiagnosticInfo(const String& title, const String& info);
+    
+    // 显示出口测试模式图形
     void displayOutletTestGraphic(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen, int subMode);
     
-    // 专门用于寿命测试的显示方法
-    void displayOutletTestGraphic(uint8_t outletCount, unsigned long cycleCount, bool outletState, int subMode);
+    // 专门用于寿命测试的显示方法 (更名以避免重载歧义)
+    void displayOutletLifetimeGraphic(uint8_t outletCount, uint32_t cycleCount, bool outletState, int subMode);
     void displayScannerEncoderValues(const int* risingValues, const int* fallingValues);
     
     // 正常模式专用显示方法

@@ -19,11 +19,14 @@ private:
     // 核心状态变量
     long rawEncoderCount;            // 编码器计数值
     long lastEncoderCount;           // 上次计数值，用于检测变化
-    volatile bool positionChanged; // 位置变化标志（用于OLED显示）
     long zeroCrossCount;            // Z相触发次数（清零次数）
     long zeroCrossRawCount;         // Z相触发时的原始计数值
     int forcedZeroCount;            // 强制清零次数
     long forcedZeroRawCount;        // 强制清零时的原始计数值
+    
+    // 引脚状态缓存（参考 SimpleFOC 优化）
+    volatile int pinA_state;        // A相上一个状态
+    volatile int pinB_state;        // B相上一个状态
     
     // 回调函数指针和上下文
     PhaseCallback encoderPhaseCallback;  // 相位回调
@@ -46,12 +49,6 @@ public:
     
     // 获取当前逻辑位置
     int getCurrentPosition();
-    
-    // 检查位置是否变化
-    bool hasPositionChanged() const { return positionChanged; }
-    
-    // 重置位置变化标志
-    void resetPositionChanged();
     
     // 获取原始计数值
     long getRawCount() const { return rawEncoderCount; }

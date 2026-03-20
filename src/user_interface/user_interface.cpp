@@ -89,7 +89,7 @@ void UserInterface::displayOutletTestGraphic(uint8_t outletCount, uint8_t select
 }
 
 // 专门用于寿命测试的显示方法
-void UserInterface::displayOutletTestGraphic(uint8_t outletCount, unsigned long cycleCount, bool outletState, int subMode) {
+void UserInterface::displayOutletLifetimeGraphic(uint8_t outletCount, uint32_t cycleCount, bool outletState, int subMode) {
     // 遍历所有显示设备
     for (int i = 0; i < displayDeviceCount; i++) {
         // 调用寿命测试专用的显示方法，直接传递完整的循环次数

@@ -1,3 +1,5 @@
+#include "servo_monitor_handler.h"
+#include "servo_control_handler.h"
 #include "system_manager.h"
 #include "config.h"
 #include "user_interface/user_interface.h"
@@ -10,7 +12,9 @@
 #include "config_handler.h"
 #include "hmi_diagnostic_handler.h"
 #include "base_diagnostic_handler.h"
+#include "servo_manager.h"
 #include <EEPROM.h>
+#include "modular/tray_system.h"
 
 // 全局变量定义
 SystemMode currentMode = MODE_NORMAL;
@@ -30,6 +34,12 @@ extern ScannerDiagnosticHandler scannerDiagnosticHandler;
 extern OutletDiagnosticHandler outletDiagnosticHandler;
 extern EncoderDiagnosticHandler encoderDiagnosticHandler;
 extern HMIDiagnosticHandler hmiDiagnosticHandler;
+extern ServoConfigHandler servoConfigHandler;
+
+extern ServoMonitorHandler servoMonitorHandler;
+extern ServoControlHandler servoSpeedKnobHandler;
+extern ServoControlHandler servoSpeedPotHandler;
+extern ServoControlHandler servoTorqueHandler;
 
 void switchToMode(SystemMode mode) {
     pendingMode = mode;
@@ -44,10 +54,8 @@ void handleReturnToMenu() {
     }
     menuModeActive = true;
     UserInterface::getInstance()->resetDiagnosticMode();
-    // 安全退出：返回主菜单时强制停转电机
-    ModbusController::getInstance()->setSpeed(0);
     
-    Serial.println("[MENU] Returned to Main Menu (Motor STOPPED)");
+    Serial.println("[MENU] Returned to Main Menu");
     UserInterface::getInstance()->clearDisplay();
     UserInterface::getInstance()->renderMenu(menuSystem.getCurrentNode(), menuSystem.getCursorIndex(), menuSystem.getScrollOffset());
 }
@@ -61,16 +69,7 @@ void handleModeChange() {
     }
     
     if (currentMode == MODE_CONFIG_DIAMETER) {
-        Serial.println("[CONFIG] Saving configuration to EEPROM...");
-        EEPROM.begin(512);
-        const int EEPROM_DIAMETER_RANGES_ADDR = 0;
-        EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR, 0xAA);
-        for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
-            EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2, sorter.getOutletMinDiameter(i));
-            EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2 + 1, sorter.getOutletMaxDiameter(i));
-        }
-        EEPROM.commit();
-        Serial.println("[CONFIG] Configuration saved to EEPROM");
+        sorter.saveConfig();
     }
     
     SystemMode oldMode = currentMode;
@@ -97,6 +96,24 @@ void handleModeChange() {
         case MODE_DIAGNOSE_HMI:
             activeHandler = &hmiDiagnosticHandler;
             break;
+        case MODE_CONFIG_DIAMETER:
+            activeHandler = &diameterConfigHandler;
+            break;
+        case MODE_CONFIG_SERVO:
+            activeHandler = &servoConfigHandler;
+            break;
+        case MODE_SERVO_MONITOR:
+            activeHandler = &servoMonitorHandler;
+            break;
+        case MODE_SERVO_SPEED_ENCODER:
+            activeHandler = &servoSpeedKnobHandler;
+            break;
+        case MODE_SERVO_SPEED_POTENTIOMETER:
+            activeHandler = &servoSpeedPotHandler;
+            break;
+        case MODE_SERVO_TORQUE_KNOB:
+            activeHandler = &servoTorqueHandler;
+            break;
         default:
             activeHandler = nullptr;
             break;
@@ -110,27 +127,29 @@ void handleModeChange() {
         diameterConfigHandler.reset();
     }
     
-    // --- 伺服同步逻辑状态机 ---
-    bool needsSpeedModeSync = false;
-    bool forceSync = false;
-
-    if (currentMode == MODE_SERVO_SPEED_ENCODER || currentMode == MODE_SERVO_SPEED_POTENTIOMETER) {
-        needsSpeedModeSync = true;
-        forceSync = true; // 进入测试，强制响声确认
-    }
-    else if (currentMode == MODE_NORMAL && oldMode != MODE_NORMAL) {
-        needsSpeedModeSync = true;
-        forceSync = false; // 返回主模式，智能静默同步
-    }
-
-    // 2. 执行同步逻辑
-    if (needsSpeedModeSync) {
-        ModbusController::getInstance()->syncParameters(true, forceSync);
+    if (oldMode == MODE_CONFIG_SERVO && currentMode != MODE_CONFIG_SERVO) {
+        servoConfigHandler.reset();
+        // 退出配置时，永久同步一次到驱动器
+        servoConfigHandler.applyToServo();
     }
     
-    // 3. 模式退出时的特定清理逻辑
-    if ((oldMode == MODE_SERVO_SPEED_ENCODER || oldMode == MODE_SERVO_SPEED_POTENTIOMETER) && currentMode != oldMode) {
-        ModbusController::getInstance()->setSpeed(0);
+    // --- 伺服状态机意图同步 ---
+    if (currentMode == MODE_SERVO_SPEED_ENCODER || currentMode == MODE_SERVO_SPEED_POTENTIOMETER || currentMode == MODE_DIAGNOSE_ENCODER) {
+        ServoManager::getInstance().setTargetMode(1); // 切换至速度模式意图
+    }
+    else if (currentMode == MODE_SERVO_TORQUE_KNOB) {
+        ServoManager::getInstance().setTargetMode(2); // 切换至转矩模式意图
+    }
+    else if (currentMode == MODE_NORMAL) {
+        ServoManager::getInstance().setTargetMode(1); // 生产模式意图
+    }
+    else if (currentMode == MODE_SERVO_MONITOR) {
+        // Monitor 模式下不强制切换，仅观察
+    }
+    else {
+        // 其他非控制模式下，建议将目标设为 0 (位置/空闲)
+        // ServoManager::getInstance().setTargetMode(0); 
+        ServoManager::getInstance().setTargetCommand(0); // 确保不转
     }
     
     // 获取模式名称的逻辑移动到 mode_processors

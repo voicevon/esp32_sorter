@@ -18,11 +18,14 @@
 #include "rs485_diagnostic_handler.h"
 #include "hmi_diagnostic_handler.h"
 
-// 新模块包含
+#include "menu_config.h"
+#include "servo_monitor_handler.h"
+#include "servo_control_handler.h"
+#include "utils/potentiometer.h"
 #include "modbus_controller.h"
+#include "servo_manager.h"
 #include "system_manager.h"
 #include "mode_processors.h"
-#include "menu_config.h"
 
 // =========================
 // 单例实例
@@ -39,47 +42,28 @@ OutletDiagnosticHandler outletDiagnosticHandler;
 EncoderDiagnosticHandler encoderDiagnosticHandler;
 HMIDiagnosticHandler hmiDiagnosticHandler(UserInterface::getInstance());
 DiameterConfigHandler diameterConfigHandler(userInterface, &sorter);
+ServoConfigHandler servoConfigHandler(userInterface, &sorter);
 RS485DiagnosticHandler rs485DiagnosticHandler;
+ServoMonitorHandler servoMonitorHandler(userInterface);
+ServoControlHandler servoSpeedKnobHandler(userInterface, CTRL_SPEED_KNOB);
+ServoControlHandler servoSpeedPotHandler(userInterface, CTRL_SPEED_POT);
+ServoControlHandler servoTorqueHandler(userInterface, CTRL_TORQUE_KNOB);
 
-// =========================
-// 其它全局变量
-// =========================
 int normalModeSubmode = 0;
 bool hasVersionInfoDisplayed = false;
 String systemName = "Feng's AS-L9";
-// lastModbusSendTime is defined in modbus_controller.cpp
-
-// 电位器平滑滤波
-const int POT_FILTER_WINDOW = 10;
-int potSamples[POT_FILTER_WINDOW] = {0};
-int potSampleIndex = 0;
-long potSum = 0;
-bool potBufferFull = false;
+Potentiometer pot(PIN_POTENTIOMETER);
 unsigned long lastPotSampleTime = 0;
 
-int getSmoothedPot() {
-    int raw = analogRead(PIN_POTENTIOMETER);
-    potSum -= potSamples[potSampleIndex];
-    potSamples[potSampleIndex] = raw;
-    potSum += raw;
-    potSampleIndex = (potSampleIndex + 1) % POT_FILTER_WINDOW;
-    if (potSampleIndex == 0) potBufferFull = true;
-    if (!potBufferFull) return raw;
-    return potSum / POT_FILTER_WINDOW;
-}
-
 void updateSpeedFromPot(uint32_t currentMs) {
-    if (currentMs - lastPotSampleTime >= 100) {
+    if (currentMs - lastPotSampleTime >= 200) {
         lastPotSampleTime = currentMs;
-        // 根据需求，将最大值映射到600，然后减去10，防止负数，使得最大范围在0-590
-        int rawSpeed = map(getSmoothedPot(), 0, 4095, 0, 600);
-        int targetSpeed = rawSpeed - 10;
+        pot.update();
+        int targetSpeed = map(pot.getSmoothedValue(), 0, 4095, 0, 600) - 10;
         if (targetSpeed < 0) targetSpeed = 0;
         
-        // 死区
-        if (abs(targetSpeed - ModbusController::getInstance()->getLastSentSpeed()) > 2) {
-            ModbusController::getInstance()->setSpeed(targetSpeed);
-        }
+        // 使用单例管理者统一调度
+        ServoManager::getInstance().setTargetCommand(targetSpeed);
     }
 }
 
@@ -90,21 +74,20 @@ void setup() {
     userInterface->initialize();
     OLED::getInstance()->initialize();
     Terminal::getInstance()->initialize();
-    userInterface->addDisplayDevice(OLED::getInstance());
-    userInterface->addDisplayDevice(Terminal::getInstance());
+    pot.initialize();
     userInterface->enableOutputChannel(OUTPUT_ALL);
     
-    pinMode(PIN_POWER_MONITOR, INPUT);
-    ModbusController::getInstance()->initialize();
-    pinMode(PIN_POTENTIOMETER, INPUT);
-
     delay(500);
-    userInterface->displayDiagnosticValues("Configuring...", "Modbus Syncing", "Wait 2s...");
-    ModbusController::getInstance()->syncParameters(true);
-    ModbusController::getInstance()->setSpeed(0);
+    userInterface->displayDiagnosticValues("Configuring...", "Servo Manager", "Init...");
     
-    userInterface->displayDiagnosticValues("Servo Init", "Params Synced", "Ready!");
-    delay(1000);
+    // 初始化伺服管理器单例，传入断电保存的加减速与扭矩限制
+    servoConfigHandler.loadFromEEPROM(); 
+    ServoManager::getInstance().begin();
+    // 注入初始配置
+    ServoManager::getInstance().setTargetMode(1); // 默认速度模式
+    
+    userInterface->displayDiagnosticValues("Servo Init", "Assigned", "Ready!");
+    delay(500);
     
     for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
         outletDiagnosticHandler.setOutlet(i, sorter.getOutlet(i));
@@ -135,15 +118,12 @@ void loop() {
     int delta = userInterface->getEncoderDelta();
     bool btnPressed = userInterface->isMasterButtonPressed();
     uint32_t currentMs = millis();
+    
+    // 伺服状态机全局轮询 (处理状态迁移与监控)
+    ServoManager::getInstance().update();
 
     if (menuModeActive) {
         bool needsRefresh = false;
-        if (userInterface->isMasterButtonLongPressed()) {
-            if (menuSystem.getCurrentNode() != nullptr && menuSystem.getCurrentNode()->parent != nullptr) {
-                menuSystem.handleInput(0, false); 
-                needsRefresh = true;
-            }
-        }
         if (delta != 0) {
             menuSystem.handleInput(delta, false);
             needsRefresh = true;
@@ -156,15 +136,17 @@ void loop() {
             userInterface->renderMenu(menuSystem.getCurrentNode(), menuSystem.getCursorIndex(), menuSystem.getScrollOffset());
         }
     } else {
-        if (btnPressed) {
-            handleReturnToMenu();
-            return;
-        }
-        
-        // 核心更新逻辑：如果存在活动处理器，则调用其 update
+        handleModeChange(); // 强制模式状态检查
+
+        // 处理工作模式逻辑
         if (activeHandler) {
-            activeHandler->update(currentMs);
-            // 特定模式需要额外的每帧逻辑
+            // 核心更新逻辑
+            activeHandler->update(currentMs, btnPressed);
+            
+            // 模式特定的附加补丁
+            if (currentMode == MODE_DIAGNOSE_ENCODER || currentMode == MODE_SERVO_SPEED_POTENTIOMETER) {
+                updateSpeedFromPot(currentMs);
+            }
             if (currentMode == MODE_DIAGNOSE_OUTLET) {
                 sorter.run();
                 if (delta != 0) {
@@ -172,6 +154,12 @@ void loop() {
                 }
             }
         } else {
+            // 返回菜单：在独立参数编辑模式下，短按即是“确定并返回列表”
+            if (btnPressed) {
+                handleReturnToMenu();
+                return;
+            }
+            
             // 处理非处理器托管的模式
             switch (currentMode) {
                 case MODE_NORMAL:
@@ -181,10 +169,8 @@ void loop() {
                     
                     updateSpeedFromPot(currentMs);
                     
-                    if (millis() - lastModbusSendTime > 1000) {
-                        lastModbusSendTime = millis();
-                        ModbusController::getInstance()->setEnable(true); 
-                    }
+                    // 移除此处的自动使能逻辑，以保安全
+                    // if (millis() - lastModbusSendTime > 1000) { ... }
                     break;
                 case MODE_DIAGNOSE_POTENTIOMETER:
                     {
@@ -195,34 +181,6 @@ void loop() {
                         }
                     }
                     break;
-                case MODE_SERVO_SPEED_ENCODER:
-                    if (delta != 0) {
-                        int newSpeed = constrain(ModbusController::getInstance()->getLastSentSpeed() + (-delta * 50), MODBUS_SPEED_MIN, MODBUS_SPEED_MAX);
-                        ModbusController::getInstance()->setSpeed(newSpeed);
-                    }
-                    {
-                        static unsigned long lp = 0;
-                        if (currentMs - lp > 500) {
-                            lp = currentMs;
-                            ModbusController::getInstance()->setEnable(true);
-                            userInterface->displayDiagnosticValues("Speed Ctrl (Enc)", "Step: 50rpm", "Set: " + String(ModbusController::getInstance()->getLastSentSpeed()) + " RPM");
-                        }
-                    }
-                    break;
-                case MODE_SERVO_SPEED_POTENTIOMETER:
-                    updateSpeedFromPot(currentMs);
-                    {
-                        static unsigned long lp = 0;
-                        if (currentMs - lp > 500) {
-                            lp = currentMs;
-                            ModbusController::getInstance()->setEnable(true);
-                            userInterface->displayDiagnosticValues("Speed Ctrl (Pot)", "Max 590 RPM", "Set: " + String(ModbusController::getInstance()->getLastSentSpeed()) + " RPM");
-                        }
-                    }
-                    break;
-                case MODE_CONFIG_DIAMETER:
-                    diameterConfigHandler.update();
-                    break;
                 case MODE_VERSION_INFO:
                     processVersionInfoMode();
                     break;
@@ -230,6 +188,5 @@ void loop() {
                     break;
             }
         }
-        handleModeChange();
     }
 }

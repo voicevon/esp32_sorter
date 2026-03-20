@@ -28,10 +28,10 @@ private:
   static Terminal* instance;
   
   // 上一次更新时间
-  unsigned long previousUpdateTime;
+  uint32_t previousUpdateTime;
   
   // 显示更新间隔（毫秒）
-  const unsigned long UPDATE_INTERVAL = 2000;
+  const uint32_t UPDATE_INTERVAL = 2000;
   
   // 终端显示样式常量定义
   // 颜色编号说明：
@@ -81,7 +81,7 @@ public:
   void displayOutletTestGraphic(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen, int subMode) override;
   
   // 显示出口寿命测试专用图形
-  void displayOutletLifetimeTestGraphic(uint8_t outletCount, unsigned long cycleCount, bool outletState, int subMode) override;
+  void displayOutletLifetimeTestGraphic(uint8_t outletCount, uint32_t cycleCount, bool outletState, int subMode) override;
   
   // 显示扫描仪编码器值
   void displayScannerEncoderValues(const int* risingValues, const int* fallingValues) override;

@@ -2,6 +2,9 @@
 
 本文档描述了 ESP32 芦笋分拣系统的软件架构。代码经过重构，采用了**单例模式 (Singleton Only)**、**状态机 (FSM)** 和**配置中心化 (Centralized Config)** 等设计模式。
 
+> [!TIP]
+> 关于伺服系统的深度设计与交互逻辑，请参考 **[伺服架构指南 (Architecture Guide)](./Architecture_Guide.md)**。
+
 ## 1. 类关系图 (Class Diagram)
 
 系统核心由 `Sorter` 控制器协调，它通过单例访问各个硬件子系统。

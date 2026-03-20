@@ -65,64 +65,42 @@ void ModbusController::requestRegisterRead(uint16_t regAddr) {
     frame[6] = crc & 0xFF;
     frame[7] = (crc >> 8) & 0xFF;
 
-    Serial.print("[Modbus RX-REQ] ");
-    for(int i=0; i<8; i++) Serial.printf("%02X ", frame[i]);
-    Serial.println();
-
     digitalWrite(PIN_RS485_EN, HIGH);
     Serial1.write(frame, 8);
     Serial1.flush();
     digitalWrite(PIN_RS485_EN, LOW);
 }
 
-void ModbusController::setSpeed(int speedRpm) {
-    if (speedRpm < MODBUS_SPEED_MIN) speedRpm = MODBUS_SPEED_MIN;
-    if (speedRpm > MODBUS_SPEED_MAX) speedRpm = MODBUS_SPEED_MAX;
-    
-    writeRegister(MODBUS_SERVO_SPEED_REG, (uint16_t)speedRpm);
-    _lastSentSpeed = speedRpm;
-}
+// 同步读取寄存器 (阻塞式，带超时)
+uint16_t ModbusController::readRegisterSync(uint16_t regAddr) {
+    // 强制清理接收槽位，排除残余干扰
+    while (Serial1.available()) Serial1.read();
+    delay(10); // 呼吸间隔
 
-void ModbusController::softReset() {
-    Serial.println("[Modbus] Executing Soft Reset (FA-60)...");
-    writeRegister(0x003C, 1);
-}
-
-void ModbusController::setEnable(bool enable) {
-    writeRegister(0x0035, enable ? 1 : 0);
-}
-
-void ModbusController::syncParameters(bool isSpeedMode, bool force) {
-    int requestedMode = isSpeedMode ? 1 : 0;
+    requestRegisterRead(regAddr);
     
-    if (!force && _lastSyncedServoMode == requestedMode) {
-        return;
-    }
-
-    Serial.printf("[Modbus] Class Sync (Mode: %s)...\n", isSpeedMode ? "SPEED" : "POS_PULSE");
+    unsigned long startTime = millis();
+    uint8_t buffer[7]; // SlaveID(1) + CMD(1) + Len(1) + Value(2) + CRC(2)
+    int bytesRead = 0;
     
-    setEnable(false); // Disable
-    delay(150);
-    
-    if (isSpeedMode) {
-        writeRegister(0x0004, 1); // PA4=1
-        delay(150);
-        softReset();
-        delay(1000); 
-        writeRegister(0x0016, 1); // PA22=1
-        delay(150);
-    } else {
-        // 恢复脉冲位置模式 (PA4=0)
-        writeRegister(0x0004, 0);
-        delay(150);
-        softReset();
-        delay(500);
-        writeRegister(0x0016, 0); 
-        delay(150);
+    // 增加一点等待时间，驱动器响应可能存在滞后
+    while (millis() - startTime < 150) { 
+        if (Serial1.available()) {
+            buffer[bytesRead++] = Serial1.read();
+            if (bytesRead >= 7) break;
+        }
+        yield(); // 给 ESP32 其它后台任务留点时间
     }
     
-    setEnable(true); // Enable
-    delay(200);
+    if (bytesRead < 7) {
+        // Serial.printf("[Modbus ERR] Read Timeout at 0x%04X, bytes: %d\n", regAddr, bytesRead);
+        return 0xFFFF; // 读取失败
+    }
     
-    _lastSyncedServoMode = requestedMode;
+    // 校验响应头
+    if (buffer[0] != MODBUS_SERVO_SLAVE_ID || buffer[1] != 0x03) return 0xFFFE;
+    
+    uint16_t value = (buffer[3] << 8) | buffer[4];
+    return value;
 }
+

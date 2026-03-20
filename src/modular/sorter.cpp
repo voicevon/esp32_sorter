@@ -428,3 +428,15 @@ void Sorter::updateShiftRegisters() {
         lastShiftData = currentData;
     }
 }
+void Sorter::saveConfig() {
+    Serial.println("[Sorter] Saving configuration to EEPROM...");
+    EEPROM.begin(512);
+    const int EEPROM_DIAMETER_RANGES_ADDR = 0;
+    EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR, 0xAA);
+    for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
+        EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2, outlets[i].getMatchDiameterMin());
+        EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2 + 1, outlets[i].getMatchDiameterMax());
+    }
+    EEPROM.commit();
+    Serial.println("[Sorter] Configuration saved successfully.");
+}

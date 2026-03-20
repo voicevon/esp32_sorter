@@ -421,7 +421,7 @@ void OLED::displayOutletTestLifetime(uint8_t outletCount, uint8_t cycleCount) {
 }
 
 // 寿命测试专用
-void OLED::displayOutletLifetimeTestGraphic(uint8_t outletCount, unsigned long cycleCount, bool outletState, int subMode) {
+void OLED::displayOutletLifetimeTestGraphic(uint8_t outletCount, uint32_t cycleCount, bool outletState, int subMode) {
   if (!isDisplayAvailable) return;
   display.clearDisplay();
   display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);

@@ -32,5 +32,5 @@ public:
     
     // 实现基类接口
     void begin() override;
-    void update(unsigned long currentTime) override;
+    void update(uint32_t currentTime, bool btnPressed) override;
 };

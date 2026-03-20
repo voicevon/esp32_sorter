@@ -10,7 +10,7 @@ private:
     UserInterface* userInterface;
     long totalRawPulses;
     long totalLogicalUnits;
-    unsigned long lastDisplayTime;
+    uint32_t lastDisplayTime;
     int currentPulses;
     
 public:
@@ -26,8 +26,12 @@ public:
         Serial.println("[DIAGNOSTIC] HMI Encoder Diagnostic Started");
     }
     
-    void update(unsigned long currentTime) override {
-        // 实时获取原始脉冲（不影响全局逻辑累加，因为这个模式下我们只看原始值）
+    void update(uint32_t currentTime, bool btnPressed) override {
+        if (btnPressed) {
+            handleReturnToMenu();
+            return;
+        }
+        
         // 实际上 SimpleHMI 的单例 getEncoderDelta 会清零累计值。
         // 为了不破坏 normal 逻辑，我们专门增加一个 getRawEncoderDelta。
         

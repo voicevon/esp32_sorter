@@ -19,20 +19,20 @@ private:
     // static const int NUM_OUTLETS = NUM_OUTLETS; // Avoid shadowing warning, just use global
     
     // 诊断模式状态变量
-    unsigned long modeStartTime;
-    unsigned long lastOutletTime;
+    uint32_t modeStartTime;
+    uint32_t lastOutletTime;
     bool outletState;
     uint8_t currentOutlet;
     bool displayInitialized;
     int currentSubMode;
     int lastSubMode;
-    unsigned long lastUpdateTime;
+    uint32_t lastUpdateTime;
     
     // 电磁铁寿命测试模式专用变量
-    unsigned long cycleCount;  // 循环次数计数器
+    uint32_t cycleCount;  // 循环次数计数器
     
     // 私有方法：处理周期操作的公共逻辑
-    void processCycleOperation(unsigned long currentTime, unsigned long interval, const String& testType);
+    void processCycleOperation(uint32_t currentTime, uint32_t interval, const String& testType);
     
 public:
     /**
@@ -72,7 +72,7 @@ public:
     
     // 实现基类接口
     void begin() override;
-    void update(unsigned long currentTime) override;
+    void update(uint32_t currentTime, bool btnPressed) override;
     void end() override;
     
 private:
@@ -80,5 +80,5 @@ private:
     UserInterface* userInterface;
     
     // 私有初始化方法
-    void initializeDiagnosticMode(unsigned long currentTime);
+    void initializeDiagnosticMode(uint32_t currentTime);
 };

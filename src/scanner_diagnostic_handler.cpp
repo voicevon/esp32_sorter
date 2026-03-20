@@ -360,10 +360,23 @@ void ScannerDiagnosticHandler::handleRawDiameterDisplay() {
     }
 }
 
-void ScannerDiagnosticHandler::update(unsigned long currentTime) {
-    // 检查子模式是否变化
-    if (lastSubMode != currentSubMode) {
-        lastSubMode = currentSubMode;
+void ScannerDiagnosticHandler::begin() {
+    currentSubMode = 0;
+    lastIOStatus = "";
+    Serial.println("[DIAGNOSTIC] Scanner Diagnostic Started");
+    // 初次显示由 update() 自动触发，因为 lastSubMode 还没更新。
+    // 为了保险，我们可以调用一次初始显示
+    handleIOStatusCheck();
+}
+
+void ScannerDiagnosticHandler::update(uint32_t currentTime, bool btnPressed) {
+    if (btnPressed) {
+        if (currentSubMode == 3) {
+            handleReturnToMenu();
+            return;
+        }
+        switchToNextSubMode();
+        return;
     }
     
     // 根据子模式调用相应的处理函数
@@ -377,12 +390,16 @@ void ScannerDiagnosticHandler::update(unsigned long currentTime) {
         case 2:
             handleRawDiameterDisplay();
             break;
+        case 3:
+            // 退出提示界面
+            userInterface->displayDiagnosticInfo("Scanner Diag", "Status: Ready\nAction: EXIT\n\nClick to return...");
+            break;
     }
 }
 
 void ScannerDiagnosticHandler::switchToNextSubMode() {
-    // 切换子模式（0 -> 1 -> 2 -> 0）
-    currentSubMode = (currentSubMode + 1) % 3;
+    // 切换子模式（0 -> 1 -> 2 -> 3 -> 0）
+    currentSubMode = (currentSubMode + 1) % 4;
     
     // 如果切换到IO状态检查子模式，将上升沿计数器清零
     if (currentSubMode == 0) {

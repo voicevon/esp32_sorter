@@ -17,30 +17,20 @@ public:
     // 初始化串口与引脚
     void initialize();
 
-    // 核心控制接口
-    void setSpeed(int speedRpm);
-    void softReset();
-    void setEnable(bool enable);
-    
-    // 状态同步
-    void syncParameters(bool isSpeedMode, bool force = false);
-
     // 数据读取
     void requestRegisterRead(uint16_t regAddr);
 
-    // 状态查询
-    int getLastSentSpeed() const { return _lastSentSpeed; }
-    int getLastSyncedMode() const { return _lastSyncedServoMode; }
+    // 底层通讯 (仅提供原始寄存器读写)
+    void writeRegister(uint16_t regAddr, uint16_t regValue);
+    uint16_t readRegisterSync(uint16_t regAddr);
 
 private:
-    ModbusController() : _lastSentSpeed(-1), _lastSyncedServoMode(-1) {}
+    ModbusController() {}
     
     // 禁止拷贝
     ModbusController(const ModbusController&) = delete;
     ModbusController& operator=(const ModbusController&) = delete;
 
-    // 底层通讯
-    void writeRegister(uint16_t regAddr, uint16_t regValue);
     uint16_t calculateCRC16(const uint8_t *data, uint16_t length);
 
     // 内部变量

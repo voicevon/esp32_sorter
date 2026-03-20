@@ -42,15 +42,15 @@ private:
   bool isDisplayAvailable;
   
   // 最后更新时间
-  unsigned long lastUpdateTime;
+  uint32_t lastUpdateTime;
   
   // 显示更新间隔（毫秒）
-  const unsigned long UPDATE_INTERVAL = 500;
+  const uint32_t UPDATE_INTERVAL = 500;
   
   // 临时显示状态管理
   bool isTemporaryDisplayActive;  // 是否正在显示临时信息
-  unsigned long temporaryDisplayStartTime;  // 临时显示开始时间
-  unsigned long temporaryDisplayDuration;  // 临时显示持续时间
+  uint32_t temporaryDisplayStartTime;  // 临时显示开始时间
+  uint32_t temporaryDisplayDuration;  // 临时显示持续时间
   
   // 诊断模式显示状态管理
   bool isDiagnosticModeActive;  // 是否处于诊断模式显示状态
@@ -113,7 +113,7 @@ public:
   void displayOutletTestGraphic(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen, int subMode) override;
   
   // 显示出口寿命测试专用图形
-  void displayOutletLifetimeTestGraphic(uint8_t outletCount, unsigned long cycleCount, bool outletState, int subMode) override;
+  void displayOutletLifetimeTestGraphic(uint8_t outletCount, uint32_t cycleCount, bool outletState, int subMode) override;
   
   // 显示扫描仪编码器值
   void displayScannerEncoderValues(const int* risingValues, const int* fallingValues) override;

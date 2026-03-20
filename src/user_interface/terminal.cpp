@@ -164,7 +164,7 @@ void Terminal::displayOutletTestGraphic(uint8_t outletCount, uint8_t selectedOut
 }
 
 // 显示出口寿命测试专用图形（三行简洁版本）
-void Terminal::displayOutletLifetimeTestGraphic(uint8_t outletCount, unsigned long cycleCount, bool outletState, int subMode) {
+void Terminal::displayOutletLifetimeTestGraphic(uint8_t outletCount, uint32_t cycleCount, bool outletState, int subMode) {
     if (subMode == 2) {
         // 检查是否是第一次显示
         static bool firstDisplay = true;

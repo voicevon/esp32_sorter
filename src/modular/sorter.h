@@ -117,4 +117,6 @@ public:
     void setOutletMinDiameter(uint8_t outletIndex, int minDiameter);
     void setOutletMaxDiameter(uint8_t outletIndex, int maxDiameter);
     
+    // 配置持久化
+    void saveConfig();
 };

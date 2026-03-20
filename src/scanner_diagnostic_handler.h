@@ -47,9 +47,14 @@ public:
     void displayRawDiameters();
     
     /**
+     * 初始化扫描仪诊断
+     */
+    void begin() override;
+
+    /**
      * 主更新方法，处理所有诊断逻辑
      */
-    void update(unsigned long currentTime) override;
+    void update(uint32_t currentTime, bool btnPressed) override;
     
     /**
      * 切换到下一个子模式
