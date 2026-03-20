@@ -23,9 +23,9 @@ uint16_t ModbusController::calculateCRC16(const uint8_t *data, uint16_t length) 
 }
 
 // ─────────────────────────────────────────────
-// 写寄存器 (同步发送，约 1ms，无阻塞等待)
+// 内部写实现 (直接操作总线，无仲裁)
 // ─────────────────────────────────────────────
-void ModbusController::writeRegister(uint16_t regAddr, uint16_t regValue) {
+void ModbusController::_doWrite(uint16_t regAddr, uint16_t regValue) {
     uint8_t frame[8];
     frame[0] = MODBUS_SERVO_SLAVE_ID;
     frame[1] = 0x06;
@@ -45,11 +45,26 @@ void ModbusController::writeRegister(uint16_t regAddr, uint16_t regValue) {
 }
 
 // ─────────────────────────────────────────────
+// 写寄存器 (含总线仲裁)
+// 若当前有读请求正在飞行，写操作被缓冲至写队列，
+// pollReadResult() 完成后立即执行。
+// ─────────────────────────────────────────────
+void ModbusController::writeRegister(uint16_t regAddr, uint16_t regValue) {
+    if (_rxPending) {
+        // 读请求还在飞行中 —— 缓冲写操作（后写覆盖前写，对速度指令安全）
+        _pendingWriteAddr  = regAddr;
+        _pendingWriteValue = regValue;
+        _pendingWriteValid = true;
+        return;
+    }
+    _doWrite(regAddr, regValue);
+}
+
+// ─────────────────────────────────────────────
 // 异步读: Step 1 — 发出读请求 (立即返回)
 // ─────────────────────────────────────────────
 void ModbusController::requestRegisterRead(uint16_t regAddr) {
-    // 清空上一次的残留数据
-    while (Serial1.available()) Serial1.read();
+    while (Serial1.available()) Serial1.read(); // 清残留
 
     uint8_t frame[8];
     frame[0] = MODBUS_SERVO_SLAVE_ID;
@@ -67,52 +82,57 @@ void ModbusController::requestRegisterRead(uint16_t regAddr) {
     Serial1.flush();
     digitalWrite(PIN_RS485_EN, LOW);
 
-    // 启动异步等待状态
     _rxCount   = 0;
     _rxPending = true;
     _rxStartMs = millis();
 }
 
 // ─────────────────────────────────────────────
-// 异步读: Step 2 — 在 loop() 中轮询 (非阻塞)
-// 返回 true  → outValue 已填充，数据有效
-// 返回 false → 数据尚未到达 / 已超时
+// 异步读: Step 2 — 轮询结果 (非阻塞)
+// 返回 true  → outValue 已填充 (数据有效或超时)
+// 返回 false → 数据尚未到达，本次 loop 跳过
 // ─────────────────────────────────────────────
 bool ModbusController::pollReadResult(uint16_t &outValue) {
     if (!_rxPending) return false;
 
-    // 读取已到达的字节（不等待）
     while (Serial1.available() && _rxCount < 7) {
         _rxBuf[_rxCount++] = Serial1.read();
     }
 
+    bool completed = false;
+
     if (_rxCount >= 7) {
-        _rxPending = false;
+        completed = true;
         if (_rxBuf[0] != MODBUS_SERVO_SLAVE_ID || _rxBuf[1] != 0x03) {
-            outValue = 0xFFFE; // 响应帧错误
-            return true;
+            outValue = 0xFFFE;
+        } else {
+            outValue = ((uint16_t)_rxBuf[3] << 8) | _rxBuf[4];
         }
-        outValue = ((uint16_t)_rxBuf[3] << 8) | _rxBuf[4];
-        return true;
+    } else if (millis() - _rxStartMs > RX_TIMEOUT_MS) {
+        completed = true;
+        outValue = 0xFFFF; // 超时
     }
 
-    // 超时判断
-    if (millis() - _rxStartMs > RX_TIMEOUT_MS) {
+    if (completed) {
         _rxPending = false;
-        outValue = 0xFFFF; // 超时，无响应
-        return true;
+
+        // ── 总线仲裁: 立即执行被缓冲的写操作 ──
+        if (_pendingWriteValid) {
+            _pendingWriteValid = false;
+            _doWrite(_pendingWriteAddr, _pendingWriteValue);
+        }
     }
 
-    return false; // 数据还没到，本次 loop() 跳过
+    return completed;
 }
 
 // ─────────────────────────────────────────────
-// 废弃的阻塞读 (仅供配置写入等低频场景使用)
+// 废弃阻塞读 (仅低频配置场景)
 // ─────────────────────────────────────────────
 uint16_t ModbusController::readRegisterSync(uint16_t regAddr) {
     requestRegisterRead(regAddr);
     uint32_t start = millis();
-    while (millis() - start < RX_TIMEOUT_MS) {
+    while (millis() - start < RX_TIMEOUT_MS * 2) {
         uint16_t val;
         if (pollReadResult(val)) return val;
     }

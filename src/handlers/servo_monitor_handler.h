@@ -2,20 +2,29 @@
 #define SERVO_MONITOR_HANDLER_H
 
 #include "base_diagnostic_handler.h"
-#include "../servo/modbus_controller.h"
+#include "../servo/servo_manager.h"
 #include "../user_interface/user_interface.h"
 
+/**
+ * @brief ServoMonitorHandler — 伺服实时状态仪表盘
+ *
+ * 完全从 ServoManager::getData() 缓存读取数据，
+ * 不发起任何直接 Modbus 通讯，无阻塞。
+ *
+ * 数据刷新由 ServoManager::update() 的异步轮询驱动，
+ * 7 个寄存器按序轮转，每轮约 7×(50ms) = 350ms 完成一次完整采样。
+ */
 class ServoMonitorHandler : public BaseDiagnosticHandler {
 private:
     UserInterface* userInterface;
     uint32_t lastRefreshMs = 0;
-    int currentPage = 0; // 0: Overview, 1: Live Data, 2: Electrical
-    
+    int currentPage = 0; // 0: 概览 | 1: 实时数据 | 2: 电气
+
 public:
     ServoMonitorHandler(UserInterface* ui) : userInterface(ui) {}
 
     void begin() override {
-        Serial.println("[DASHBOARD] Servo Monitor Started");
+        Serial.println("[Dashboard] Servo Monitor Started");
         lastRefreshMs = 0;
         currentPage = 0;
     }
@@ -26,7 +35,6 @@ public:
             return;
         }
 
-        // 处理旋钮翻页
         int delta = userInterface->getEncoderDelta();
         if (delta != 0) {
             currentPage = (currentPage + delta + 3) % 3;
@@ -40,42 +48,42 @@ public:
     }
 
     void end() override {
-        Serial.println("[DASHBOARD] Servo Monitor Stopped");
+        Serial.println("[Dashboard] Servo Monitor Stopped");
     }
 
 private:
     void refreshDashboard() {
-        auto m = ModbusController::getInstance();
-        
+        const auto& d  = ServoManager::getInstance().getData();
+        const auto& sm = ServoManager::getInstance();
+
         if (currentPage == 0) {
             // PAGE 0: 概览
-            uint16_t mode  = m->readRegisterSync(0x0004);
-            uint16_t alarm = m->readRegisterSync(0x1013);
-            
-            String modeStr = "Unknown";
-            if (mode == 0) modeStr = "Position";
-            else if (mode == 1) modeStr = "Speed";
-            else if (mode == 2) modeStr = "Torque";
+            String modeStr  = "Unknown";
+            if (d.currentMode == 0) modeStr = "Position";
+            else if (d.currentMode == 1) modeStr = "Speed";
+            else if (d.currentMode == 2) modeStr = "Torque";
 
-            String alarmStr = (alarm == 0xFFFF) ? "ERR" : (alarm == 0 ? "Normal" : "ALM-" + String(alarm));
+            String stateStr = sm.getStateName();
+            String alarmStr = (d.alarmCode == 0xFFFF) ? "ERR" :
+                              (d.alarmCode == 0)      ? "Normal" :
+                              "ALM-" + String(d.alarmCode);
 
-            userInterface->displayDiagnosticInfo("Servo Dashboard [1/3]", 
-                "Mode:   " + modeStr + "\n" +
-                "Status: " + alarmStr + "\n" +
-                "\n" +
+            userInterface->displayDiagnosticInfo("Servo Overview [1/3]",
+                "State:  " + stateStr  + "\n" +
+                "Mode:   " + modeStr   + "\n" +
+                "Alarm:  " + alarmStr  + "\n" +
                 "  < Knob to Flip >");
-        } 
+        }
         else if (currentPage == 1) {
             // PAGE 1: 实时数据
-            uint16_t speed   = m->readRegisterSync(0x1000);
-            uint16_t torque  = m->readRegisterSync(0x1007);
-            uint16_t current = m->readRegisterSync(0x1008);
+            String speedStr   = (d.statusWord == 0xFFFF) ? "ERR" :
+                                String(d.actualSpeed) + " RPM";
+            String torqueStr  = (d.statusWord == 0xFFFF) ? "ERR" :
+                                String(d.actualTorque, 1) + " %";
+            String currStr    = (d.phaseCurrent == 0xFFFF) ? "ERR" :
+                                String(d.phaseCurrent / 10.0f, 1) + " A";
 
-            String speedStr  = (speed   == 0xFFFF) ? "ERR" : String((int16_t)speed)  + " RPM";
-            String torqueStr = (torque  == 0xFFFF) ? "ERR" : String((int16_t)torque) + " %";
-            String currStr   = (current == 0xFFFF) ? "ERR" : String(current / 10.0f, 1) + " A";
-
-            userInterface->displayDiagnosticInfo("Servo Dashboard [2/3]", 
+            userInterface->displayDiagnosticInfo("Live Data [2/3]",
                 "Speed:  " + speedStr  + "\n" +
                 "Torque: " + torqueStr + "\n" +
                 "Curr:   " + currStr   + "\n" +
@@ -83,13 +91,13 @@ private:
         }
         else {
             // PAGE 2: 电气与通讯
-            uint16_t busV = m->readRegisterSync(0x1012);
-            String vStr = (busV == 0xFFFF) ? "COMM ERR" : String(busV) + " V";
+            String vStr = (d.busVoltage == 0xFFFF) ? "COMM ERR" :
+                          String(d.busVoltage) + " V";
 
-            userInterface->displayDiagnosticInfo("Servo Dashboard [3/3]", 
+            userInterface->displayDiagnosticInfo("Electrical [3/3]",
                 "Bus Volt: " + vStr + "\n" +
-                "Station:  1\n" +
-                "Baud:     9600\n" +
+                "Station:  1\n"
+                "Baud:     " + String(MODBUS_BAUD_RATE) + "\n" +
                 "  < Knob to Flip >");
         }
     }

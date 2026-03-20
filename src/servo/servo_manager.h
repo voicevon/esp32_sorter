@@ -18,12 +18,14 @@ enum ServoState {
 };
 
 struct ServoMonitorData {
-    int actualSpeed;
-    float actualTorque;
-    long position;
-    uint16_t statusWord;
-    uint16_t alarmCode;
-    int currentMode;
+    int      actualSpeed;    // 0x1000
+    float    actualTorque;   // 0x1007
+    long     position;
+    uint16_t statusWord;     // 0x2001
+    uint16_t alarmCode;      // 0x1013
+    int      currentMode;    // 0x1009
+    uint16_t phaseCurrent;   // 0x1008  (0.1A/bit)
+    uint16_t busVoltage;     // 0x1012  (V)
 };
 
 class ServoManager {

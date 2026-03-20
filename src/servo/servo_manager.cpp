@@ -135,11 +135,13 @@ void ServoManager::updateMonitor() {
 
         // 根据当前 step 将结果填入对应字段
         switch (_monitorStep) {
-            case 0: _data.statusWord  = val; break;
-            case 1: _data.alarmCode   = val; break;
-            case 2: _data.currentMode = (int)val; break;
-            case 3: _data.actualSpeed = (int16_t)val; break;
-            case 4: _data.actualTorque = (float)((int16_t)val); break;
+            case 0: _data.statusWord    = val; break;
+            case 1: _data.alarmCode     = val; break;
+            case 2: _data.currentMode   = (int)val; break;
+            case 3: _data.actualSpeed   = (int16_t)val; break;
+            case 4: _data.actualTorque  = (float)((int16_t)val); break;
+            case 5: _data.phaseCurrent  = val; break;
+            case 6: _data.busVoltage    = val; break;
         }
 
         // 通讯丢失检测 (只在 statusWord 回来时判断)
@@ -153,17 +155,19 @@ void ServoManager::updateMonitor() {
         }
 
         // 推进到下一个寄存器
-        _monitorStep = (_monitorStep + 1) % 5;
+        _monitorStep = (_monitorStep + 1) % 7;
         return;
     }
 
     // --- 阶段 B: 发起下一个寄存器的读请求 ---
-    static const uint16_t kRegs[5] = {
+    static const uint16_t kRegs[7] = {
         0x2001,  // statusWord
         0x1013,  // alarmCode
         0x1009,  // currentMode
         0x1000,  // actualSpeed
         0x1007,  // actualTorque
+        0x1008,  // phaseCurrent
+        0x1012,  // busVoltage
     };
     m->requestRegisterRead(kRegs[_monitorStep]);
     _monitorPending = true;
