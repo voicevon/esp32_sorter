@@ -15,15 +15,9 @@
 #include "handlers/outlet_diagnostic_handler.h"
 #include "handlers/encoder_diagnostic_handler.h"
 #include "handlers/config_handler.h"
-#include "handlers/rs485_diagnostic_handler.h"
 #include "handlers/hmi_diagnostic_handler.h"
 
 #include "system/menu_config.h"
-#include "handlers/servo_monitor_handler.h"
-#include "handlers/servo_control_handler.h"
-#include "modular/potentiometer.h"
-#include "servo/modbus_controller.h"
-#include "servo/servo_manager.h"
 #include "system/system_manager.h"
 #include "system/mode_processors.h"
 
@@ -42,30 +36,10 @@ OutletDiagnosticHandler outletDiagnosticHandler;
 EncoderDiagnosticHandler encoderDiagnosticHandler;
 HMIDiagnosticHandler hmiDiagnosticHandler(UserInterface::getInstance());
 DiameterConfigHandler diameterConfigHandler(userInterface, &sorter);
-ServoConfigHandler servoConfigHandler(userInterface, &sorter);
-RS485DiagnosticHandler rs485DiagnosticHandler;
-ServoMonitorHandler servoMonitorHandler(userInterface);
-ServoControlHandler servoSpeedKnobHandler(userInterface, CTRL_SPEED_KNOB);
-ServoControlHandler servoSpeedPotHandler(userInterface, CTRL_SPEED_POT);
-ServoControlHandler servoTorqueHandler(userInterface, CTRL_TORQUE_KNOB);
 
 int normalModeSubmode = 0;
 bool hasVersionInfoDisplayed = false;
 String systemName = "Feng's AS-L9";
-Potentiometer speedPot(PIN_POTENTIOMETER);
-unsigned long lastPotSampleTime = 0;
-
-void updateSpeedFromPot(uint32_t currentMs) {
-    if (currentMs - lastPotSampleTime >= 200) {
-        lastPotSampleTime = currentMs;
-        speedPot.update();
-        int targetSpeed = map(speedPot.getSmoothedValue(), 0, 4095, 0, 600) - 10;
-        if (targetSpeed < 0) targetSpeed = 0;
-        
-        // 使用单例管理者统一调度
-        ServoManager::getInstance().setTargetCommand(targetSpeed);
-    }
-}
 
 void setup() {
     Serial.begin(115200);
@@ -74,19 +48,13 @@ void setup() {
     userInterface->initialize();
     OLED::getInstance()->initialize();
     Terminal::getInstance()->initialize();
-    speedPot.initialize();
+    
+    // 注入显示设备
+    UserInterface::addExternalDisplayDevice(OLED::getInstance());
+    UserInterface::addExternalDisplayDevice(Terminal::getInstance());
+    
     userInterface->enableOutputChannel(OUTPUT_ALL);
     
-    delay(500);
-    userInterface->displayDiagnosticValues("Configuring...", "Servo Manager", "Init...");
-    
-    // 初始化伺服管理器单例，传入断电保存的加减速与扭矩限制
-    servoConfigHandler.loadFromEEPROM(); 
-    ServoManager::getInstance().begin();
-    // 注入初始配置
-    ServoManager::getInstance().setTargetMode(1); // 默认速度模式
-    
-    userInterface->displayDiagnosticValues("Servo Init", "Assigned", "Ready!");
     delay(500);
     
     for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
@@ -108,7 +76,6 @@ void setup() {
     
     outletDiagnosticHandler.initialize(userInterface);
     encoderDiagnosticHandler.initialize(userInterface);
-    rs485DiagnosticHandler.initialize(userInterface, &sorter);
     
     setupMenuTree();
     Serial.println("System ready");
@@ -119,9 +86,6 @@ void loop() {
     bool btnPressed = userInterface->isMasterButtonPressed();
     uint32_t currentMs = millis();
     
-    // 伺服状态机全局轮询 (处理状态迁移与监控)
-    ServoManager::getInstance().update();
-
     if (menuModeActive) {
         bool needsRefresh = false;
         if (delta != 0) {
@@ -144,9 +108,6 @@ void loop() {
             activeHandler->update(currentMs, btnPressed);
             
             // 模式特定的附加补丁
-            if (currentMode == MODE_DIAGNOSE_ENCODER || currentMode == MODE_SERVO_SPEED_POTENTIOMETER) {
-                updateSpeedFromPot(currentMs);
-            }
             if (currentMode == MODE_DIAGNOSE_OUTLET) {
                 sorter.run();
                 if (delta != 0) {
@@ -166,17 +127,6 @@ void loop() {
                     if (delta != 0) normalModeSubmode = (normalModeSubmode + 1) % 2;
                     processNormalMode();
                     sorter.run();
-                    
-                    updateSpeedFromPot(currentMs);
-                    break;
-                case MODE_DIAGNOSE_POTENTIOMETER:
-                    {
-                        static unsigned long lp = 0;
-                        if (currentMs - lp > 100) {
-                            lp = currentMs;
-                            userInterface->displayDiagnosticValues("Potentiometer Test", "Pin: 25", "Raw: " + String(analogRead(PIN_POTENTIOMETER)));
-                        }
-                    }
                     break;
                 case MODE_VERSION_INFO:
                     processVersionInfoMode();

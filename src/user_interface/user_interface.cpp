@@ -351,10 +351,6 @@ String UserInterface::translate(const String& key) const {
         if (key == "Encoder Diag") return "编码器诊断";
         if (key == "Scanner Diag") return "扫描仪诊断";
         if (key == "Outlet Diag") return "出口诊断";
-        if (key == "Feeder Test") return "上料器测试";
-        if (key == "Pot Test") return "电位器测试";
-        if (key == "Speed Ctrl (Enc)") return "速度控制-旋钮";
-        if (key == "Speed Ctrl (Pot)") return "速度控制-电位器";
         if (key == "Version Info") return "版本信息";
         if (key == "Submode") return "子模式";
         if (key == "Switch to Submode") return "切换到子模式";

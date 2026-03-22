@@ -6,7 +6,6 @@
 #include "outlet.h"
 #include "../config.h"
 #include "main.h"
-#include "esp32servo.h"
 #include "user_interface/simple_hmi.h"
 
 // 前向声明

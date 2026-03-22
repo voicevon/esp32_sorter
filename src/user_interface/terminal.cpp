@@ -69,6 +69,12 @@ void Terminal::displayModeChange(SystemMode newMode) {
         case MODE_VERSION_INFO:
             modeName = "Version Information";
             break;
+        case MODE_DIAGNOSE_HMI:
+            modeName = "HMI Encoder Diagnostics";
+            break;
+        case MODE_CONFIG_DIAMETER:
+            modeName = "Diameter Configuration";
+            break;
         default:
             modeName = "Unknown Mode";
             break;
@@ -171,7 +177,7 @@ void Terminal::displayOutletLifetimeTestGraphic(uint8_t outletCount, uint32_t cy
         
         if (firstDisplay) {
             // 第一次显示时，打印三行格式（蓝色背景，红色标题，白色正文）
-            Serial.println("\n" + STYLE_DATA_WINDOW_TITLE + "      === Servo Lifetime Test ===      " + STYLE_RESET);
+            Serial.println("\n" + STYLE_DATA_WINDOW_TITLE + "      === Outlet Lifetime Test ===      " + STYLE_RESET);
             Serial.println(STYLE_DATA_WINDOW_CONTENT + "Outlet Count: 0 | Cycle: 0             " + STYLE_RESET);
             Serial.println(STYLE_DATA_WINDOW_CONTENT + "State: Closed                          " + STYLE_RESET);
             firstDisplay = false;
@@ -180,7 +186,7 @@ void Terminal::displayOutletLifetimeTestGraphic(uint8_t outletCount, uint32_t cy
             Serial.print("\033[3A"); // 向上移动3行到标题行
             
             // 重新打印标题行（蓝色背景，红色标题）
-            Serial.print(STYLE_DATA_WINDOW_TITLE + "      === Servo Lifetime Test ===      " + STYLE_RESET); Serial.println();
+            Serial.print(STYLE_DATA_WINDOW_TITLE + "      === Outlet Lifetime Test ===      " + STYLE_RESET); Serial.println();
             
             // 更新出口和循环数据行（蓝色背景，白色正文）
             Serial.print(STYLE_DATA_WINDOW_CONTENT + "Outlet Count: ");

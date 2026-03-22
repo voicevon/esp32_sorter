@@ -51,13 +51,9 @@ String getSystemModeName(SystemMode mode) {
         case MODE_NORMAL: return "Normal Mode";
         case MODE_DIAGNOSE_ENCODER: return "Encoder Diag";
         case MODE_DIAGNOSE_SCANNER: return "Scanner Diag";
-        case MODE_DIAGNOSE_POTENTIOMETER: return "Pot Test";
-        case MODE_SERVO_SPEED_ENCODER: return "Speed Ctrl (Enc)";
-        case MODE_SERVO_SPEED_POTENTIOMETER: return "Speed Ctrl (Pot)";
         case MODE_DIAGNOSE_OUTLET: return "Outlet Diag";
         case MODE_VERSION_INFO: return "Version Info";
         case MODE_CONFIG_DIAMETER: return "Config Diameter";
-        case MODE_DIAGNOSE_RS485: return "RS485 Diag";
         case MODE_DIAGNOSE_HMI: return "HMI Encoder Diag";
         default: return "Unknown Mode";
     }

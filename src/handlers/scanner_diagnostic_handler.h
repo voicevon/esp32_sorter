@@ -60,6 +60,7 @@ public:
      * 切换到下一个子模式
      */
     void switchToNextSubMode();
+    void setSubMode(int mode);
     
     /**
      * 获取当前子模式

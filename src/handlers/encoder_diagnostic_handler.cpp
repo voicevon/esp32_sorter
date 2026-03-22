@@ -1,5 +1,4 @@
 #include "encoder_diagnostic_handler.h"
-#include "../servo/servo_manager.h"
 #include "../modular/encoder.h"
 
 EncoderDiagnosticHandler::EncoderDiagnosticHandler() {
@@ -37,7 +36,6 @@ void EncoderDiagnosticHandler::update(uint32_t currentMs, bool btnPressed) {
         lastUIDisplayTime = currentMs;
         
         long rawCount = encoder->getRawCount();
-        int speed = ServoManager::getInstance().getData().actualSpeed;
         long zeroCross = encoder->getZeroCrossCount();
         int rawPosition = rawCount % 400;
         if (rawPosition < 0) rawPosition += 400;
@@ -47,14 +45,14 @@ void EncoderDiagnosticHandler::update(uint32_t currentMs, bool btnPressed) {
                 userInterface->displayDiagnosticValues(
                     "Enc Stats", 
                     "Pos: " + String(rawPosition),
-                    "Spd: " + String(speed) + " RPM"
+                    "Count: " + String(rawCount)
                 );
                 break;
             case 1:
                 userInterface->displayDiagnosticValues(
                     "Enc Details",
-                    "Raw: " + String(rawCount),
-                    "Zero: " + String(zeroCross)
+                    "Zero: " + String(zeroCross),
+                    "Ready..."
                 );
                 break;
             case 2:
