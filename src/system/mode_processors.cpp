@@ -26,10 +26,18 @@ void processVersionInfoMode() {
 
 void processNormalMode() {
     static bool subModeInitialized = false;
+    static int lastPos = -1;
+    
+    int currentPos = encoder->getCurrentPosition();
+    // 只有当编码器正好到达数据锁存相位（170）时强制刷新，其余时间按界面事件刷新
+    bool shouldForceRefresh = (currentPos == PHASE_DATA_LATCH && lastPos != PHASE_DATA_LATCH);
+    
     if (!subModeInitialized) {
         subModeInitialized = true;
         Serial.println("[NORMAL] Normal Mode Activated");
+        shouldForceRefresh = true; // 初次进入强制刷新一次
     }
+    lastPos = currentPos;
     
     if (normalModeSubmode == 0) {
         float speedPerSecond = sorter.getConveyorSpeedPerSecond();
@@ -39,10 +47,10 @@ void processNormalMode() {
         const int pulsesPerTray = 200;
         long encoderPosition = encoder->getRawCount();
         int transportedTrayCount = encoderPosition / pulsesPerTray;
-        UserInterface::getInstance()->displayDashboard(speedPerSecond, speedPerMinute, speedPerHour, identifiedCount, transportedTrayCount);
+        UserInterface::getInstance()->displayDashboard(speedPerSecond, speedPerMinute, speedPerHour, identifiedCount, transportedTrayCount, shouldForceRefresh);
     } else {
         int latestDiameter = traySystem->getTrayDiameter(0);
-        UserInterface::getInstance()->displayNormalModeDiameter(latestDiameter);
+        UserInterface::getInstance()->displayNormalModeDiameter(latestDiameter, shouldForceRefresh);
     }
 }
 

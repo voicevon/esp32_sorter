@@ -72,6 +72,7 @@ void setup() {
     
     encoder->initialize();
     sorter.initialize();
+    diameterScanner->initialize();
     traySystem->loadFromEEPROM(EEPROM_ADDR_TRAY_DATA);
     
     outletDiagnosticHandler.initialize(userInterface);

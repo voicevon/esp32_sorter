@@ -36,24 +36,30 @@ void EncoderDiagnosticHandler::update(uint32_t currentMs, bool btnPressed) {
         lastUIDisplayTime = currentMs;
         
         long rawCount = encoder->getRawCount();
-        long zeroCross = encoder->getZeroCrossCount();
-        int rawPosition = rawCount % 400;
-        if (rawPosition < 0) rawPosition += 400;
+        long totalZ = encoder->getZeroCrossCount();
+        int errorZ = encoder->getForcedZeroCount();
+        long lastZRaw = encoder->getZeroCrossRawCount();
+        int correctZ = totalZ - errorZ;
+        
+        int logicalPos = encoder->getCurrentPosition();
         
         switch (currentSubMode) {
             case 0:
+                // 基础状态：实时逻辑位置与原始脉冲
                 userInterface->displayDiagnosticValues(
-                    "Enc Stats", 
-                    "Pos: " + String(rawPosition),
-                    "Count: " + String(rawCount)
+                    "Enc Position", 
+                    "Logical: " + String(logicalPos),
+                    "Raw: " + String(rawCount)
                 );
                 break;
             case 1:
-                userInterface->displayDiagnosticValues(
-                    "Enc Details",
-                    "Zero: " + String(zeroCross),
-                    "Ready..."
-                );
+                // Z相健康度报告：分析同步准确度
+                {
+                    String line1 = "Correct: " + String(correctZ);
+                    String line2 = "Errors : " + String(errorZ);
+                    String line3 = "LastZRaw:" + String(lastZRaw);
+                    userInterface->displayMultiLineText("Encoder Report", line1, line2, line3, "Z-Signal OK");
+                }
                 break;
             case 2:
                 userInterface->displayDiagnosticInfo("Encoder Diag", "Status: Ready\nAction: EXIT\n\nClick to return...");

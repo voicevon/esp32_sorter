@@ -46,17 +46,11 @@ private:
 
 
     
-    // 状态标志位定义 (FSM States)
-    enum SorterState {
-        STATE_IDLE,                 // 空闲/等待开始 (Phase 0-1)
-        STATE_SCANNING,             // 正在扫描 (Phase 1-110)
-        STATE_RESETTING_OUTLETS,    // 复位出口 (Phase 110-120) - 原 resetOutlets
-        STATE_CALCULATING_DIAMETER, // 计算直径 (Phase 120-175) - 原 shouldCalculateDiameter
-        STATE_EXECUTING_OUTLETS     // 执行分拣 (Phase 175-200) - 原 executeOutlets
-    };
-    
-    // 当前状态
-    volatile SorterState currentState;
+    // 状态触发标志位 (ISR 置位, run() 消费)
+    volatile bool flagScanStart;
+    volatile bool flagDataLatch;
+    volatile bool flagOutletExecute;
+    volatile bool flagOutletReset;
     
     // 速度计算相关变量
     unsigned long lastSpeedCheckTime;

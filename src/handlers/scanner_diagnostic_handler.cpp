@@ -339,21 +339,21 @@ void ScannerDiagnosticHandler::handleRawDiameterDisplay() {
 }
 
 void ScannerDiagnosticHandler::begin() {
-    currentSubMode = 0;
     lastIOStatus = "";
-    Serial.println("[DIAGNOSTIC] Scanner Diagnostic Started");
-    // 初次显示由 update() 自动触发，因为 lastSubMode 还没更新。
-    // 为了保险，我们可以调用一次初始显示
-    handleIOStatusCheck();
+    // 不再重置 currentSubMode，以保留从菜单传进来的设置
+    Serial.printf("[DIAGNOSTIC] Scanner Diagnostic Started (Mode: %d)\n", currentSubMode);
+    
+    // 初始化时执行一次对应的显示逻辑
+    switch (currentSubMode) {
+        case 0: handleIOStatusCheck(); break;
+        case 1: handleEncoderValues(); break;
+        case 2: handleRawDiameterDisplay(); break;
+    }
 }
 
 void ScannerDiagnosticHandler::update(uint32_t currentTime, bool btnPressed) {
     if (btnPressed) {
-        if (currentSubMode == 3) {
-            handleReturnToMenu();
-            return;
-        }
-        switchToNextSubMode(); // Corrected: This was already a call, not a declaration.
+        handleReturnToMenu();
         return;
     }
     

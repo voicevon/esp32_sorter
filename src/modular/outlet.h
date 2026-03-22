@@ -18,76 +18,16 @@ public:
           matchDiameterMin(0), 
           matchDiameterMax(0) {}
 
-    /**
-     * 初始化出口逻辑状态
-     */
-    void initialize() {
-        // 逻辑初始化：强制设定为关闭位置
-        executeClose();
-    }
+    void initialize();
+    void update();
+    void execute();
 
-    /**
-     * 更新脉冲时序（由 Sorter 定时调用）
-     */
-    void update() {
-        if (isPulsing) {
-            if (millis() - pulseStateChangeTime >= PULSE_DURATION) {
-                stopPulse();
-            }
-        }
-    }
-
-    /**
-     * 执行目标动作（当 readyToOpenState 改变时触发）
-     */
-    void execute() {
-
-        // 如果目标位置与当前物理留驻位置一致且没有正在发出的脉冲，则忽略
-        if (readyToOpenState == physicalOpen && !isPulsing) {
-            return;
-        }
-
-        // 如果已经在向目标方向发送脉冲，则维持当前状态
-        if (isPulsing && targetPulseState == readyToOpenState) {
-            return; 
-        }
-
-        // 根据逻辑目标启动 H 桥换向脉冲
-        if (readyToOpenState) {
-            executeOpen();
-        } else {
-            executeClose();
-        }
-    }
-
-    void setReadyToOpen(bool state) {
-        readyToOpenState = state;
-    }
-
-    bool isReadyToOpen() const {
-        return readyToOpenState;
-    }
-
-    /** 
-     * 获取物理位置（对应指示 LED）
-     */
-    bool isPositionOpen() const {
-        return physicalOpen;
-    }
-
-    /**
-     * 获取吸合脉冲状态（对应 H 桥 A 通道）
-     */
-    bool isOpenPulseActive() const {
-        return isPulsing && targetPulseState;
-    }
-
-    /**
-     * 获取释放脉冲状态（对应 H 桥 B 通道）
-     */
-    bool isClosePulseActive() const {
-        return isPulsing && !targetPulseState;
-    }
+    void setReadyToOpen(bool state) { readyToOpenState = state; }
+    bool isReadyToOpen() const { return readyToOpenState; }
+    bool isPositionOpen() const { return physicalOpen; }
+    
+    bool isOpenPulseActive() const { return isPulsing && targetPulseState; }
+    bool isClosePulseActive() const { return isPulsing && !targetPulseState; }
 
     // 直径匹配配置
     void setMatchDiameter(int min, int max) {
@@ -101,7 +41,6 @@ public:
     void setMatchDiameterMin(int min) { matchDiameterMin = min; }
     void setMatchDiameterMax(int max) { matchDiameterMax = max; }
 
-
 private:
     bool isPulsing;               // 正在发送高电平脉冲
     unsigned long pulseStateChangeTime; // 脉冲起始时间
@@ -112,23 +51,9 @@ private:
     int matchDiameterMin;
     int matchDiameterMax;
 
-    void executeOpen() {
-        isPulsing = true;
-        pulseStateChangeTime = millis();
-        targetPulseState = true;
-        physicalOpen = true; 
-    }
-
-    void executeClose() {
-        isPulsing = true;
-        pulseStateChangeTime = millis();
-        targetPulseState = false; 
-        physicalOpen = false;
-    }
-
-    void stopPulse() {
-        isPulsing = false;
-    }
+    void executeOpen();
+    void executeClose();
+    void stopPulse();
 };
 
 #endif // OUTLET_H
