@@ -8,40 +8,25 @@
 #include "main.h"
 #include "user_interface/simple_hmi.h"
 
-// 前向声明
-class SimpleHMI;
+// 定义分拣系统参数
+// 注：NUM_OUTLETS 及其它全局物理定义已在 config.h 中由中央管理
 
-// 上升沿和下降沿编码器值的最大数量
-#define SORTER_MAX_ENCODER_VALUES 10
-
-// 出口数量定义 - 使用统一的NUM_OUTLETS
-#define SORTER_NUM_OUTLETS NUM_OUTLETS
-
-
-
-// 托盘相关常量
-static const uint8_t QUEUE_CAPACITY = 19; // 索引0-18
-static const int EMPTY_TRAY = 0;  // 无效直径值，用于表示该位置没有芦笋
+// 托盘相关常量已在 TraySystem 中定义，此处仅保留逻辑引用
+static const int EMPTY_TRAY = 0;  
 
 // 定义Sorter类
 class Sorter {
 private:
 
     
-    // 分流点索引（编码器位置）
-    int outletDivergencePoints[SORTER_NUM_OUTLETS];
-    
-    // 为每个分流出口分配静态出口对象
+    // 核心硬件资源
+    int outletDivergencePoints[NUM_OUTLETS];
     Outlet outlets[NUM_OUTLETS];
     
-    // 直径扫描仪实例指针
+    // 指针实例
     DiameterScanner* scanner;
-    
-    // 编码器和HMI实例
     Encoder* encoder;
     SimpleHMI* simpleHmi;
-    
-    // 托盘系统实例
     TraySystem* trayManager;
 
 
@@ -61,8 +46,7 @@ private:
     // 私有方法
     void prepareOutlets();
     void restoreOutletConfig(); // Initializes EEPROM and creates outlets
-    void initializeDivergencePoints(const uint8_t positions[SORTER_NUM_OUTLETS]);
-    static uint8_t getCapacity();
+    void initializeDivergencePoints(const uint8_t positions[NUM_OUTLETS]);
     
     // 74HC595 同步控制逻辑 (支持 3 级联：LED + Open Coils + Close Coils)
     void updateShiftRegisters();

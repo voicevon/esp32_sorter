@@ -9,7 +9,6 @@
 #include "handlers/hmi_diagnostic_handler.h"
 #include "handlers/base_diagnostic_handler.h"
 #include <EEPROM.h>
-#include "modular/tray_system.h"
 
 // 全局变量定义
 SystemMode currentMode = MODE_NORMAL;

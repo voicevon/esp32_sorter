@@ -6,21 +6,23 @@
 class Outlet {
 private:
 public:
-    // 脉冲持续时间（毫秒），确保 H 桥动作后能够及时断电
-    static const unsigned long PULSE_DURATION = 500;
-
     Outlet() : 
           isPulsing(false), 
           pulseStateChangeTime(0), 
           targetPulseState(false), 
           physicalOpen(false), 
           readyToOpenState(false), 
+          stayOpenNext(false),
           matchDiameterMin(0), 
           matchDiameterMax(0) {}
 
     void initialize();
     void update();
     void execute();
+
+    // 预见性控制接口
+    void setStayOpenNext(bool stay) { stayOpenNext = stay; }
+    bool shouldStayOpenNext() const { return stayOpenNext; }
 
     void setReadyToOpen(bool state) { readyToOpenState = state; }
     bool isReadyToOpen() const { return readyToOpenState; }
@@ -50,6 +52,7 @@ private:
 
     int matchDiameterMin;
     int matchDiameterMax;
+    bool stayOpenNext;            // 预见性：标记下一个托盘是否也需要进此洞
 
     void executeOpen();
     void executeClose();

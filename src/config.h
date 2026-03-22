@@ -98,4 +98,8 @@ constexpr int EEPROM_ADDR_TRAY_DATA = 0x70; // 112 (Allocates ~100 bytes for tra
 // Power Loss Threshold (ADC value: 0-4095)
 constexpr int POWER_LOSS_ADC_THRESHOLD = 3000;
 
+// 脉冲宽度配置 (单位：ms) - 硬编码方案
+constexpr int PULSE_OPEN_MS  = 200;
+constexpr int PULSE_CLOSE_MS = 500;
+
 #endif // CONFIG_H

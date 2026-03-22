@@ -11,7 +11,7 @@
 class TraySystem {
 private:
     // 常量定义
-    static const uint8_t QUEUE_CAPACITY = 19; // 索引0-18
+    static const uint8_t QUEUE_CAPACITY = 18; // 索引 0-17
     static const int EMPTY_TRAY = 0;  // 无效直径值，用于表示该位置没有芦笋
     
     // 成员变量

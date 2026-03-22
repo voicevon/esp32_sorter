@@ -8,9 +8,16 @@
 #include <EEPROM.h>
 
 Sorter::Sorter() :
-                   flagScanStart(false), flagDataLatch(false), flagOutletExecute(false), flagOutletReset(false),
-                   lastSpeedCheckTime(0), lastEncoderPosition(0), lastSpeed(0.0f), lastObjectCount(0) {
-    // 构造函数初始化 - 使用单例模式获取实例
+    flagScanStart(false), 
+    flagDataLatch(false), 
+    flagOutletExecute(false), 
+    flagOutletReset(false),
+    lastSpeedCheckTime(0), 
+    lastEncoderPosition(0), 
+    lastSpeed(0.0f), 
+    lastObjectCount(0) 
+{
+    // 实例获取
     encoder = Encoder::getInstance();
     simpleHmi = SimpleHMI::getInstance();
     trayManager = TraySystem::getInstance();
@@ -47,32 +54,47 @@ void Sorter::initialize() {
 }
 
 void Sorter::restoreOutletConfig() {
-    // 默认直径范围（如果EEPROM为空时使用）
-    int outletDiameterRanges[NUM_OUTLETS][2] = {
-        {0, 0},     // 出口0：特殊处理
-        {20, 255},  // 出口1：直径>20mm
-        {18, 20},   // 出口2：18mm<直径≤20mm
-        {16, 18},   // 出口3：16mm<直径≤18mm
-        {14, 16},   // 出口4：14mm<直径≤16mm
-        {12, 14},   // 出口5：12mm<直径≤14mm
-        {10, 12},   // 出口6：10mm<直径≤12mm
-        {8, 10}     // 出口7：8mm<直径≤10mm
-    };
+    EEPROM.begin(512);
+    const int EEPROM_DIAMETER_RANGES_ADDR = 0;
     
-    // 初始化所有出口并设置直径范围
-    for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
-        int minD = outletDiameterRanges[i][0];
-        int maxD = outletDiameterRanges[i][1];
+    // 检查 EEPROM 是否已初始化
+    if (EEPROM.read(EEPROM_DIAMETER_RANGES_ADDR) == 0xAA) {
+        Serial.println("[Sorter] Restoring configuration from EEPROM...");
+        // 读取直径配置
+        for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
+            int minD = EEPROM.read(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2);
+            int maxD = EEPROM.read(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2 + 1);
+            outlets[i].setMatchDiameter(minD, maxD);
+        }
+    } else {
+        Serial.println("[Sorter] EEPROM empty, using default ranges.");
+        // 默认直径范围（如果EEPROM为空时使用）
+        int outletDiameterRanges[NUM_OUTLETS][2] = {
+            {0, 0},     // 出口0：特殊处理
+            {20, 255},  // 出口1：直径>20mm
+            {18, 20},   // 出口2：18mm<直径≤20mm
+            {16, 18},   // 出口3：16mm<直径≤18mm
+            {14, 16},   // 出口4：14mm<直径≤16mm
+            {12, 14},   // 出口5：12mm<直径≤14mm
+            {10, 12},   // 出口6：10mm<直径≤12mm
+            {8, 10}     // 出口7：8mm<直径≤10mm
+        };
+        for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
+            outlets[i].setMatchDiameter(outletDiameterRanges[i][0], outletDiameterRanges[i][1]);
+        }
+    }
 
+    // 初始化所有出口逻辑
+    for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
         outlets[i].initialize();
-        outlets[i].setMatchDiameter(minD, maxD);
     }
 }
 
 // 初始化出口位置实现
 void Sorter::initializeDivergencePoints(const uint8_t positions[NUM_OUTLETS]) {
+    uint8_t capacity = TraySystem::getCapacity();
     for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
-        if (positions[i] < 31) { // TOTAL_TRAYS = 31
+        if (positions[i] < capacity) { 
             outletDivergencePoints[i] = positions[i];
         } else {
             // 如果提供的位置无效，使用默认值
@@ -153,6 +175,11 @@ void Sorter::run() {
     // D. 重置/关闭驱动信号 (150)
     if (flagOutletReset) {
          for(int i = 0; i < NUM_OUTLETS; i++){
+            // 预见性优化：如果预测到下一个托盘也要进这个动，则跳过本次复位动作
+            if (outlets[i].shouldStayOpenNext()) {
+                Serial.printf("[SORTER] Predictive Action -> Stay OPEN for outlet %d\n", i);
+                continue; 
+            }
             outlets[i].setReadyToOpen(false);
             outlets[i].execute();
         }
@@ -184,35 +211,41 @@ Outlet* Sorter::getOutlet(uint8_t index) {
 
 // 实现预设出口功能
 void Sorter::prepareOutlets() {
+    uint8_t capacity = TraySystem::getCapacity();
+    
+    // 定义统一的匹配判定逻辑 (Lambda)，确保当前和前瞻使用同一套规则
+    auto isMatch = [&](int p, int outletIdx) -> bool {
+        if (p < 0 || p >= capacity) return false;
+        
+        if (outletIdx == 0) {
+            // 出口 0：处理多物体/碎料/重叠
+            return trayManager->getTrayScanCount(p) > 1;
+        } else {
+            // 出口 1-7：直径分级
+            int diameter = trayManager->getTrayDiameter(p);
+            int minD = outlets[outletIdx].getMatchDiameterMin();
+            int maxD = outlets[outletIdx].getMatchDiameterMax();
+            
+            if (diameter <= 0 || diameter > 50) return false;
+            
+            // 出口 1 为 > minD；出口 2-7 为 (minD, maxD]
+            if (outletIdx == 1) return diameter > minD;
+            return (diameter > minD && diameter <= maxD);
+        }
+    };
+
     for (int i = 0; i < NUM_OUTLETS; i++) {
         int pos = outletDivergencePoints[i];
         
-        // 确保索引在有效范围内
-        if (pos < 0 || pos >= trayManager->getCapacity()) {
-            outlets[i].setReadyToOpen(false);
-            continue;
-        }
+        // 1. 确定当前时刻该出口是否需要打开
+        bool currentMatch = isMatch(pos, i);
 
-        int diameter = trayManager->getTrayDiameter(pos);
-        int minD = outlets[i].getMatchDiameterMin();
-        int maxD = outlets[i].getMatchDiameterMax();
+        // 2. [预判前瞻] 判定紧随其后的托盘 (pos-1) 是否也需要进该出口
+        // 如果连续两个托盘合意，则标记 stayOpenNext，指示 150 相位跳过复位
+        bool nextMatch = isMatch(pos - 1, i);
 
-        if (i == 0) {
-            // 出口 0：处理多物体托盘（碎料/重叠）
-            outlets[0].setReadyToOpen(trayManager->getTrayScanCount(pos) > 1);
-        } else {
-            // 出口 1-7：进行直径分级分拣
-            if (diameter > 0 && diameter <= 50) {
-                // 判断是否落在该出口的直径区间内
-                if ((i == 1 && diameter > minD) || (i > 1 && diameter > minD && diameter <= maxD)) {
-                    outlets[i].setReadyToOpen(true);
-                } else {
-                    outlets[i].setReadyToOpen(false);
-                }
-            } else {
-                outlets[i].setReadyToOpen(false);
-            }
-        }
+        outlets[i].setReadyToOpen(currentMatch);
+        outlets[i].setStayOpenNext(currentMatch && nextMatch);
     }
 }
 
@@ -376,6 +409,7 @@ void Sorter::saveConfig() {
         EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2, outlets[i].getMatchDiameterMin());
         EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2 + 1, outlets[i].getMatchDiameterMax());
     }
+    
     EEPROM.commit();
     Serial.println("[Sorter] Configuration saved successfully.");
 }

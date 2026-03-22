@@ -1,6 +1,5 @@
 #include "outlet.h"
-
-// 构造函数已在头文件中通过成员初始化列表处理
+#include "../config.h"
 
 /**
  * 初始化出口逻辑状态
@@ -15,7 +14,10 @@ void Outlet::initialize() {
  */
 void Outlet::update() {
     if (isPulsing) {
-        if (millis() - pulseStateChangeTime >= PULSE_DURATION) {
+        // 使用硬编码的非对称脉宽常数
+        uint32_t currentThreshold = targetPulseState ? PULSE_OPEN_MS : PULSE_CLOSE_MS;
+        
+        if (millis() - pulseStateChangeTime >= currentThreshold) {
             stopPulse();
         }
     }

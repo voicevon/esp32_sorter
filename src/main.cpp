@@ -2,7 +2,6 @@
 #include <EEPROM.h>
 #include <Wire.h>
 
-#define MAIN_H_SOURCE
 #include "main.h"
 #include "config.h"
 #include "user_interface/user_interface.h"
@@ -60,8 +59,6 @@ void setup() {
     for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
         outletDiagnosticHandler.setOutlet(i, sorter.getOutlet(i));
     }
-    
-    encoderDiagnosticHandler.initialize(userInterface);
     
     EEPROM.begin(512);
     EEPROM.get(EEPROM_ADDR_BOOT_COUNT, systemBootCount);
