@@ -38,10 +38,10 @@ private:
   // 背景色：40=黑, 41=红, 42=绿, 43=黄, 44=蓝, 45=紫, 46=青, 47=白
   // 前景色：30=黑, 31=红, 32=绿, 33=黄, 34=蓝, 35=紫, 36=青, 37=白
   // 使用方式：\033[背景色;前景色m
-  const String STYLE_RESET = "\033[0m";              // 重置所有样式
-  const String STYLE_DATA_WINDOW_TITLE = "\033[44m\033[31m";  // 数据窗口标题：蓝底(44)红(31)字
-  const String STYLE_DATA_WINDOW_CONTENT = "\033[44m\033[37m";  // 数据窗口内容：蓝底(44)白(37)字
-  const String STYLE_NOTIFICATION = "\033[43m\033[32m";  // 通知消息：黄底(43)绿(32)字
+  const String STYLE_RESET = "";              // 去掉转义
+  const String STYLE_DATA_WINDOW_TITLE = "";  // 去掉转义
+  const String STYLE_DATA_WINDOW_CONTENT = "";  // 去掉转义
+  const String STYLE_NOTIFICATION = "";  // 去掉转义
   
   // 存储上一次显示的数据，用于检测变化
   SystemMode previousDisplayedMode;  // 上一次显示的模式

@@ -115,8 +115,7 @@ void Terminal::displayDiagnosticInfo(const String& title, const String& info) {
         Serial.println(STYLE_DATA_WINDOW_CONTENT + info + "                      " + STYLE_RESET);
         firstDisplay = false;
     } else {
-        // 使用回到行首的方式更新两行数据
-        Serial.print("\033[2A"); // 向上移动2行到标题行
+        // 直接打印标题行
         
         // 重新打印标题行（蓝色背景，红色标题）
         Serial.print(STYLE_DATA_WINDOW_TITLE + "        === " + title + " ===        " + STYLE_RESET); Serial.println();
@@ -147,8 +146,7 @@ void Terminal::displayOutletTestGraphic(uint8_t outletCount, uint8_t selectedOut
         Serial.println(STYLE_DATA_WINDOW_CONTENT + "Status: Closed                      " + STYLE_RESET);
         firstDisplay = false;
     } else {
-        // 使用回到行首的方式更新四行数据
-        Serial.print("\033[4A"); // 向上移动4行到标题行
+        // 直接打印四行数据
         
         // 重新打印标题行
         Serial.print(STYLE_DATA_WINDOW_TITLE + "      === " + subModeName + " ===      " + STYLE_RESET); Serial.println();
@@ -183,8 +181,7 @@ void Terminal::displayOutletLifetimeTestGraphic(uint8_t outletCount, uint32_t cy
             Serial.println(STYLE_DATA_WINDOW_CONTENT + "State: Closed                          " + STYLE_RESET);
             firstDisplay = false;
         } else {
-            // 使用回到行首的方式更新三行数据
-            Serial.print("\033[3A"); // 向上移动3行到标题行
+        // 直接打印三行数据
             
             // 重新打印标题行（蓝色背景，红色标题）
             Serial.print(STYLE_DATA_WINDOW_TITLE + "      === Outlet Lifetime Test ===      " + STYLE_RESET); Serial.println();
@@ -216,8 +213,7 @@ void Terminal::displayScannerEncoderValues(const int* risingValues, const int* f
         Serial.println(STYLE_DATA_WINDOW_CONTENT + "Falling: 0 0 0 0 0 0 0 0            " + STYLE_RESET);
         firstDisplay = false;
     } else {
-        // 使用回到行首的方式更新三行数据
-        Serial.print("\033[3A"); // 向上移动3行到标题行
+        // 直接打印三行数据
         
         // 重新打印标题行（蓝色背景，红色标题）
         Serial.print(STYLE_DATA_WINDOW_TITLE + "    === Scanner Encoder Values ===    " + STYLE_RESET); Serial.println();
@@ -258,8 +254,7 @@ void Terminal::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPer
             Serial.println(STYLE_DATA_WINDOW_CONTENT + "Last:       0 mm | Pcs: 0              " + STYLE_RESET);
             firstDisplay = false;
         } else {
-            // 使用回到行首的方式更新四行数据
-            Serial.print("\033[4A"); 
+            // 直接打印四行数据
             
             Serial.print(STYLE_DATA_WINDOW_TITLE + "       === System Dashboard ===       " + STYLE_RESET); Serial.println();
             
@@ -308,8 +303,7 @@ void Terminal::displayDiameter(int latestDiameter) {
             Serial.println(STYLE_DATA_WINDOW_CONTENT + "Current Diameter: 0 mm                  " + STYLE_RESET);
             firstDisplay = false;
         } else {
-            // 使用回到行首的方式更新两行数据
-            Serial.print("\033[2A"); // 向上移动2行到标题行
+            // 直接打印两行数据
             
             // 重新打印标题行（蓝色背景，红色标题）
             Serial.print(STYLE_DATA_WINDOW_TITLE + "        === Diameter Display ===        " + STYLE_RESET); Serial.println();
@@ -350,8 +344,7 @@ void Terminal::displaySpeedStats(int speedPerSecond, int speedPerMinute, int spe
             Serial.println(STYLE_DATA_WINDOW_CONTENT + "Trays Transported: 0                " + STYLE_RESET);
             firstDisplay = false;
         } else {
-            // 使用回到行首的方式更新四行数据
-            Serial.print("\033[4A"); // 向上移动4行到标题行
+            // 直接打印四行数据
             
             // 重新打印标题行（蓝色背景，红色标题）
             Serial.print(STYLE_DATA_WINDOW_TITLE + "      === Speed Statistics ===      " + STYLE_RESET); Serial.println();
@@ -398,8 +391,7 @@ void Terminal::displaySingleValue(const String& label, int value, const String& 
         Serial.println("                      " + STYLE_RESET);
         firstDisplay = false;
     } else {
-        // 使用回到行首的方式更新两行数据
-        Serial.print("\033[2A"); // 向上移动2行到标题行
+        // 直接打印标题行
         
         // 重新打印标题行（蓝色背景，红色标题）
         Serial.print(STYLE_DATA_WINDOW_TITLE + "        === Sensor Reading ===        " + STYLE_RESET); Serial.println();
@@ -433,8 +425,7 @@ void Terminal::displayPositionInfo(const String& title, int position, bool showO
         Serial.println("                      " + STYLE_RESET);
         firstDisplay = false;
     } else {
-        // 使用回到行首的方式更新两行数据
-        Serial.print("\033[2A"); // 向上移动2行到标题行
+        // 直接打印标题行
         
         // 重新打印标题行（蓝色背景，红色标题）
         Serial.print(STYLE_DATA_WINDOW_TITLE + "        === Encoder Diagnostics ===        " + STYLE_RESET); Serial.println();
@@ -467,8 +458,7 @@ void Terminal::displayDiagnosticValues(const String& title, const String& value1
         Serial.println("                      " + STYLE_RESET);
         firstDisplay = false;
     } else {
-        // 使用回到行首的方式更新两行数据
-        Serial.print("\033[2A"); // 向上移动2行到标题行
+        // 直接打印标题行
         
         // 重新打印标题行（蓝色背景，红色标题）
         Serial.print(STYLE_DATA_WINDOW_TITLE + "        === Diagnostic Values ===        " + STYLE_RESET); Serial.println();
@@ -489,44 +479,17 @@ void Terminal::displayMultiLineText(const String& title, const String& line1, co
     // 检查是否是第一次显示
     static bool firstDisplay = true;
     
-    // 计算需要的行数
-    int lineCount = 3 + (line3.isEmpty() ? 0 : 1) + (line4.isEmpty() ? 0 : 1) + (line5.isEmpty() ? 0 : 1);
-    
     if (firstDisplay) {
-        // 第一次显示时，打印多行格式（蓝色背景，红色标题，白色正文）
-        Serial.println("\n" + STYLE_DATA_WINDOW_TITLE + "        === " + title + " ===        " + STYLE_RESET);
-        Serial.println(STYLE_DATA_WINDOW_CONTENT + line1 + "                      " + STYLE_RESET);
-        Serial.println(STYLE_DATA_WINDOW_CONTENT + line2 + "                      " + STYLE_RESET);
-        if (!line3.isEmpty()) {
-            Serial.println(STYLE_DATA_WINDOW_CONTENT + line3 + "                      " + STYLE_RESET);
-        }
-        if (!line4.isEmpty()) {
-            Serial.println(STYLE_DATA_WINDOW_CONTENT + line4 + "                      " + STYLE_RESET);
-        }
-        if (!line5.isEmpty()) {
-            Serial.println(STYLE_DATA_WINDOW_CONTENT + line5 + "                      " + STYLE_RESET);
-        }
+        Serial.println("\n=== " + title + " ===");
         firstDisplay = false;
-    } else {
-        // 使用回到行首的方式更新多行数据
-        Serial.print("\033[" + String(lineCount) + "A"); // 向上移动到标题行
-        
-        // 重新打印标题行（蓝色背景，红色标题）
-        Serial.print(STYLE_DATA_WINDOW_TITLE + "        === " + title + " ===        " + STYLE_RESET); Serial.println();
-        
-        // 更新数据行（蓝色背景，白色正文）
-        Serial.println(STYLE_DATA_WINDOW_CONTENT + line1 + "                      " + STYLE_RESET);
-        Serial.println(STYLE_DATA_WINDOW_CONTENT + line2 + "                      " + STYLE_RESET);
-        if (!line3.isEmpty()) {
-            Serial.println(STYLE_DATA_WINDOW_CONTENT + line3 + "                      " + STYLE_RESET);
-        }
-        if (!line4.isEmpty()) {
-            Serial.println(STYLE_DATA_WINDOW_CONTENT + line4 + "                      " + STYLE_RESET);
-        }
-        if (!line5.isEmpty()) {
-            Serial.println(STYLE_DATA_WINDOW_CONTENT + line5 + "                      " + STYLE_RESET);
-        }
     }
+
+    // 简单地逐行打印，不进行游标控制
+    Serial.println(line1);
+    Serial.println(line2);
+    if (!line3.isEmpty()) Serial.println(line3);
+    if (!line4.isEmpty()) Serial.println(line4);
+    if (!line5.isEmpty()) Serial.println(line5);
 }
 
 // 重置诊断模式
@@ -536,12 +499,10 @@ void Terminal::resetDiagnosticMode() {
 
 // 清理屏幕
 void Terminal::clearDisplay() {
-  // 串口终端可以通过发送大量换行或 ANSI 转义符来清理
-  // 这里我们简单打印一个分隔符
   Serial.println("\n--- [Display Cleared] ---\n");
 }
 
 // 渲染菜单系统（串口终端不显示菜单）
 void Terminal::renderMenu(MenuNode* node, int cursorIndex, int scrollOffset) {
-    // 串口暂时可留空不渲染菜单树，或后续根据需要打印
+    // 串口暂时可留空不渲染菜单树
 }

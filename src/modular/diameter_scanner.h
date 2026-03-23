@@ -16,16 +16,15 @@ private:
     int scannerPins[4];
     bool isScanning;
     // 高电平采样计数（每个扫描点）
-    int highLevelPulseCounts[4];
+    volatile int highLevelPulseCounts[4];
     
     // 统计次数（计算实际物体数量）- 每个扫描点一个计数器
-    int objectCount[4];
+    volatile int objectCount[4];
     
     // 上一次的传感器状态（每个扫描点）
     bool lastSensorStates[4];
-    
-    // 是否正在采样（每个扫描点）
-    bool isObjectPassing[4];
+    volatile int lastPhase; // 记录上一次处理的相位 (ISR 内部使用)
+    volatile bool isObjectPassing[4];
 
     // 计算得到的直径值（整数）
     int nominalDiameter;
