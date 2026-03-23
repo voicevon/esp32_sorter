@@ -197,3 +197,6 @@ void loop() {
     // 我们直接删除这个默认创建的 IDLE 任务以节省资源
     vTaskDelete(NULL);
 }
+
+
+//  测量直径很稳定的版本了
