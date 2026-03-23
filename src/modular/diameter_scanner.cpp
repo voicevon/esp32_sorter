@@ -141,13 +141,13 @@ int DiameterScanner::getDiameterAndStop() {
             }
         }
         
-        // 根据有效值的数量计算标称直径
+        // 根据有效值的数量计算标称直径，采用 0.5f 偏移量实现四舍五入
         if (validCount == 2) {
-            nominalDiameter = (int)((validValues[0] + validValues[1]) / 2);
+            nominalDiameter = (int)((validValues[0] + validValues[1]) / 2.0f + 0.5f);
         } else if (validCount == 3) {
-            nominalDiameter = (int)validValues[1]; // 取中间值
+            nominalDiameter = (int)(validValues[1] + 0.5f); // 取中间值并舍入
         } else {
-            nominalDiameter = (int)((validValues[1] + validValues[2]) / 2); // 去掉最大最小，取中间平均
+            nominalDiameter = (int)((validValues[1] + validValues[2]) / 2.0f + 0.5f); // 排除极值后的平均舍入
         }
     } else {
         nominalDiameter = 0;

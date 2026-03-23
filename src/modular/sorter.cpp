@@ -54,6 +54,9 @@ void Sorter::initialize() {
 
     // 设置编码器回调，将Sorter实例和静态回调函数连接到编码器
     encoder->setPhaseCallback(this, onEncoderPhaseChange);
+
+    // 从 EEPROM 恢复出口直径配置
+    restoreOutletConfig();
 }
 
 void Sorter::restoreOutletConfig() {
@@ -69,6 +72,9 @@ void Sorter::restoreOutletConfig() {
             int maxD = EEPROM.read(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2 + 1);
             outlets[i].setMatchDiameter(minD, maxD);
         }
+        // 读取出口 0 模式 (地址 17)
+        outlet0Mode = EEPROM.read(EEPROM_DIAMETER_RANGES_ADDR + 17);
+        if (outlet0Mode > 1) outlet0Mode = 0; // 默认为多物检测
     } else {
         Serial.println("[Sorter] EEPROM empty, using default ranges.");
         // 默认直径范围（如果EEPROM为空时使用）
@@ -224,8 +230,18 @@ void Sorter::prepareOutlets() {
         if (p < 0 || p >= capacity) return false;
         
         if (outletIdx == 0) {
-            // 出口 0：处理多物体/碎料/重叠
-            return trayManager->getTrayScanCount(p) > 1;
+            // 出口 0：多模复用
+            if (outlet0Mode == 0) { 
+                // 模式 0: 多物体/碎料检测模式
+                return trayManager->getTrayScanCount(p) > 1;
+            } else {
+                // 模式 1: 直径分级模式 (遵循常规直径逻辑)
+                int diameter = trayManager->getTrayDiameter(p);
+                int minD = outlets[outletIdx].getMatchDiameterMin();
+                int maxD = outlets[outletIdx].getMatchDiameterMax();
+                if (diameter <= 0 || diameter > 50) return false;
+                return (diameter > minD && diameter <= maxD);
+            }
         } else {
             // 出口 1-7：直径分级
             int diameter = trayManager->getTrayDiameter(p);
@@ -408,6 +424,8 @@ void Sorter::saveConfig() {
         EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2, outlets[i].getMatchDiameterMin());
         EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2 + 1, outlets[i].getMatchDiameterMax());
     }
+    // 保存模式设置
+    EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR + 17, outlet0Mode);
     
     EEPROM.commit();
     Serial.println("[Sorter] Configuration saved successfully.");

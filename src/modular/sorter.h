@@ -22,7 +22,8 @@ private:
 
     
     // 核心硬件资源
-    int outletDivergencePoints[NUM_OUTLETS];
+    uint8_t outletDivergencePoints[NUM_OUTLETS];
+    uint8_t outlet0Mode; // 0: Multi-Object, 1: Diameter
     Outlet outlets[NUM_OUTLETS];
     
     // 指针实例
@@ -98,6 +99,10 @@ public:
     int getOutletMaxDiameter(uint8_t outletIndex);
     void setOutletMinDiameter(uint8_t outletIndex, int minDiameter);
     void setOutletMaxDiameter(uint8_t outletIndex, int maxDiameter);
+    
+    // 出口 0 模式控制 (0: 多物检测, 1: 直径分级)
+    uint8_t getOutlet0Mode() { return outlet0Mode; }
+    void setOutlet0Mode(uint8_t mode) { outlet0Mode = mode; }
     
     // 配置持久化
     void saveConfig();

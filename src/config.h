@@ -63,9 +63,9 @@ constexpr bool ENCODER_REVERSE_DIRECTION = false; // 软件反转编码器计数
 // Output
 constexpr int NUM_OUTLETS = 8;
 
-// Scanner
-constexpr float SCANNER_WEIGHTS[4] = {1.01f, 1.02f, 1.05f, 1.15f};
-constexpr int SCANNER_MIN_DIAMETER_UNIT = 6; // 3mm * 2
+// Scanner: 托盘 pitch 为 101.6mm，逻辑周期为 200 phase，故物理权重为 101.6/200 = 0.508
+constexpr float SCANNER_WEIGHTS[4] = {0.508f, 0.508f, 0.508f, 0.508f};
+constexpr int SCANNER_MIN_DIAMETER_UNIT = 5; // 约 2.5mm
 
 // ==========================================
 // Timing & Phases

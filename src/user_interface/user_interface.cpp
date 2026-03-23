@@ -233,6 +233,11 @@ int UserInterface::getEncoderDelta() {
     return hmi->getEncoderDelta();
 }
 
+// 获取原始旋转增量 (1:1 高灵敏度)
+int UserInterface::getRawEncoderDelta() {
+    return hmi->getRawEncoderDelta();
+}
+
 // 检查主按钮是否被按下
 bool UserInterface::isMasterButtonPressed() {
     return hmi->isMasterButtonPressed();

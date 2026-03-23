@@ -111,7 +111,11 @@ public:
     void clearDisplay(); // 新增：清理所有显示设备的屏幕
     
     // 输入相关方法
+    // 获取编码器逻辑旋转增量 (通常带分频)
     int getEncoderDelta();
+    
+    // 获取编码器原始物理增量 (1:1，无分频，高灵敏度)
+    int getRawEncoderDelta();
     bool isMasterButtonPressed();
     bool isMasterButtonLongPressed();
     

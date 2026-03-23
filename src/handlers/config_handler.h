@@ -46,7 +46,6 @@ public:
 
   // 更新配置模式 (覆盖 BaseDiagnosticHandler)
   virtual void update(uint32_t currentMs, bool btnPressed) override {
-    begin();
     handleEncoderInputs();
     
     // 自愈刷新逻辑：即便没有物理动作，每 500ms 也强制同步一次 UI
@@ -91,17 +90,35 @@ protected:
   virtual void handleValueChange(int delta) = 0;
 };
 
-// 直径配置处理类
+// 直径配置处理类 (高级多状态交互版)
 class DiameterConfigHandler : public ConfigHandler {
 public:
-  DiameterConfigHandler(UserInterface* ui, Sorter* s) : ConfigHandler(ui, s) {}
+  enum DiameterUIState {
+      STATE_SELECTOR, // 列表滚动选择出口
+      STATE_EDIT_MIN, // 修改最小值
+      STATE_EDIT_MAX  // 修改最大值
+  };
+
+  DiameterConfigHandler(UserInterface* ui, Sorter* s) : ConfigHandler(ui, s), uiState(STATE_SELECTOR) {}
   
+  // 重置状态
+  void reset() {
+    ConfigHandler::reset();
+    uiState = STATE_SELECTOR;
+  }
+
 protected:
+  DiameterUIState uiState;
+  int encoderAccumulator; // 用于实现自定义灵敏度分频
+
   void initializeMode() override;
   void handleSubModeChange() override;
   void handleValueChange(int delta) override;
   void refreshDisplay() override;
-  int getSubModeCount() override { return NUM_OUTLETS * 2 + 1; } // 0-15为配置, 16为退出
+  // 覆盖按钮逻辑，实现状态跳转
+  void update(uint32_t currentMs, bool btnPressed) override;
+  
+  int getSubModeCount() override { return NUM_OUTLETS + 1; } // 8个出口 + 1个退出项
 };
 
 
