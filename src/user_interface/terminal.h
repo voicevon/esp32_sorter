@@ -38,10 +38,10 @@ private:
   // 背景色：40=黑, 41=红, 42=绿, 43=黄, 44=蓝, 45=紫, 46=青, 47=白
   // 前景色：30=黑, 31=红, 32=绿, 33=黄, 34=蓝, 35=紫, 36=青, 37=白
   // 使用方式：\033[背景色;前景色m
-  const String STYLE_RESET = "\033[0m";              // 重置所有样式
-  const String STYLE_DATA_WINDOW_TITLE = "\033[44m\033[31m";  // 数据窗口标题：蓝底(44)红(31)字
-  const String STYLE_DATA_WINDOW_CONTENT = "\033[44m\033[37m";  // 数据窗口内容：蓝底(44)白(37)字
-  const String STYLE_NOTIFICATION = "\033[43m\033[32m";  // 通知消息：黄底(43)绿(32)字
+  const String STYLE_RESET = "";              // 去掉转义
+  const String STYLE_DATA_WINDOW_TITLE = "";  // 去掉转义
+  const String STYLE_DATA_WINDOW_CONTENT = "";  // 去掉转义
+  const String STYLE_NOTIFICATION = "";  // 去掉转义
   
   // 存储上一次显示的数据，用于检测变化
   SystemMode previousDisplayedMode;  // 上一次显示的模式
@@ -52,6 +52,7 @@ private:
   int previousIdentifiedCount;  // 上一次显示的已识别数量
   int previousTransportedTrayCount;  // 上一次显示的已输送托盘数量
   int previousLatestDiameter;  // 上一次显示的最新直径
+  int previousLatestScanCount; // 上一次显示的最新根数
   
   // 辅助方法
   String translate(const String& key) const;
@@ -90,7 +91,7 @@ public:
   void renderMenu(MenuNode* node, int cursorIndex, int scrollOffset) override;
   
   // 显示系统仪表盘
-  void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount) override;
+  void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount) override;
   
   // 显示直径信息（功能专用方法）
   void displayDiameter(int latestDiameter) override;
@@ -99,7 +100,7 @@ public:
   void displayNormalModeDiameter(int latestDiameter) override;
   
   // 显示正常模式统计信息（兼容旧接口）
-  void displayNormalModeStats(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount) override;
+  void displayNormalModeStats(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount) override;
   
   // 显示速度统计信息
   void displaySpeedStats(int speedPerSecond, int speedPerMinute, int speedPerHour, int itemCount, int trayCount) override;

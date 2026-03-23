@@ -8,9 +8,19 @@
 #include <EEPROM.h>
 
 Sorter::Sorter() :
-                   currentState(STATE_IDLE),
-                   lastSpeedCheckTime(0), lastEncoderPosition(0), lastSpeed(0.0f), lastObjectCount(0) {
-    // 构造函数初始化 - 使用单例模式获取实例
+    flagScanStart(false), 
+    flagDataLatch(false), 
+    flagOutletExecute(false), 
+    flagOutletReset(false),
+    lastSpeedCheckTime(0), 
+    lastEncoderPosition(0), 
+    lastSpeed(0.0f), 
+    lastObjectCount(0) 
+{
+    // 实例化互斥锁
+    mutex = xSemaphoreCreateMutex();
+
+    // 实例获取
     encoder = Encoder::getInstance();
     simpleHmi = SimpleHMI::getInstance();
     trayManager = TraySystem::getInstance();
@@ -27,31 +37,17 @@ void Sorter::initialize() {
     digitalWrite(PIN_HC595_STCP, LOW);
 
     // 2. 初始化出口位置
-    uint8_t defaultDivergencePoints[NUM_OUTLETS] = {1, 3, 5, 7, 9, 11, 13, 15};
+    uint8_t defaultDivergencePoints[NUM_OUTLETS] = {0, 2, 4, 6, 8, 10, 12, 14};
     initializeDivergencePoints(defaultDivergencePoints);
     
-    // 3. 逐个初始化物理出口，间隔 2 秒（总共约 16 秒），避免瞬间启动电流过大
-    Serial.println("Starting staged 16-second electromagnet initialization...");
+    // 3. 初始化出口逻辑状态（仅内存状态确立，移除阻塞式等待动作）
     for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
-        outletDivergencePoints[i] = 1 + i * 2; 
-        
-        // 触发单个电磁铁的初始化动作（发送Close脉冲）
-        Serial.printf("Initializing outlet %d...\n", i);
-        
-        // 在 OLED 上显示开机进度
-        OLED::getInstance()->displayDiagnosticValues("Hardware Init", "Outlet " + String(i + 1) + "/" + String(NUM_OUTLETS), "Readying coils...");
-
         outlets[i].initialize();
-        
-        // 持续 1 秒钟的非阻塞延时循环（用于刷新物理引脚和更新脉冲状态）
-        unsigned long startWait = millis();
-        while (millis() - startWait < 1000) {
-            outlets[i].update();          // 500ms后结束脉冲
-            updateShiftRegisters();       // 推送当前的H桥信号
-            delay(10);                    // 防止看门狗超时或CPU占用过高
-            yield();                      // 显式喂狗，防止在setup的 8 秒长循环中触发Task WDT复位
-        }
     }
+    
+    // 执行一次物理引脚同步
+    updateShiftRegisters();
+    Serial.println("Sorter components initialized (Software states set).");
     
     // 初始化托盘系统
     trayManager->resetAllTraysData();
@@ -61,32 +57,47 @@ void Sorter::initialize() {
 }
 
 void Sorter::restoreOutletConfig() {
-    // 默认直径范围（如果EEPROM为空时使用）
-    int outletDiameterRanges[NUM_OUTLETS][2] = {
-        {0, 0},     // 出口0：特殊处理
-        {20, 255},  // 出口1：直径>20mm
-        {18, 20},   // 出口2：18mm<直径≤20mm
-        {16, 18},   // 出口3：16mm<直径≤18mm
-        {14, 16},   // 出口4：14mm<直径≤16mm
-        {12, 14},   // 出口5：12mm<直径≤14mm
-        {10, 12},   // 出口6：10mm<直径≤12mm
-        {8, 10}     // 出口7：8mm<直径≤10mm
-    };
+    EEPROM.begin(512);
+    const int EEPROM_DIAMETER_RANGES_ADDR = 0;
     
-    // 初始化所有出口并设置直径范围
-    for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
-        int minD = outletDiameterRanges[i][0];
-        int maxD = outletDiameterRanges[i][1];
+    // 检查 EEPROM 是否已初始化
+    if (EEPROM.read(EEPROM_DIAMETER_RANGES_ADDR) == 0xAA) {
+        Serial.println("[Sorter] Restoring configuration from EEPROM...");
+        // 读取直径配置
+        for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
+            int minD = EEPROM.read(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2);
+            int maxD = EEPROM.read(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2 + 1);
+            outlets[i].setMatchDiameter(minD, maxD);
+        }
+    } else {
+        Serial.println("[Sorter] EEPROM empty, using default ranges.");
+        // 默认直径范围（如果EEPROM为空时使用）
+        int outletDiameterRanges[NUM_OUTLETS][2] = {
+            {0, 0},     // 出口0：特殊处理
+            {20, 255},  // 出口1：直径>20mm
+            {18, 20},   // 出口2：18mm<直径≤20mm
+            {16, 18},   // 出口3：16mm<直径≤18mm
+            {14, 16},   // 出口4：14mm<直径≤16mm
+            {12, 14},   // 出口5：12mm<直径≤14mm
+            {10, 12},   // 出口6：10mm<直径≤12mm
+            {8, 10}     // 出口7：8mm<直径≤10mm
+        };
+        for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
+            outlets[i].setMatchDiameter(outletDiameterRanges[i][0], outletDiameterRanges[i][1]);
+        }
+    }
 
+    // 初始化所有出口逻辑
+    for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
         outlets[i].initialize();
-        outlets[i].setMatchDiameter(minD, maxD);
     }
 }
 
 // 初始化出口位置实现
 void Sorter::initializeDivergencePoints(const uint8_t positions[NUM_OUTLETS]) {
+    uint8_t capacity = TraySystem::getCapacity();
     for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
-        if (positions[i] < 31) { // TOTAL_TRAYS = 31
+        if (positions[i] < capacity) { 
             outletDivergencePoints[i] = positions[i];
         } else {
             // 如果提供的位置无效，使用默认值
@@ -96,130 +107,97 @@ void Sorter::initializeDivergencePoints(const uint8_t positions[NUM_OUTLETS]) {
 }
 
 void Sorter::onPhaseChange(int phase) {
-    // 编码器中断始终工作
-    // 状态转换逻辑
-    scanner->sample(phase);  // 保持采样调用（内部已优化为轻量级）
+    // 1. 实时采样（必须在中断中完成）
+    scanner->sample(phase); 
     
+    // 2. 标志位置位（原子化记录事件，等待 run() 处理）
     switch (phase) {
-        case PHASE_SCAN_START: // 1
-            currentState = STATE_SCANNING;
+        case PHASE_SCAN_START:    flagScanStart = true;     break;
+        case PHASE_DATA_LATCH:    
+            scanner->stop(); // 关键：立即在中断中停止，彻底解决因任务调度延迟导致的计数溢出
+            flagDataLatch = true;     
             break;
-            
-        case PHASE_OUTLET_RESET: // 195
-            currentState = STATE_RESETTING_OUTLETS;
-            break;
-            
-        case PHASE_DATA_LATCH: // 50
-            currentState = STATE_CALCULATING_DIAMETER;
-            break;
-
-        case PHASE_OUTLET_EXECUTE: // 80
-            currentState = STATE_EXECUTING_OUTLETS;
-            break;
-            
-        default:
-            // 其他相位保持当前状态或在run()中自动流转
-            break;
+        case PHASE_OUTLET_EXECUTE: flagOutletExecute = true; break;
+        case PHASE_OUTLET_RESET:   flagOutletReset = true;   break;
+        default: break;
     }
 }
 
 // 实现静态回调函数
 void Sorter::onEncoderPhaseChange(void* context, int phase) {
-    // 将上下文转换回Sorter指针并调用成员函数
     Sorter* sorter = static_cast<Sorter*>(context);
     sorter->onPhaseChange(phase);
 }
 
-// 主循环处理函数 (FSM Executor)
+// 主循环处理函数 (事件驱动消费)
 void Sorter::run() {
-    // 轮询物理出口的逻辑状态更新 (处理 H 桥脉冲等时序)
+    if (xSemaphoreTake(mutex, pdMS_TO_TICKS(10)) != pdTRUE) return;
+
+    // 1. 速度更新逻辑（每 100ms 计算一次）
+    if (millis() - lastSpeedCheckTime >= 100) {
+        lastSpeedCheckTime = millis();
+        long currentPulse = encoder->getRawCount();
+        long diff = currentPulse - lastEncoderPosition;
+        lastEncoderPosition = currentPulse;
+        lastSpeed = (float)diff / 20.0f; 
+    }
+
+    // 2. 异步事件消费 (处理由 onPhaseChange 置位的标志位)
+
+    // A. 启动扫描阶段 (50)
+    if (flagScanStart) {
+        scanner->start();
+        flagScanStart = false; // 清理标志位，确保只处理一次
+        Serial.println("[SORTER] Event -> START SCAN (50)");
+    } 
+
+    // B. 数据锁存阶段 (170) -> 这里完成物体的判定
+    if (flagDataLatch) {
+        int diameterMm = scanner->getDiameterAndStop();
+        int objectCount = scanner->getTotalObjectCount();
+        
+        if (diameterMm > 0) {
+            Serial.printf("[SORTER] Event -> LATCH DATA (170) | Diam: %d mm\n", diameterMm);
+        }
+        
+        // 推送到托盘系统的起始端
+        trayManager->pushNewAsparagus(diameterMm, objectCount);
+        prepareOutlets(); // 预计算出口状态
+        
+        flagDataLatch = false;
+    }
+
+    // C. 执行分拣动作 (30)
+    if (flagOutletExecute) {
+        for (int i = 0; i < NUM_OUTLETS; i++) {
+            outlets[i].execute(); // 根据 170 相位算好的状态触发电磁铁动作
+        }
+        
+        flagOutletExecute = false;
+        Serial.println("[SORTER] Event -> EXECUTE OUTLETS (30)");
+    }
+
+    // D. 重置/关闭驱动信号 (150)
+    if (flagOutletReset) {
+         for(int i = 0; i < NUM_OUTLETS; i++){
+            if (outlets[i].shouldStayOpenNext()) {
+                // Serial.printf("[SORTER] Predictive Action -> Stay OPEN for outlet %d\n", i);
+                continue; 
+            }
+            outlets[i].setReadyToOpen(false);
+            outlets[i].execute();
+        }
+        flagOutletReset = false;
+        Serial.println("[SORTER] Event -> RESET OUTLETS (150)");
+    }
+
+    // 3. 通用物理更新（每帧执行，处理脉冲宽度管理）
     for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
         outlets[i].update();
     }
-    
-    // 关键原子操作：将 24 位逻辑映射推送到级联 HC595
     updateShiftRegisters();
 
-    switch (currentState) {
-        case STATE_SCANNING:
-            // 在扫描状态下，确保扫描仪开启
-            // 注意：start() 会重置数据，所以只需调用一次。
-            // 这里我们依赖状态转换的瞬时性，或者可以在onPhaseChange中直接调用start()
-            // 为了安全，我们在进入Scanning状态时的第一个循环调用start
-            // 但更好的方式是：在onPhaseChange中设置状态时，让run()去处理"Entry Action"
-            // 由于onPhaseChange是中断，我们不做重操作。
-            // 我们使用一个静态变量或检查scanner是否已经在扫描
-            // 简单起见，我们在PHASE_SCAN_START时设置状态，run()检测到状态变化执行动作
-            // 这里简化为：每次run检查状态并执行相应逻辑
-            
-            // 实际上，扫描仪的start/stop应该由状态机管理
-            // PHASE 1 -> STATE_SCANNING
-            if (!scanner->isScanningActive()) { // 假设添加了isScanningActive方法，或者直接调用start()如果不影响
-                 scanner->start();
-            }
-            break;
-
-        case STATE_RESETTING_OUTLETS:
-            // 对应 resetOutlets
-             for(int i = 0; i < NUM_OUTLETS; i++){
-                outlets[i].setReadyToOpen(false);
-                outlets[i].execute();
-            }
-            // 执行完后，可以转回IDLE或者保持直到下一个相位
-            currentState = STATE_IDLE; 
-            break;
-
-        case STATE_CALCULATING_DIAMETER:
-            // 对应 shouldCalculateDiameter
-            {
-                // 从扫描仪获取并计算直径
-                int diameterMm = scanner->getDiameterAndStop();
-                int objectScanCount = scanner->getTotalObjectCount();
-                
-                if (diameterMm > 0) {
-                    Serial.print("原始值检测到: ");
-                    Serial.print(diameterMm);
-                    Serial.print("mm, 物体计数: ");
-                    Serial.println(objectScanCount);
-                }
-                
-                // 推送到托盘系统
-                trayManager->pushNewAsparagus(diameterMm, objectScanCount);
-                // 预计算出口状态
-                prepareOutlets();
-                
-                // 计算完成后，状态流转到IDLE等待下一个相位
-                currentState = STATE_IDLE;
-            }
-            break;
-
-        case STATE_EXECUTING_OUTLETS:
-             // 对应 executeOutlets
-            {
-                for (int i = 0; i < NUM_OUTLETS; i++) {
-                int adjustedPosition = outletDivergencePoints[i];
-                if (adjustedPosition >= 0 && adjustedPosition < trayManager->getCapacity()) {
-                    int diameter = trayManager->getTrayDiameter(adjustedPosition);
-                    int minD = outlets[i].getMatchDiameterMin();
-                    int maxD = outlets[i].getMatchDiameterMax();
-                    
-                    if (diameter > 0 && ((i == 1 && diameter > minD) || (i > 1 && diameter > minD && diameter <= maxD))) {
-                        outlets[i].setReadyToOpen(true);
-                    } else {
-                        outlets[i].setReadyToOpen(false);
-                    }
-                }
-                outlets[i].execute();
-            }
-            currentState = STATE_IDLE;
-            }
-            break;
-
-        case STATE_IDLE:
-        default:
-            // 空闲状态，什么都不做
-            break;
-    }
+    xSemaphoreGive(mutex);
 }
 
 
@@ -239,121 +217,114 @@ Outlet* Sorter::getOutlet(uint8_t index) {
 
 // 实现预设出口功能
 void Sorter::prepareOutlets() {
-    // 出口0处理
-    if (trayManager->getTrayScanCount(0) > 1){
-        outlets[0].setReadyToOpen(true);
-    } else {
-        outlets[0].setReadyToOpen(false);
-    }
-
-    // 为每个出口计算对应的托盘位置并执行
-    for (int i = 0; i < NUM_OUTLETS; i++) {
-        // 出口对应的托盘偏移
-        int outletPosition = outletDivergencePoints[i];
+    uint8_t capacity = TraySystem::getCapacity();
+    
+    // 定义统一的匹配判定逻辑 (Lambda)，确保当前和前瞻使用同一套规则
+    auto isMatch = [&](int p, int outletIdx) -> bool {
+        if (p < 0 || p >= capacity) return false;
         
-        int minDiameter = outlets[i].getMatchDiameterMin();
-        int maxDiameter = outlets[i].getMatchDiameterMax();
-        
-        // 确保调整后的索引在有效范围内
-        if (outletPosition >= 0 && outletPosition < trayManager->getCapacity()) {
-            int diameter = trayManager->getTrayDiameter(outletPosition);
-            
-            // 只在直径有效并且满足出口条件时设置出口状态
-            if (diameter > 0 && diameter <= 50) {
-                // 检查直径范围
-                if ((i == 1 && diameter > minDiameter) || (i > 1 && diameter > minDiameter && diameter <= maxDiameter)) {
-                    outlets[i].setReadyToOpen(true);
-                } else {
-                    outlets[i].setReadyToOpen(false);
-                }
-            } else {
-                outlets[i].setReadyToOpen(false);
-            }
+        if (outletIdx == 0) {
+            // 出口 0：处理多物体/碎料/重叠
+            return trayManager->getTrayScanCount(p) > 1;
         } else {
-            outlets[i].setReadyToOpen(false);
+            // 出口 1-7：直径分级
+            int diameter = trayManager->getTrayDiameter(p);
+            int minD = outlets[outletIdx].getMatchDiameterMin();
+            int maxD = outlets[outletIdx].getMatchDiameterMax();
+            
+            if (diameter <= 0 || diameter > 50) return false;
+            
+            // 出口 1 为 > minD；出口 2-7 为 (minD, maxD]
+            if (outletIdx == 1) return diameter > minD;
+            return (diameter > minD && diameter <= maxD);
         }
+    };
+
+    for (int i = 0; i < NUM_OUTLETS; i++) {
+        int pos = outletDivergencePoints[i];
+        
+        // 1. 确定当前时刻该出口是否需要打开
+        bool currentMatch = isMatch(pos, i);
+
+        // 2. [预判前瞻] 判定紧随其后的托盘 (pos-1) 是否也需要进该出口
+        // 如果连续两个托盘合意，则标记 stayOpenNext，指示 150 相位跳过复位
+        bool nextMatch = isMatch(pos - 1, i);
+
+        outlets[i].setReadyToOpen(currentMatch);
+        outlets[i].setStayOpenNext(currentMatch && nextMatch);
     }
 }
 
 // 获取最新直径
-int Sorter::getLatestDiameter() const {
-    return trayManager->getTrayDiameter(0);
+int Sorter::getLatestDiameter() {
+    int val = 0;
+    if (xSemaphoreTake(mutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+        val = trayManager->getTrayDiameter(0);
+        xSemaphoreGive(mutex);
+    }
+    return val;
 }
 
 // 获取已经输送的托架数量
-int Sorter::getTransportedTrayCount() const {
-    // 每200个编码器脉冲对应一个托架移动
-    const int pulsesPerTray = 200;
-    int encoderPosition = encoder->getCurrentPosition();
-    return encoderPosition / pulsesPerTray;
+int Sorter::getTransportedTrayCount() {
+    // 每一个托架固定对应 200 个脉冲（ pulsesPerTray ）
+    return encoder->getRawCount() / 200;
+    // 注：此计数来自编码器，编码器本身是原子读取，无需 Sorter 互斥锁保护
 }
 
 // 获取传送带速度（托架/秒）- 返回float类型
 float Sorter::getConveyorSpeedPerSecond() {
-    unsigned long currentTime = millis();
-    
-    // 从编码器获取当前位置
-    long currentEncoderPosition = encoder->getRawCount();
-    
-    // 计算编码器位置变化和时间变化
-    long positionDiff = currentEncoderPosition - lastEncoderPosition;
-    int timeDiff = currentTime - lastSpeedCheckTime;
-    
-    // 每200个编码器脉冲对应一个托架移动
-    const int pulsesPerTray = 200;
-    
-    // 设置最小时间差阈值（100ms），避免检查点刚更新后计算出异常高速值
-    const int MIN_TIME_DIFF = 100;
-    
-    // 计算每秒的托架速度
-    float speed = 0.0f;
-    if (timeDiff >= MIN_TIME_DIFF) {
-        // 先计算时间窗口内移动的托架数量
-        float traysMoved = (float)abs(positionDiff) / pulsesPerTray;
-        // 然后计算每秒的托架速度
-        speed = traysMoved * 1000.0f / (float)timeDiff;
-    } else if (timeDiff > 0) {
-        // 时间差小于最小阈值，使用上一次的速度值
-        return lastSpeed;  // 返回上一次的速度值
+    float val = 0.0f;
+    if (xSemaphoreTake(mutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+        val = lastSpeed;
+        xSemaphoreGive(mutex);
     }
-    
-    // 更新时间和位置 - 只在时间窗口结束时更新（1秒）
-    if (timeDiff >= 1000) {
-        lastSpeedCheckTime = currentTime;
-        lastEncoderPosition = currentEncoderPosition;
-    }
-    
-    // 更新并保存当前速度值，用于下次短时间差时使用
-    if (speed > 0.0f) {
-        lastSpeed = speed;
-    }
-    
-    return speed;
+    return val;
 }
 
 // 获取显示数据（用于 UserInterface）
 // Sorter::getDisplayData方法已移除，改用专用方法
 // 获取出口最小直径
-int Sorter::getOutletMinDiameter(uint8_t outletIndex) const {
-    return outlets[outletIndex].getMatchDiameterMin();
+int Sorter::getOutletMinDiameter(uint8_t outletIndex) {
+    int val = 0;
+    if (xSemaphoreTake(mutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+        if (outletIndex < NUM_OUTLETS) {
+            val = outlets[outletIndex].getMatchDiameterMin();
+        }
+        xSemaphoreGive(mutex);
+    }
+    return val;
 }
 
 // 获取出口最大直径
-int Sorter::getOutletMaxDiameter(uint8_t outletIndex) const {
-    return outlets[outletIndex].getMatchDiameterMax();
+int Sorter::getOutletMaxDiameter(uint8_t outletIndex) {
+    int val = 0;
+    if (xSemaphoreTake(mutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+        if (outletIndex < NUM_OUTLETS) {
+            val = outlets[outletIndex].getMatchDiameterMax();
+        }
+        xSemaphoreGive(mutex);
+    }
+    return val;
 }
 
 // 设置出口最小直径
 void Sorter::setOutletMinDiameter(uint8_t outletIndex, int minDiameter) {
-    if (outletIndex < NUM_OUTLETS) {
-        outlets[outletIndex].setMatchDiameterMin(minDiameter);
+    if (xSemaphoreTake(mutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+        if (outletIndex < NUM_OUTLETS) {
+            outlets[outletIndex].setMatchDiameterMin(minDiameter);
+        }
+        xSemaphoreGive(mutex);
     }
 }
 
 // 设置出口最大直径
 void Sorter::setOutletMaxDiameter(uint8_t outletIndex, int maxDiameter) {
-    if (outletIndex < NUM_OUTLETS) {
-        outlets[outletIndex].setMatchDiameterMax(maxDiameter);
+    if (xSemaphoreTake(mutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+        if (outletIndex < NUM_OUTLETS) {
+            outlets[outletIndex].setMatchDiameterMax(maxDiameter);
+        }
+        xSemaphoreGive(mutex);
     }
 }
 
@@ -437,6 +408,7 @@ void Sorter::saveConfig() {
         EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2, outlets[i].getMatchDiameterMin());
         EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2 + 1, outlets[i].getMatchDiameterMax());
     }
+    
     EEPROM.commit();
     Serial.println("[Sorter] Configuration saved successfully.");
 }

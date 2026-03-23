@@ -105,39 +105,32 @@ void UserInterface::displayScannerEncoderValues(const int* risingValues, const i
     }
 }
 
-// 显示系统仪表盘
-void UserInterface::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount) {
-    // 检查是否可以更新显示
-    if (isUpdateReady()) {
+// 显示系统仪表盘 - 仅在强制刷新（如相位触发）时更新，移除定时刷新以保持界面稳定
+void UserInterface::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, bool forceRefresh) {
+    if (forceRefresh) {
         // 遍历所有显示设备
         for (int i = 0; i < displayDeviceCount; i++) {
-            displayDevices[i]->displayDashboard(sortingSpeedPerSecond, sortingSpeedPerMinute, sortingSpeedPerHour, identifiedCount, transportedTrayCount);
+            displayDevices[i]->displayDashboard(sortingSpeedPerSecond, sortingSpeedPerMinute, sortingSpeedPerHour, identifiedCount, transportedTrayCount, latestDiameter, latestScanCount);
         }
-        
-        // 更新上次更新时间
         updateLastUpdateTime();
     }
 }
 
-// 显示直径信息（功能专用方法）
-void UserInterface::displayDiameter(int latestDiameter) {
-    // 检查是否可以更新显示
-    if (isUpdateReady()) {
+// 显示直径信息 - 仅在测量结束触发时更新
+void UserInterface::displayDiameter(int latestDiameter, bool forceRefresh) {
+    if (forceRefresh) {
         // 遍历所有显示设备
         for (int i = 0; i < displayDeviceCount; i++) {
-            // 调用显示设备的displayNormalModeDiameter方法（兼容接口）
             displayDevices[i]->displayNormalModeDiameter(latestDiameter);
         }
-        
-        // 更新上次更新时间
         updateLastUpdateTime();
     }
 }
 
 // 显示正常模式直径信息（兼容旧接口）
-void UserInterface::displayNormalModeDiameter(int latestDiameter) {
+void UserInterface::displayNormalModeDiameter(int latestDiameter, bool forceRefresh) {
     // 调用新的功能专用方法
-    displayDiameter(latestDiameter);
+    displayDiameter(latestDiameter, forceRefresh);
 }
 
 // 代理菜单渲染
@@ -351,10 +344,6 @@ String UserInterface::translate(const String& key) const {
         if (key == "Encoder Diag") return "编码器诊断";
         if (key == "Scanner Diag") return "扫描仪诊断";
         if (key == "Outlet Diag") return "出口诊断";
-        if (key == "Feeder Test") return "上料器测试";
-        if (key == "Pot Test") return "电位器测试";
-        if (key == "Speed Ctrl (Enc)") return "速度控制-旋钮";
-        if (key == "Speed Ctrl (Pot)") return "速度控制-电位器";
         if (key == "Version Info") return "版本信息";
         if (key == "Submode") return "子模式";
         if (key == "Switch to Submode") return "切换到子模式";

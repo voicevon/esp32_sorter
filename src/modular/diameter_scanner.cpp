@@ -14,6 +14,7 @@ DiameterScanner::DiameterScanner() :
         lastSensorStates[i] = false;
         isObjectPassing[i] = false;
     }
+    lastPhase = -1;
 }
 
 // 实现单例模式的getInstance方法 - Managed by Singleton template
@@ -24,9 +25,10 @@ void DiameterScanner::initialize() {
         pinMode(scannerPins[i], INPUT);
     }
     
-    start();
+    // 移除 initialize() 中的 start() 调用，确保开机时处于受控的静默状态。
+    // 真正的扫描开启将由 Sorter 在探测到 Phase 50 时触发。
     
-    Serial.println("DiameterScanner initialized");
+    Serial.println("DiameterScanner initialized (Silent)");
 }
 
 void DiameterScanner::start() {
@@ -38,10 +40,29 @@ void DiameterScanner::start() {
         lastSensorStates[i] = false;
         isObjectPassing[i] = false;
     }
+    lastPhase = -1;
+}
+
+void DiameterScanner::stop() {
+    isScanning = false;
 }
 
 void DiameterScanner::sample(int phase) {
     if (!isScanning) return;
+    
+    // 终极同步过滤器：只有当相位确实“向前进”时，才进行采样。
+    // 这彻底解决了编码器在高频震动或回弹（例如 100->99->100）时产生的重复计数。
+    bool isForward = false;
+    if (lastPhase == -1) {
+        isForward = true; // 第一次采样，由于 lastPhase 为 -1，允许进入
+    } else if (phase > lastPhase) {
+        isForward = true; // 正常前进
+    } else if (phase == 0 && lastPhase == 199) {
+        isForward = true; // 处理相位回零
+    }
+    
+    if (!isForward) return; // 过滤回零、震动回弹或重复触发
+    lastPhase = phase;
     
     bool anyHigh = false;
     bool allFinished = true;
@@ -79,7 +100,13 @@ void DiameterScanner::sample(int phase) {
 }
 
 int DiameterScanner::getDiameterAndStop() {
-    isScanning = false; // 停止扫描
+    // 必须首先调用 stop()，确保在后续计算过程中不再有中断累加。
+    // 在 Sorter::onPhaseChange 中理应已调用过一次 stop()，此处为双重保险。
+    stop(); 
+    
+    // [DIAGNOSTIC LOG] 输出原始计数值，寻找 500mm 读数根源
+    Serial.printf("[SCANNER_DEBUG] Raw Counts: CH0:%d, CH1:%d, CH2:%d, CH3:%d | LastPhase:%d\n", 
+                  highLevelPulseCounts[0], highLevelPulseCounts[1], highLevelPulseCounts[2], highLevelPulseCounts[3], lastPhase);
     
     //在此处执行计算逻辑
     float correctedCounts[4];

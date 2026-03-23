@@ -29,49 +29,45 @@ ScannerDiagnosticHandler::ScannerDiagnosticHandler() :
 }
 
 void ScannerDiagnosticHandler::displayRawDiameters() {
-    // 生成原始直径值字符串
-    String diameters = "D1:" + String(scanner->getHighLevelPulseCount(0)) + 
-                      " D2:" + String(scanner->getHighLevelPulseCount(1)) + 
-                      " D3:" + String(scanner->getHighLevelPulseCount(2)) + 
-                      " D4:" + String(scanner->getHighLevelPulseCount(3));
-    
     // 串口输出 - 窗口式显示
-    static bool firstDisplayRaw = true;
-    
-    if (firstDisplayRaw) {
-        // 第一次显示时，打印六行格式（蓝色背景，红色标题，白色正文）
-        Serial.println("\n\033[44m\033[31m      === Raw Diameter Values ===      \033[0m");
-        Serial.println("\033[44m\033[37m                                      \033[0m");
-        Serial.println("\033[44m\033[37m  Scanner 1: 0 (corrected: 0.0)       \033[0m");
-        Serial.println("\033[44m\033[37m  Scanner 2: 0 (corrected: 0.0)       \033[0m");
-        Serial.println("\033[44m\033[37m  Scanner 3: 0 (corrected: 0.0)       \033[0m");
-        Serial.println("\033[44m\033[37m  Scanner 4: 0 (corrected: 0.0)       \033[0m");
-        firstDisplayRaw = false;
-    } else {
-        // 使用回到行首的方式更新六行数据
-        Serial.print("\033[6A"); // 向上移动6行到标题行
-        
-        // 重新打印标题行（蓝色背景，红色标题）
-        Serial.print("\033[44m\033[31m      === Raw Diameter Values ===      \033[0m"); Serial.println();
-        
-        // 空行
-        Serial.println("\033[44m\033[37m                                      \033[0m");
-        
-        // 更新扫描仪数据行（蓝色背景，白色正文）
-        for (int i = 0; i < 4; i++) {
-            int count = scanner->getHighLevelPulseCount(i);
-            float weight = scanner->getSensorWeight(i);
-            float corrected = count * weight;
-            
-            String line = "  Scanner " + String(i + 1) + ": " + String(count) + " (corrected: " + String(corrected, 1) + ")";
-            // 填充空格确保行宽一致
-            while (line.length() < 40) {
-                line += " ";
-            }
-            Serial.println("\033[44m\033[37m" + line + "\033[0m");
+    // 检查是否是第一次显示（通过 lastRawDiameters 是否全是 -1 判断，或者直接通过标题打印）
+    bool isFirst = true;
+    for (int i = 0; i < 4; i++) {
+        if (lastRawDiameters[i] != -1) {
+            isFirst = false;
+            break;
         }
     }
+
+    if (isFirst) {
+        Serial.println("\n\033[44m\033[31m      === Raw Diameter Values ===      \033[0m");
+        Serial.println("\033[44m\033[37m                                      \033[0m");
+    } else {
+        Serial.print("\033[6A"); // 向上移动6行到标题行
+        Serial.println("\033[44m\033[31m      === Raw Diameter Values ===      \033[0m");
+        Serial.println("\033[44m\033[37m                                      \033[0m");
+    }
+
+    // 更新扫描仪数据行并更新 lastRawDiameters
+    for (int i = 0; i < 4; i++) {
+        int count = scanner->getHighLevelPulseCount(i);
+        float weight = scanner->getSensorWeight(i);
+        float corrected = count * weight;
+        lastRawDiameters[i] = count;
+
+        String line = "  Scanner " + String(i + 1) + ": " + String(count) + " (corrected: " + String(corrected, 1) + ")";
+        while (line.length() < 40) {
+            line += " ";
+        }
+        Serial.println("\033[44m\033[37m" + line + "\033[0m");
+    }
     
+    // OLED显示
+    String line1 = "S1:" + String(scanner->getHighLevelPulseCount(0));
+    String line2 = "S2:" + String(scanner->getHighLevelPulseCount(1));
+    String line3 = "S3:" + String(scanner->getHighLevelPulseCount(2));
+    String line4 = "S4:" + String(scanner->getHighLevelPulseCount(3));
+    userInterface->displayMultiLineText("Scanner Puls", line1, line2, line3, line4);
 }
 
 void ScannerDiagnosticHandler::handleIOStatusCheck() {
@@ -116,27 +112,21 @@ void ScannerDiagnosticHandler::handleIOStatusCheck() {
     // 只有当状态发生变化时才输出
     if (combinedStatus != lastIOStatus || stateChanged) {
         // 串口输出 - 窗口式显示
-        static bool firstDisplayIO = true;
-        
-        if (firstDisplayIO) {
-            // 第一次显示时，打印三行格式（蓝色背景，红色标题，白色正文）
+        // 第一次切换到该子模式时，打印标题
+        if (lastIOStatus == "") {
             Serial.println("\n\033[44m\033[31m        === Scanner IO Status ===        \033[0m");
             Serial.println("\033[44m\033[37m" + statusLine + "                      \033[0m");
             Serial.println("\033[44m\033[37m" + countLine + "                      \033[0m");
-            firstDisplayIO = false;
         } else {
             // 使用回到行首的方式更新三行数据
             Serial.print("\033[3A"); // 向上移动3行到标题行
-            
-            // 重新打印标题行（蓝色背景，红色标题）
             Serial.println("\033[44m\033[31m        === Scanner IO Status ===        \033[0m");
-            
-            // 更新IO状态数据行（蓝色背景，白色正文）
             Serial.println("\033[44m\033[37m" + statusLine + "                      \033[0m");
-            
-            // 更新计数器数据行（蓝色背景，白色正文）
             Serial.println("\033[44m\033[37m" + countLine + "                      \033[0m");
         }
+        
+        // OLED显示 - 无论是否有串口变化，如果是刚进入模式也需要刷新
+        userInterface->displayMultiLineText("Scanner IO Status", statusLine, countLine);
         
         // 更新上一次状态
         lastIOStatus = combinedStatus;
@@ -349,21 +339,21 @@ void ScannerDiagnosticHandler::handleRawDiameterDisplay() {
 }
 
 void ScannerDiagnosticHandler::begin() {
-    currentSubMode = 0;
     lastIOStatus = "";
-    Serial.println("[DIAGNOSTIC] Scanner Diagnostic Started");
-    // 初次显示由 update() 自动触发，因为 lastSubMode 还没更新。
-    // 为了保险，我们可以调用一次初始显示
-    handleIOStatusCheck();
+    // 不再重置 currentSubMode，以保留从菜单传进来的设置
+    Serial.printf("[DIAGNOSTIC] Scanner Diagnostic Started (Mode: %d)\n", currentSubMode);
+    
+    // 初始化时执行一次对应的显示逻辑
+    switch (currentSubMode) {
+        case 0: handleIOStatusCheck(); break;
+        case 1: handleEncoderValues(); break;
+        case 2: handleRawDiameterDisplay(); break;
+    }
 }
 
 void ScannerDiagnosticHandler::update(uint32_t currentTime, bool btnPressed) {
     if (btnPressed) {
-        if (currentSubMode == 3) {
-            handleReturnToMenu();
-            return;
-        }
-        switchToNextSubMode();
+        handleReturnToMenu();
         return;
     }
     
@@ -397,22 +387,18 @@ void ScannerDiagnosticHandler::switchToNextSubMode() {
         // 重置IO状态，确保下次进入时会重新显示
         lastIOStatus = "";
     }
-    
-    // 显示当前子模式信息
-    Serial.print("[DIAGNOSTIC] Switch to Submode: ");
-    switch (currentSubMode) {
-        case 0:
-            Serial.println("IO Status Check");
-            break;
-        case 1:
-            Serial.println("Encoder Values");
-            break;
-        case 2:
-            Serial.println("Raw Diameter Test");
-            break;
-        default:
-            Serial.println("Unknown");
-            break;
+}
+
+void ScannerDiagnosticHandler::setSubMode(int mode) {
+    if (mode >= 0 && mode < 4) {
+        currentSubMode = mode;
+        if (currentSubMode == 0) {
+            for (int i = 0; i < 4; i++) {
+                risingEdgeCounts[i] = 0;
+            }
+        }
+        lastIOStatus = "";
+        for (int i = 0; i < 4; i++) lastRawDiameters[i] = -1;
     }
 }
 

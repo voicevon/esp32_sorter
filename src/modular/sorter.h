@@ -6,58 +6,38 @@
 #include "outlet.h"
 #include "../config.h"
 #include "main.h"
-#include "esp32servo.h"
 #include "user_interface/simple_hmi.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
-// 前向声明
-class SimpleHMI;
+// 定义分拣系统参数
+// 注：NUM_OUTLETS 及其它全局物理定义已在 config.h 中由中央管理
 
-// 上升沿和下降沿编码器值的最大数量
-#define SORTER_MAX_ENCODER_VALUES 10
-
-// 出口数量定义 - 使用统一的NUM_OUTLETS
-#define SORTER_NUM_OUTLETS NUM_OUTLETS
-
-
-
-// 托盘相关常量
-static const uint8_t QUEUE_CAPACITY = 19; // 索引0-18
-static const int EMPTY_TRAY = 0;  // 无效直径值，用于表示该位置没有芦笋
+// 托盘相关常量已在 TraySystem 中定义，此处仅保留逻辑引用
+static const int EMPTY_TRAY = 0;  
 
 // 定义Sorter类
 class Sorter {
 private:
 
     
-    // 分流点索引（编码器位置）
-    int outletDivergencePoints[SORTER_NUM_OUTLETS];
-    
-    // 为每个分流出口分配静态出口对象
+    // 核心硬件资源
+    int outletDivergencePoints[NUM_OUTLETS];
     Outlet outlets[NUM_OUTLETS];
     
-    // 直径扫描仪实例指针
+    // 指针实例
     DiameterScanner* scanner;
-    
-    // 编码器和HMI实例
     Encoder* encoder;
     SimpleHMI* simpleHmi;
-    
-    // 托盘系统实例
     TraySystem* trayManager;
 
 
     
-    // 状态标志位定义 (FSM States)
-    enum SorterState {
-        STATE_IDLE,                 // 空闲/等待开始 (Phase 0-1)
-        STATE_SCANNING,             // 正在扫描 (Phase 1-110)
-        STATE_RESETTING_OUTLETS,    // 复位出口 (Phase 110-120) - 原 resetOutlets
-        STATE_CALCULATING_DIAMETER, // 计算直径 (Phase 120-175) - 原 shouldCalculateDiameter
-        STATE_EXECUTING_OUTLETS     // 执行分拣 (Phase 175-200) - 原 executeOutlets
-    };
-    
-    // 当前状态
-    volatile SorterState currentState;
+    // 状态触发标志位 (ISR 置位, run() 消费)
+    volatile bool flagScanStart;
+    volatile bool flagDataLatch;
+    volatile bool flagOutletExecute;
+    volatile bool flagOutletReset;
     
     // 速度计算相关变量
     unsigned long lastSpeedCheckTime;
@@ -68,12 +48,14 @@ private:
     // 私有方法
     void prepareOutlets();
     void restoreOutletConfig(); // Initializes EEPROM and creates outlets
-    void initializeDivergencePoints(const uint8_t positions[SORTER_NUM_OUTLETS]);
-    static uint8_t getCapacity();
+    void initializeDivergencePoints(const uint8_t positions[NUM_OUTLETS]);
     
     // 74HC595 同步控制逻辑 (支持 3 级联：LED + Open Coils + Close Coils)
     void updateShiftRegisters();
     uint32_t lastShiftData = 0xFFFFFF; // 记录上次发送的 24 位数据
+
+    // 线程安全互斥锁
+    SemaphoreHandle_t mutex;
 
     
 public:
@@ -103,17 +85,17 @@ public:
     static void onEncoderPhaseChange(void* context, int phase);
     
     // 获取最新直径
-    int getLatestDiameter() const;
+    int getLatestDiameter();
     
     // 获取已经输送的托架数量
-    int getTransportedTrayCount() const;
+    int getTransportedTrayCount();
     
     // 获取传送带速度（托架/秒，返回float类型）
     float getConveyorSpeedPerSecond();
     
     // 获取和设置出口直径范围的方法
-    int getOutletMinDiameter(uint8_t outletIndex) const;
-    int getOutletMaxDiameter(uint8_t outletIndex) const;
+    int getOutletMinDiameter(uint8_t outletIndex);
+    int getOutletMaxDiameter(uint8_t outletIndex);
     void setOutletMinDiameter(uint8_t outletIndex, int minDiameter);
     void setOutletMaxDiameter(uint8_t outletIndex, int maxDiameter);
     

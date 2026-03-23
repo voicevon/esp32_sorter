@@ -52,7 +52,7 @@ public:
     virtual void displayScannerEncoderValues(const int* risingValues, const int* fallingValues) = 0;
     
     // 显示系统仪表盘
-    virtual void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount) = 0;
+    virtual void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount) = 0;
     
     // 显示直径信息（功能专用方法）
     virtual void displayDiameter(int latestDiameter) = 0;
@@ -61,7 +61,7 @@ public:
     virtual void displayNormalModeDiameter(int latestDiameter) = 0;
     
     // 显示正常模式统计信息（兼容旧方法）
-    virtual void displayNormalModeStats(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount) = 0;
+    virtual void displayNormalModeStats(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount) = 0;
     
     // 显示速度统计信息
     virtual void displaySpeedStats(int speedPerSecond, int speedPerMinute, int speedPerHour, int itemCount, int trayCount) = 0;

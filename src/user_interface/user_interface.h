@@ -87,15 +87,15 @@ public:
     void displayScannerEncoderValues(const int* risingValues, const int* fallingValues);
     
     // 正常模式专用显示方法
-    void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount);
-    void displayNormalModeDiameter(int latestDiameter);
+    void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, bool forceRefresh = false);
+    void displayNormalModeDiameter(int latestDiameter, bool forceRefresh = false);
     
     // 统一菜单显示代理
     void renderMenu(MenuNode* node, int cursorIndex, int scrollOffset);
     
     // 通用显示方法（替代旧的updateDisplay）
   void displaySpeedStats(int speedPerSecond, int speedPerMinute, int speedPerHour, int itemCount, int trayCount);
-  void displayDiameter(int latestDiameter);
+  void displayDiameter(int latestDiameter, bool forceRefresh = false);
   void displaySingleValue(const String& label, int value, const String& unit);
   void displayPositionInfo(const String& title, int position, bool showOnlyOnChange);
   void displayDiagnosticValues(const String& title, const String& value1, const String& value2);
