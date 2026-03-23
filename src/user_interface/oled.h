@@ -69,6 +69,7 @@ private:
   int lastIdentifiedCount;  // 上一次显示的已识别数量
   int lastTransportedTrayCount;  // 上一次显示的已输送托盘数量
   int lastLatestDiameter;  // 上一次显示的最新直径
+  int lastLatestScanCount; // 上一次显示的最新根数
   
   // I2C 稳定性监测变量
   uint32_t i2cErrorCount;    // 累计 I2C 错误次数
@@ -120,11 +121,11 @@ public:
   
   // 通用显示方法 - 替代模式专用方法
   void renderMenu(MenuNode* node, int cursorIndex, int scrollOffset) override;
-  void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount) override;
+  void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount) override;
   void displayDiameter(int latestDiameter) override;
   
   // 实现Display抽象基类的方法（兼容旧接口）
-  void displayNormalModeStats(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount) override;
+  void displayNormalModeStats(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount) override;
   void displayNormalModeDiameter(int latestDiameter) override;
   
   // 新增功能专用显示方法

@@ -25,33 +25,38 @@ void processVersionInfoMode() {
 }
 
 void processNormalMode() {
-    static bool subModeInitialized = false;
-    static int lastPos = -1;
+    static bool initialized = false;
     
-    int currentPos = encoder->getCurrentPosition();
-    // 只有当编码器正好到达数据锁存相位（170）时强制刷新，其余时间按界面事件刷新
-    bool shouldForceRefresh = (currentPos == PHASE_DATA_LATCH && lastPos != PHASE_DATA_LATCH);
-    
-    if (!subModeInitialized) {
-        subModeInitialized = true;
-        Serial.println("[NORMAL] Normal Mode Activated");
-        shouldForceRefresh = true; // 初次进入强制刷新一次
+    if (!initialized) {
+        initialized = true;
+        Serial.println("[NORMAL] Normal Mode Activated (Unified Dashboard)");
     }
-    lastPos = currentPos;
     
-    if (normalModeSubmode == 0) {
-        float speedPerSecond = sorter.getConveyorSpeedPerSecond();
-        int speedPerMinute = speedPerSecond * 60.0f;
-        int speedPerHour = speedPerSecond * 3600.0f;
-        int identifiedCount = DiameterScanner::getInstance()->getTotalObjectCount();
-        const int pulsesPerTray = 200;
-        long encoderPosition = encoder->getRawCount();
-        int transportedTrayCount = encoderPosition / pulsesPerTray;
-        UserInterface::getInstance()->displayDashboard(speedPerSecond, speedPerMinute, speedPerHour, identifiedCount, transportedTrayCount, shouldForceRefresh);
-    } else {
-        int latestDiameter = traySystem->getTrayDiameter(0);
-        UserInterface::getInstance()->displayNormalModeDiameter(latestDiameter, shouldForceRefresh);
-    }
+    // 从 Sorter 和 TraySystem 获取实时数据
+    float speedPerSecond = sorter.getConveyorSpeedPerSecond();
+    int speedPerMinute = speedPerSecond * 60.0f;
+    int speedPerHour = speedPerSecond * 3600.0f;
+    
+    int identifiedCount = DiameterScanner::getInstance()->getTotalObjectCount();
+    const int pulsesPerTray = 200;
+    long encoderPosition = encoder->getRawCount();
+    int transportedTrayCount = encoderPosition / pulsesPerTray;
+    
+    // 获取最新一根物料的详细数据
+    int latestDiameter = traySystem->getTrayDiameter(0);
+    int latestScanCount = traySystem->getTrayScanCount(0);
+    
+    // 调用功能增强版的仪表盘，设置 forceRefresh 为 true，由 UITask 控制刷新节奏
+    UserInterface::getInstance()->displayDashboard(
+        speedPerSecond, 
+        speedPerMinute, 
+        speedPerHour, 
+        identifiedCount, 
+        transportedTrayCount,
+        latestDiameter,
+        latestScanCount,
+        true // 强制刷新，因为我们在 30Hz 的 UITask 中循环
+    );
 }
 
 String getSystemModeName(SystemMode mode) {

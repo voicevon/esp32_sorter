@@ -24,9 +24,10 @@ void DiameterScanner::initialize() {
         pinMode(scannerPins[i], INPUT);
     }
     
-    start();
+    // 移除 initialize() 中的 start() 调用，确保开机时处于受控的静默状态。
+    // 真正的扫描开启将由 Sorter 在探测到 Phase 50 时触发。
     
-    Serial.println("DiameterScanner initialized");
+    Serial.println("DiameterScanner initialized (Silent)");
 }
 
 void DiameterScanner::start() {
@@ -38,6 +39,10 @@ void DiameterScanner::start() {
         lastSensorStates[i] = false;
         isObjectPassing[i] = false;
     }
+}
+
+void DiameterScanner::stop() {
+    isScanning = false;
 }
 
 void DiameterScanner::sample(int phase) {
@@ -79,7 +84,9 @@ void DiameterScanner::sample(int phase) {
 }
 
 int DiameterScanner::getDiameterAndStop() {
-    isScanning = false; // 停止扫描
+    // 必须首先调用 stop()，确保在后续计算过程中不再有中断累加。
+    // 在 Sorter::onPhaseChange 中理应已调用过一次 stop()，此处为双重保险。
+    stop(); 
     
     //在此处执行计算逻辑
     float correctedCounts[4];

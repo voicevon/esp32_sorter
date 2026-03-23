@@ -52,6 +52,7 @@ private:
   int previousIdentifiedCount;  // 上一次显示的已识别数量
   int previousTransportedTrayCount;  // 上一次显示的已输送托盘数量
   int previousLatestDiameter;  // 上一次显示的最新直径
+  int previousLatestScanCount; // 上一次显示的最新根数
   
   // 辅助方法
   String translate(const String& key) const;
@@ -90,7 +91,7 @@ public:
   void renderMenu(MenuNode* node, int cursorIndex, int scrollOffset) override;
   
   // 显示系统仪表盘
-  void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount) override;
+  void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount) override;
   
   // 显示直径信息（功能专用方法）
   void displayDiameter(int latestDiameter) override;
@@ -99,7 +100,7 @@ public:
   void displayNormalModeDiameter(int latestDiameter) override;
   
   // 显示正常模式统计信息（兼容旧接口）
-  void displayNormalModeStats(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount) override;
+  void displayNormalModeStats(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount) override;
   
   // 显示速度统计信息
   void displaySpeedStats(int speedPerSecond, int speedPerMinute, int speedPerHour, int itemCount, int trayCount) override;

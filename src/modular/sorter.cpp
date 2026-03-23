@@ -17,6 +17,9 @@ Sorter::Sorter() :
     lastSpeed(0.0f), 
     lastObjectCount(0) 
 {
+    // 实例化互斥锁
+    mutex = xSemaphoreCreateMutex();
+
     // 实例获取
     encoder = Encoder::getInstance();
     simpleHmi = SimpleHMI::getInstance();
@@ -110,7 +113,10 @@ void Sorter::onPhaseChange(int phase) {
     // 2. 标志位置位（原子化记录事件，等待 run() 处理）
     switch (phase) {
         case PHASE_SCAN_START:    flagScanStart = true;     break;
-        case PHASE_DATA_LATCH:    flagDataLatch = true;     break;
+        case PHASE_DATA_LATCH:    
+            scanner->stop(); // 关键：立即在中断中停止，彻底解决因任务调度延迟导致的计数溢出
+            flagDataLatch = true;     
+            break;
         case PHASE_OUTLET_EXECUTE: flagOutletExecute = true; break;
         case PHASE_OUTLET_RESET:   flagOutletReset = true;   break;
         default: break;
@@ -125,6 +131,8 @@ void Sorter::onEncoderPhaseChange(void* context, int phase) {
 
 // 主循环处理函数 (事件驱动消费)
 void Sorter::run() {
+    if (xSemaphoreTake(mutex, pdMS_TO_TICKS(10)) != pdTRUE) return;
+
     // 1. 速度更新逻辑（每 100ms 计算一次）
     if (millis() - lastSpeedCheckTime >= 100) {
         lastSpeedCheckTime = millis();
@@ -165,9 +173,6 @@ void Sorter::run() {
             outlets[i].execute(); // 根据 170 相位算好的状态触发电磁铁动作
         }
         
-        // 这一步之后，托盘系统在物理位置上完成逻辑映射。
-        // （位移已经在 PHASE_DATA_LATCH 时由 pushNewAsparagus 完成）
-        
         flagOutletExecute = false;
         Serial.println("[SORTER] Event -> EXECUTE OUTLETS (30)");
     }
@@ -175,9 +180,8 @@ void Sorter::run() {
     // D. 重置/关闭驱动信号 (150)
     if (flagOutletReset) {
          for(int i = 0; i < NUM_OUTLETS; i++){
-            // 预见性优化：如果预测到下一个托盘也要进这个动，则跳过本次复位动作
             if (outlets[i].shouldStayOpenNext()) {
-                Serial.printf("[SORTER] Predictive Action -> Stay OPEN for outlet %d\n", i);
+                // Serial.printf("[SORTER] Predictive Action -> Stay OPEN for outlet %d\n", i);
                 continue; 
             }
             outlets[i].setReadyToOpen(false);
@@ -192,6 +196,8 @@ void Sorter::run() {
         outlets[i].update();
     }
     updateShiftRegisters();
+
+    xSemaphoreGive(mutex);
 }
 
 
@@ -250,82 +256,75 @@ void Sorter::prepareOutlets() {
 }
 
 // 获取最新直径
-int Sorter::getLatestDiameter() const {
-    return trayManager->getTrayDiameter(0);
+int Sorter::getLatestDiameter() {
+    int val = 0;
+    if (xSemaphoreTake(mutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+        val = trayManager->getTrayDiameter(0);
+        xSemaphoreGive(mutex);
+    }
+    return val;
 }
 
 // 获取已经输送的托架数量
-int Sorter::getTransportedTrayCount() const {
+int Sorter::getTransportedTrayCount() {
     // 每一个托架固定对应 200 个脉冲（ pulsesPerTray ）
     return encoder->getRawCount() / 200;
+    // 注：此计数来自编码器，编码器本身是原子读取，无需 Sorter 互斥锁保护
 }
 
 // 获取传送带速度（托架/秒）- 返回float类型
 float Sorter::getConveyorSpeedPerSecond() {
-    unsigned long currentTime = millis();
-    
-    // 从编码器获取当前位置
-    long currentEncoderPosition = encoder->getRawCount();
-    
-    // 计算编码器位置变化和时间变化
-    long positionDiff = currentEncoderPosition - lastEncoderPosition;
-    int timeDiff = currentTime - lastSpeedCheckTime;
-    
-    // 每200个编码器脉冲对应一个托架移动
-    const int pulsesPerTray = 200;
-    
-    // 设置最小时间差阈值（100ms），避免检查点刚更新后计算出异常高速值
-    const int MIN_TIME_DIFF = 100;
-    
-    // 计算每秒的托架速度
-    float speed = 0.0f;
-    if (timeDiff >= MIN_TIME_DIFF) {
-        // 先计算时间窗口内移动的托架数量
-        float traysMoved = (float)abs(positionDiff) / pulsesPerTray;
-        // 然后计算每秒的托架速度
-        speed = traysMoved * 1000.0f / (float)timeDiff;
-    } else if (timeDiff > 0) {
-        // 时间差小于最小阈值，使用上一次的速度值
-        return lastSpeed;  // 返回上一次的速度值
+    float val = 0.0f;
+    if (xSemaphoreTake(mutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+        val = lastSpeed;
+        xSemaphoreGive(mutex);
     }
-    
-    // 更新时间和位置 - 只在时间窗口结束时更新（1秒）
-    if (timeDiff >= 1000) {
-        lastSpeedCheckTime = currentTime;
-        lastEncoderPosition = currentEncoderPosition;
-    }
-    
-    // 更新并保存当前速度值，用于下次短时间差时使用
-    if (speed > 0.0f) {
-        lastSpeed = speed;
-    }
-    
-    return speed;
+    return val;
 }
 
 // 获取显示数据（用于 UserInterface）
 // Sorter::getDisplayData方法已移除，改用专用方法
 // 获取出口最小直径
-int Sorter::getOutletMinDiameter(uint8_t outletIndex) const {
-    return outlets[outletIndex].getMatchDiameterMin();
+int Sorter::getOutletMinDiameter(uint8_t outletIndex) {
+    int val = 0;
+    if (xSemaphoreTake(mutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+        if (outletIndex < NUM_OUTLETS) {
+            val = outlets[outletIndex].getMatchDiameterMin();
+        }
+        xSemaphoreGive(mutex);
+    }
+    return val;
 }
 
 // 获取出口最大直径
-int Sorter::getOutletMaxDiameter(uint8_t outletIndex) const {
-    return outlets[outletIndex].getMatchDiameterMax();
+int Sorter::getOutletMaxDiameter(uint8_t outletIndex) {
+    int val = 0;
+    if (xSemaphoreTake(mutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+        if (outletIndex < NUM_OUTLETS) {
+            val = outlets[outletIndex].getMatchDiameterMax();
+        }
+        xSemaphoreGive(mutex);
+    }
+    return val;
 }
 
 // 设置出口最小直径
 void Sorter::setOutletMinDiameter(uint8_t outletIndex, int minDiameter) {
-    if (outletIndex < NUM_OUTLETS) {
-        outlets[outletIndex].setMatchDiameterMin(minDiameter);
+    if (xSemaphoreTake(mutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+        if (outletIndex < NUM_OUTLETS) {
+            outlets[outletIndex].setMatchDiameterMin(minDiameter);
+        }
+        xSemaphoreGive(mutex);
     }
 }
 
 // 设置出口最大直径
 void Sorter::setOutletMaxDiameter(uint8_t outletIndex, int maxDiameter) {
-    if (outletIndex < NUM_OUTLETS) {
-        outlets[outletIndex].setMatchDiameterMax(maxDiameter);
+    if (xSemaphoreTake(mutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+        if (outletIndex < NUM_OUTLETS) {
+            outlets[outletIndex].setMatchDiameterMax(maxDiameter);
+        }
+        xSemaphoreGive(mutex);
     }
 }
 

@@ -2,6 +2,8 @@
 #define TRAY_SYSTEM_H
 
 #include <Arduino.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
 /**
  * 托盘系统类
@@ -17,6 +19,9 @@ private:
     // 成员变量
     int asparagusDiameters[QUEUE_CAPACITY];    // 存储每个芦笋的直径数据
     int asparagusCounts[QUEUE_CAPACITY];    // 存储每个位置的芦笋数量
+    
+    // 线程安全互斥锁
+    SemaphoreHandle_t mutex;
     
     // 单例实例
     static TraySystem* instance;
@@ -65,14 +70,14 @@ public:
      * @param index 托盘索引
      * @return 直径值，无效返回0
      */
-    int getTrayDiameter(int index) const;
+    int getTrayDiameter(int index);
     
     /**
      * 获取托盘扫描次数
      * @param index 托盘索引
      * @return 扫描次数
      */
-    int getTrayScanCount(int index) const;
+    int getTrayScanCount(int index);
     
     /**
      * 获取托盘队列容量

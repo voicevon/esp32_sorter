@@ -40,6 +40,14 @@ int normalModeSubmode = 0;
 bool hasVersionInfoDisplayed = false;
 String systemName = "Feng's AS-L9";
 
+// FreeRTOS 任务句柄
+TaskHandle_t hControlTask = nullptr;
+TaskHandle_t hUITask = nullptr;
+
+// 任务函数声明
+void vControlTask(void* pvParameters);
+void vUITask(void* pvParameters);
+
 void setup() {
     Serial.begin(115200);
     Serial.println("Feng's Sorter system starting...");
@@ -77,61 +85,115 @@ void setup() {
     
     setupMenuTree();
     Serial.println("System ready");
+
+    // ==========================================
+    // 任务创建：将分拣控制核心与 UI 交互核心物理隔离
+    // ==========================================
+    
+    // 1. 创建控制任务 (Core 1, 高优先级, 1000Hz)
+    xTaskCreatePinnedToCore(
+        vControlTask,   // 任务函数
+        "ControlTask",  // 任务名称
+        4096,           // 栈大小
+        nullptr,        // 参数
+        10,             // 优先级 (最高)
+        &hControlTask,  // 句柄
+        1               // 绑定到 Core 1 (Arduino 默认核)
+    );
+
+    // 2. 创建 UI 任务 (Core 0, 低优先级, 30Hz)
+    xTaskCreatePinnedToCore(
+        vUITask,        // 任务函数
+        "UITask",       // 任务名称
+        8192,           // 栈大小
+        nullptr,        // 参数
+        1,              // 优先级
+        &hUITask,       // 句柄
+        0               // 绑定到 Core 0
+    );
 }
 
-void loop() {
-    int delta = userInterface->getEncoderDelta();
-    bool btnPressed = userInterface->isMasterButtonPressed();
-    uint32_t currentMs = millis();
-    
-    if (menuModeActive) {
-        bool needsRefresh = false;
-        if (delta != 0) {
-            menuSystem.handleInput(delta, false);
-            needsRefresh = true;
-        }
-        if (btnPressed) {
-            menuSystem.handleInput(0, true);
-            if (menuModeActive) needsRefresh = true;
-        }
-        if (needsRefresh) {
-            userInterface->renderMenu(menuSystem.getCurrentNode(), menuSystem.getCursorIndex(), menuSystem.getScrollOffset());
-        }
-    } else {
-        handleModeChange(); // 强制模式状态检查
+void vControlTask(void* pvParameters) {
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    const TickType_t xFrequency = pdMS_TO_TICKS(1); // 1ms 循环频率
 
-        // 处理工作模式逻辑
-        if (activeHandler) {
-            // 核心更新逻辑
-            activeHandler->update(currentMs, btnPressed);
-            
-            // 模式特定的附加补丁
-            if (currentMode == MODE_DIAGNOSE_OUTLET) {
-                sorter.run();
-                if (delta != 0) {
-                    outletDiagnosticHandler.handleEncoderInput(delta);
-                }
+    Serial.println("[FreeRTOS] ControlTask (Core 1) started.");
+
+    for (;;) {
+        // 分拣逻辑消费执行
+        // 只有在 Normal 模式或特定的分拣诊断模式下才运行逻辑处理槽
+        if (currentMode == MODE_NORMAL || currentMode == MODE_DIAGNOSE_OUTLET) {
+            sorter.run();
+        }
+        
+        // 保持 1ms 的确定性节拍
+        vTaskDelayUntil(&xLastWakeTime, xFrequency);
+    }
+}
+
+void vUITask(void* pvParameters) {
+    Serial.println("[FreeRTOS] UITask (Core 0) started.");
+
+    for (;;) {
+        int delta = userInterface->getEncoderDelta();
+        bool btnPressed = userInterface->isMasterButtonPressed();
+        uint32_t currentMs = millis();
+        
+        if (menuModeActive) {
+            bool needsRefresh = false;
+            if (delta != 0) {
+                menuSystem.handleInput(delta, false);
+                needsRefresh = true;
+            }
+            if (btnPressed) {
+                menuSystem.handleInput(0, true);
+                if (menuModeActive) needsRefresh = true;
+            }
+            if (needsRefresh) {
+                userInterface->renderMenu(menuSystem.getCurrentNode(), menuSystem.getCursorIndex(), menuSystem.getScrollOffset());
             }
         } else {
-            // 返回菜单：在独立参数编辑模式下，短按即是“确定并返回列表”
-            if (btnPressed) {
-                handleReturnToMenu();
-                return;
-            }
-            
-            // 处理非处理器托管的模式
-            switch (currentMode) {
-                case MODE_NORMAL:
-                    if (delta != 0) normalModeSubmode = (normalModeSubmode + 1) % 2;
-                    processNormalMode();
-                    sorter.run();
-                    break;
-                case MODE_VERSION_INFO:
-                    processVersionInfoMode();
-                    break;
-                default:
-                    break;
+            handleModeChange(); // 强制模式状态检查
+
+            // 处理工作模式逻辑 (主要由 Handler 更新显示)
+            if (activeHandler) {
+                activeHandler->update(currentMs, btnPressed);
+                
+                // 模式特定的附加补丁
+                if (currentMode == MODE_DIAGNOSE_OUTLET) {
+                    if (delta != 0) {
+                        outletDiagnosticHandler.handleEncoderInput(delta);
+                    }
+                }
+            } else {
+                if (btnPressed) {
+                    handleReturnToMenu();
+                } else {
+                    switch (currentMode) {
+                        case MODE_NORMAL:
+                            if (delta != 0) normalModeSubmode = (normalModeSubmode + 1) % 2;
+                            processNormalMode();
+                            break;
+                        case MODE_VERSION_INFO:
+                            processVersionInfoMode();
+                            break;
+                        default:
+                            break;
+                    }
+                }
             }
         }
+        
+        // 给系统任务（如 Watchdog/WiFi）留出时间，并维持约 30Hz 刷新
+        vTaskDelay(pdMS_TO_TICKS(30));
     }
+}
+
+// ==========================================
+// Arduino 框架要求
+// ==========================================
+void loop() {
+    // 原始 loop() 在双核模式下已废弃，任务由 vControlTask 和 vUITask 承载
+    // 我们直接删除这个默认创建的 IDLE 任务以节省资源
+    vTaskDelete(NULL);
 }

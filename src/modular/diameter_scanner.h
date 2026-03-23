@@ -43,6 +43,9 @@ public:
     
     // 重置状态和缓冲区
     void start();
+    
+    // 停止扫描计数
+    void stop();
 
     // 检查是否正在扫描
     bool isScanningActive() const { return isScanning; }

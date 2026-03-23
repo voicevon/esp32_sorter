@@ -26,6 +26,7 @@ OLED::OLED() : display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire1, -1) {
   lastIdentifiedCount = 0;
   lastTransportedTrayCount = 0;
   lastLatestDiameter = 0;
+  lastLatestScanCount = 0;
   
   // 初始化扫描仪编码器值显示状态管理变量
   for (int i = 0; i < 4; i++) {
@@ -477,22 +478,63 @@ void OLED::renderMenu(MenuNode* node, int cursorIndex, int scrollOffset) {
     safeDisplay();
 }
 
-// 仪表盘
-void OLED::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount) {
+// 仪表盘 (128x64 整合版设计)
+void OLED::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount) {
     if (!isDisplayAvailable || isTemporaryDisplayActive) { checkTemporaryDisplayEnd(); return; }
+    
     display.clearDisplay();
     renderHeader();
-    display.setCursor(0, 12);
-    display.printf("    %5d.%1d /s\n", (int)sortingSpeedPerSecond, (int)(sortingSpeedPerSecond * 10 + 0.5) % 10);
-    display.printf("    %5d   /m\n", (int)sortingSpeedPerMinute);
-    display.printf("    %5d   /h\n", (int)sortingSpeedPerHour);
-    display.setCursor(64, 36); display.printf("Items: %d", identifiedCount);
-    display.setCursor(64, 46); display.printf("Trays: %d", transportedTrayCount);
+    
+    // -------------------------------------------------------------------
+    // 左半区 (X: 0-63): 统计信息
+    // -------------------------------------------------------------------
+    display.setTextSize(1);
+    display.setCursor(0, 14);
+    display.print(F("Spd/s: ")); 
+    display.print(sortingSpeedPerSecond, 1);
+    
+    display.setCursor(0, 24);
+    display.print(F("Spd/m: ")); 
+    display.print(sortingSpeedPerMinute);
+    
+    display.setCursor(0, 34);
+    display.print(F("Items: ")); 
+    display.print(identifiedCount);
+    
+    display.setCursor(0, 44);
+    display.print(F("Trays: ")); 
+    display.print(transportedTrayCount);
+
+    // 绘制垂直分割线
+    display.drawFastVLine(65, 12, 52, SSD1306_WHITE);
+
+    // -------------------------------------------------------------------
+    // 右半区 (X: 66-127): 实时扫描特写
+    // -------------------------------------------------------------------
+    
+    // A. 直径大号字体显示 (核心视觉)
+    display.setCursor(72, 14);
+    display.setTextSize(3); // 降低到3以容纳3位数直径（如 120mm）
+    if (latestDiameter > 0) {
+        display.print(latestDiameter);
+    } else {
+        display.print("--");
+    }
+    
+    display.setTextSize(1);
+    display.setCursor(72, 38);
+    display.print(F(" mm"));
+
+    // B. 托架根数显示 (底部)
+    display.setCursor(72, 52);
+    display.print(F("Pcs: "));
+    display.print(latestScanCount);
+    
     safeDisplay();
 }
 
-void OLED::displayNormalModeStats(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount) {
-    displayDashboard(sortingSpeedPerSecond, sortingSpeedPerMinute, sortingSpeedPerHour, identifiedCount, transportedTrayCount);
+void OLED::displayNormalModeStats(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount) {
+    displayDashboard(sortingSpeedPerSecond, sortingSpeedPerMinute, sortingSpeedPerHour, identifiedCount, transportedTrayCount, latestDiameter, latestScanCount);
 }
 
 void OLED::displayNormalModeDiameter(int latestDiameter) {

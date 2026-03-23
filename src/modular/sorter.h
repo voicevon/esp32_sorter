@@ -7,6 +7,8 @@
 #include "../config.h"
 #include "main.h"
 #include "user_interface/simple_hmi.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
 // 定义分拣系统参数
 // 注：NUM_OUTLETS 及其它全局物理定义已在 config.h 中由中央管理
@@ -52,6 +54,9 @@ private:
     void updateShiftRegisters();
     uint32_t lastShiftData = 0xFFFFFF; // 记录上次发送的 24 位数据
 
+    // 线程安全互斥锁
+    SemaphoreHandle_t mutex;
+
     
 public:
     // 构造函数
@@ -80,17 +85,17 @@ public:
     static void onEncoderPhaseChange(void* context, int phase);
     
     // 获取最新直径
-    int getLatestDiameter() const;
+    int getLatestDiameter();
     
     // 获取已经输送的托架数量
-    int getTransportedTrayCount() const;
+    int getTransportedTrayCount();
     
     // 获取传送带速度（托架/秒，返回float类型）
     float getConveyorSpeedPerSecond();
     
     // 获取和设置出口直径范围的方法
-    int getOutletMinDiameter(uint8_t outletIndex) const;
-    int getOutletMaxDiameter(uint8_t outletIndex) const;
+    int getOutletMinDiameter(uint8_t outletIndex);
+    int getOutletMaxDiameter(uint8_t outletIndex);
     void setOutletMinDiameter(uint8_t outletIndex, int minDiameter);
     void setOutletMaxDiameter(uint8_t outletIndex, int maxDiameter);
     

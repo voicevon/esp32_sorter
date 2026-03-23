@@ -9,12 +9,15 @@ TraySystem* TraySystem::instance = nullptr;
  * 构造函数实现
  */
 TraySystem::TraySystem() {
-    // 初始化所有成员变量
+    // 1. 创建互斥锁
+    mutex = xSemaphoreCreateMutex();
+    
+    // 2. 初始化所有成员变量
     for (uint8_t i = 0; i < QUEUE_CAPACITY; i++) {
         asparagusDiameters[i] = EMPTY_TRAY;
         asparagusCounts[i] = 0;
     }
-    Serial.println("[TRAY] TraySystem instance created");
+    Serial.println("[TRAY] TraySystem instance created (Thread-safe).");
 }
 
 /**
@@ -38,18 +41,18 @@ TraySystem* TraySystem::getInstance() {
  * 添加新直径数据实现
  */
 void TraySystem::pushNewAsparagus(int diameter, int scanCount) {
-    // 将所有现有数据向右移动一位
-    shiftToRight();
-    
-    // 在索引0处添加新数据
-    asparagusDiameters[0] = diameter;
-    asparagusCounts[0] = scanCount;
-    
-    // 注释掉调试日志，根据需求不显示添加数据的信息
-    // Serial.print("添加新数据到索引0: 直径 = ");
-    // Serial.print(float(diameter)/2.0);
-    // Serial.print("mm, 扫描次数 = ");
-    // Serial.println(scanCount);
+    if (xSemaphoreTake(mutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+        // 将所有现有数据向右移动一位
+        shiftToRight();
+        
+        // 在索引0处添加新数据
+        asparagusDiameters[0] = diameter;
+        asparagusCounts[0] = scanCount;
+        
+        xSemaphoreGive(mutex);
+    } else {
+        Serial.println("[TRAY] Warning: Failed to get mutex in pushNewAsparagus");
+    }
 }
 
 /**
@@ -81,32 +84,43 @@ void TraySystem::shiftToRight() {
  * 重置所有直径数据实现
  */
 void TraySystem::resetAllTraysData() {
-    for (uint8_t i = 0; i < QUEUE_CAPACITY; i++) {
-        asparagusDiameters[i] = EMPTY_TRAY;
-        asparagusCounts[i] = 0;
+    if (xSemaphoreTake(mutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+        for (uint8_t i = 0; i < QUEUE_CAPACITY; i++) {
+            asparagusDiameters[i] = EMPTY_TRAY;
+            asparagusCounts[i] = 0;
+        }
+        xSemaphoreGive(mutex);
+        Serial.println("所有直径数据和扫描次数数据已重置");
     }
-    Serial.println("所有直径数据和扫描次数数据已重置");
 }
 
 
 /**
  * 获取托盘直径数据实现
  */
-int TraySystem::getTrayDiameter(int index) const {
-    if (index >= 0 && index < QUEUE_CAPACITY) {
-        return asparagusDiameters[index];
+int TraySystem::getTrayDiameter(int index) {
+    int val = EMPTY_TRAY;
+    if (xSemaphoreTake(mutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+        if (index >= 0 && index < QUEUE_CAPACITY) {
+            val = asparagusDiameters[index];
+        }
+        xSemaphoreGive(mutex);
     }
-    return EMPTY_TRAY;
+    return val;
 }
 
 /**
  * 获取托盘扫描次数实现
  */
-int TraySystem::getTrayScanCount(int index) const {
-    if (index >= 0 && index < QUEUE_CAPACITY) {
-        return asparagusCounts[index];
+int TraySystem::getTrayScanCount(int index) {
+    int val = 0;
+    if (xSemaphoreTake(mutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+        if (index >= 0 && index < QUEUE_CAPACITY) {
+            val = asparagusCounts[index];
+        }
+        xSemaphoreGive(mutex);
     }
-    return 0;
+    return val;
 }
 
 /**
@@ -120,41 +134,37 @@ uint8_t TraySystem::getCapacity() {
  * 保存托盘数据到EEPROM实现
  */
 void TraySystem::saveToEEPROM(int startAddr) {
-    int addr = startAddr;
-    
-    // 保存魔术值以验证数据有效性
-    EEPROM.write(addr++, 0xCC); // Magic Byte for Tray Data
-    
-    // 保存数组数据
-    for (uint8_t i = 0; i < QUEUE_CAPACITY; i++) {
-        EEPROM.put(addr, asparagusDiameters[i]);
-        addr += sizeof(int);
-        EEPROM.put(addr, asparagusCounts[i]);
-        addr += sizeof(int);
+    if (xSemaphoreTake(mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+        int addr = startAddr;
+        EEPROM.write(addr++, 0xCC);
+        for (uint8_t i = 0; i < QUEUE_CAPACITY; i++) {
+            EEPROM.put(addr, asparagusDiameters[i]);
+            addr += sizeof(int);
+            EEPROM.put(addr, asparagusCounts[i]);
+            addr += sizeof(int);
+        }
+        xSemaphoreGive(mutex);
     }
-    // 注意：调用者负责commit
 }
 
 /**
  * 从EEPROM加载托盘数据实现
  */
 void TraySystem::loadFromEEPROM(int startAddr) {
-    int addr = startAddr;
-    
-    // 检查魔术值
-    uint8_t magic = EEPROM.read(addr++);
-    if (magic != 0xCC) {
-        Serial.println("[TRAY] No valid tray data in EEPROM found.");
-        resetAllTraysData();
-        return;
+    if (xSemaphoreTake(mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+        int addr = startAddr;
+        uint8_t magic = EEPROM.read(addr++);
+        if (magic == 0xCC) {
+            for (uint8_t i = 0; i < QUEUE_CAPACITY; i++) {
+                EEPROM.get(addr, asparagusDiameters[i]);
+                addr += sizeof(int);
+                EEPROM.get(addr, asparagusCounts[i]);
+                addr += sizeof(int);
+            }
+            Serial.println("[TRAY] Tray data restored from EEPROM.");
+        } else {
+            Serial.println("[TRAY] No valid tray data in EEPROM.");
+        }
+        xSemaphoreGive(mutex);
     }
-    
-    // 加载数组数据
-    for (uint8_t i = 0; i < QUEUE_CAPACITY; i++) {
-        EEPROM.get(addr, asparagusDiameters[i]);
-        addr += sizeof(int);
-        EEPROM.get(addr, asparagusCounts[i]);
-        addr += sizeof(int);
-    }
-    Serial.println("[TRAY] Tray data restored from EEPROM.");
 }

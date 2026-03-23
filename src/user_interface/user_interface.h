@@ -87,7 +87,7 @@ public:
     void displayScannerEncoderValues(const int* risingValues, const int* fallingValues);
     
     // 正常模式专用显示方法
-    void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, bool forceRefresh = false);
+    void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, bool forceRefresh = false);
     void displayNormalModeDiameter(int latestDiameter, bool forceRefresh = false);
     
     // 统一菜单显示代理

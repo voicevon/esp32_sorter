@@ -23,6 +23,7 @@ Terminal::Terminal() {
     previousIdentifiedCount = 0;
     previousTransportedTrayCount = 0;
     previousLatestDiameter = 0;
+    previousLatestScanCount = 0;
 }
 
 // 单例模式获取实例
@@ -239,33 +240,29 @@ void Terminal::displayScannerEncoderValues(const int* risingValues, const int* f
     }
 }
 
-// 显示系统仪表盘（三行简洁版本）
-void Terminal::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount) {
+// 显示系统仪表盘
+void Terminal::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount) {
     if (isUpdateReady() || 
         sortingSpeedPerSecond != previousSortingSpeedPerSecond ||
-        sortingSpeedPerMinute != previousSortingSpeedPerMinute ||
-        sortingSpeedPerHour != previousSortingSpeedPerHour ||
         identifiedCount != previousIdentifiedCount ||
-        transportedTrayCount != previousTransportedTrayCount) {
+        latestDiameter != previousLatestDiameter ||
+        latestScanCount != previousLatestScanCount) {
         
         // 检查是否是第一次显示
         static bool firstDisplay = true;
         
         if (firstDisplay) {
-            // 第一次显示时，打印三行格式（蓝色背景，红色标题，白色正文）
-            // 固定宽度为29字符，确保长方形窗口
             Serial.println("\n" + STYLE_DATA_WINDOW_TITLE + "       === System Dashboard ===       " + STYLE_RESET);
             Serial.println(STYLE_DATA_WINDOW_CONTENT + "Speed:     0.0/s, 0/min, 0/h          " + STYLE_RESET);
             Serial.println(STYLE_DATA_WINDOW_CONTENT + "Identified: 0 | Transported: 0         " + STYLE_RESET);
+            Serial.println(STYLE_DATA_WINDOW_CONTENT + "Last:       0 mm | Pcs: 0              " + STYLE_RESET);
             firstDisplay = false;
         } else {
-            // 使用回到行首的方式更新三行数据
-            Serial.print("\033[3A"); // 向上移动3行到标题行
+            // 使用回到行首的方式更新四行数据
+            Serial.print("\033[4A"); 
             
-            // 重新打印标题行（蓝色背景，红色标题） - 居中且保持37字符宽度
             Serial.print(STYLE_DATA_WINDOW_TITLE + "       === System Dashboard ===       " + STYLE_RESET); Serial.println();
             
-            // 更新速度数据行（蓝色背景，白色正文） - 保持37字符宽度
             Serial.print(STYLE_DATA_WINDOW_CONTENT + "Speed:     ");
             Serial.print(sortingSpeedPerSecond, 1);
             Serial.print("/s, ");
@@ -273,24 +270,26 @@ void Terminal::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPer
             Serial.print("/min, ");
             Serial.print(sortingSpeedPerHour);
             Serial.print("/h");
-            Serial.print("          "); // 填充空格确保37字符宽度
-            Serial.println(STYLE_RESET);
+            Serial.print("          "); Serial.println(STYLE_RESET);
             
-            // 更新计数数据行（蓝色背景，白色正文） - 保持37字符宽度
             Serial.print(STYLE_DATA_WINDOW_CONTENT + "Identified: ");
             Serial.print(identifiedCount);
             Serial.print(" | Transported: ");
             Serial.print(transportedTrayCount);
-            Serial.print("         "); // 填充空格确保37字符宽度
-            Serial.println(STYLE_RESET);
+            Serial.print("         "); Serial.println(STYLE_RESET);
+
+            Serial.print(STYLE_DATA_WINDOW_CONTENT + "Last:       ");
+            Serial.print(latestDiameter);
+            Serial.print(" mm | Pcs: ");
+            Serial.print(latestScanCount);
+            Serial.print("              "); Serial.println(STYLE_RESET);
         }
         
         // 更新上次显示的数据
         previousSortingSpeedPerSecond = sortingSpeedPerSecond;
-        previousSortingSpeedPerMinute = sortingSpeedPerMinute;
-        previousSortingSpeedPerHour = sortingSpeedPerHour;
         previousIdentifiedCount = identifiedCount;
-        previousTransportedTrayCount = transportedTrayCount;
+        previousLatestDiameter = latestDiameter;
+        previousLatestScanCount = latestScanCount;
         
         // 更新上次更新时间
         previousUpdateTime = millis();
@@ -333,8 +332,8 @@ void Terminal::displayNormalModeDiameter(int latestDiameter) {
 }
 
 // 显示正常模式统计信息（保持兼容）
-void Terminal::displayNormalModeStats(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount) {
-    displayDashboard(sortingSpeedPerSecond, sortingSpeedPerMinute, sortingSpeedPerHour, identifiedCount, transportedTrayCount);
+void Terminal::displayNormalModeStats(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount) {
+    displayDashboard(sortingSpeedPerSecond, sortingSpeedPerMinute, sortingSpeedPerHour, identifiedCount, transportedTrayCount, latestDiameter, latestScanCount);
 }
 
 // 显示速度统计信息
