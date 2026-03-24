@@ -1,5 +1,5 @@
 #include "scanner_diagnostic_handler.h"
-// #include "user_interface/oled.h"
+#include "../user_interface/oled.h"
 
 ScannerDiagnosticHandler::ScannerDiagnosticHandler() : 
     userInterface(UserInterface::getInstance()),
@@ -338,6 +338,14 @@ void ScannerDiagnosticHandler::handleRawDiameterDisplay() {
     }
 }
 
+void ScannerDiagnosticHandler::handleWaveformDisplay() {
+    // 总是实时刷新波形
+    OLED* oled = OLED::getInstance();
+    if (oled->isAvailable()) {
+        oled->displayScannerWaveform(scanner);
+    }
+}
+
 void ScannerDiagnosticHandler::begin() {
     lastIOStatus = "";
     // 不再重置 currentSubMode，以保留从菜单传进来的设置
@@ -347,7 +355,7 @@ void ScannerDiagnosticHandler::begin() {
     switch (currentSubMode) {
         case 0: handleIOStatusCheck(); break;
         case 1: handleEncoderValues(); break;
-        case 2: handleRawDiameterDisplay(); break;
+        case 2: handleWaveformDisplay(); break;
     }
 }
 
@@ -366,7 +374,7 @@ void ScannerDiagnosticHandler::update(uint32_t currentTime, bool btnPressed) {
             handleEncoderValues();
             break;
         case 2:
-            handleRawDiameterDisplay();
+            handleWaveformDisplay();
             break;
         case 3:
             // 退出提示界面

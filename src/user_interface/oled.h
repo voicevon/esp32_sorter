@@ -20,6 +20,9 @@
 // 系统工作模式前向声明
 enum SystemMode;
 
+// 扫描仪前向声明
+class DiameterScanner;
+
 /**
  * @class OLED
  * @brief SSD1306 I2C显示器管理类
@@ -118,6 +121,9 @@ public:
   
   // 显示扫描仪编码器值
   void displayScannerEncoderValues(const int* risingValues, const int* fallingValues) override;
+  
+  // 显示扫描仪波形图 (点划线)
+  void displayScannerWaveform(DiameterScanner* scanner);
   
   // 通用显示方法 - 替代模式专用方法
   void renderMenu(MenuNode* node, int cursorIndex, int scrollOffset) override;

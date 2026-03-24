@@ -34,6 +34,18 @@ https://www.douyin.com/search/%E6%99%AE%E8%8F%B2%E5%BE%B7ps100%E4%BC%BA%E6%9C%8D
 
 
 
+137 0667 1854
+A-A0      A-spd     StArt   donE
+断电重启
+
+零漂钳位
+P3-2      from 3 to 7     长按set
+PA-55      to  0100        Save
+PA-75      from 10 to 5    Save
+
+断电重启。
+
+
 
 报警相关
 PA-31=0,      【用户转矩过载报警检测时间】      

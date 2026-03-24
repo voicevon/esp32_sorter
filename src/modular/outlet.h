@@ -14,7 +14,8 @@ public:
           readyToOpenState(false), 
           stayOpenNext(false),
           matchDiameterMin(0), 
-          matchDiameterMax(0) {}
+          matchDiameterMax(0),
+          targetLength(0) {} // 0: ANY, 1: S, 2: M, 3: L
 
     void initialize();
     void update();
@@ -42,6 +43,10 @@ public:
 
     void setMatchDiameterMin(int min) { matchDiameterMin = min; }
     void setMatchDiameterMax(int max) { matchDiameterMax = max; }
+    
+    // 长度限定配置 (0:ANY, 1:S, 2:M, 3:L)
+    void setTargetLength(uint8_t len) { targetLength = len; }
+    uint8_t getTargetLength() const { return targetLength; }
 
 private:
     bool isPulsing;               // 正在发送高电平脉冲
@@ -53,6 +58,7 @@ private:
     int matchDiameterMin;
     int matchDiameterMax;
     bool stayOpenNext;            // 预见性：标记下一个托盘是否也需要进此洞
+    uint8_t targetLength;         // 0: ANY, 1: S, 2: M, 3: L
 
     void executeOpen();
     void executeClose();

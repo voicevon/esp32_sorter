@@ -4,6 +4,8 @@
 extern String systemName;
 extern String firmwareVersion;
 
+#include "../modular/diameter_scanner.h"
+
 // 初始化静态实例指针
 OLED* OLED::instance = nullptr;
 
@@ -445,6 +447,38 @@ void OLED::displayScannerEncoderValues(const int* risingValues, const int* falli
   safeDisplay();
 }
 
+// 扫描仪波形图和原始计数合并显示
+void OLED::displayScannerWaveform(DiameterScanner* scanner) {
+  if (!isDisplayAvailable) return;
+  display.clearDisplay();
+  
+  int samples = scanner->getSampleCount();
+  int maxWaveWidth = SCREEN_WIDTH - 28; // 左侧给文字留28像素宽度 (大概4位数字空间)
+  if (samples > maxWaveWidth) samples = maxWaveWidth;
+  
+  // 绘制 4 个通道的波形，每个通道占 15 像素高
+  for (int ch = 0; ch < 4; ch++) {
+    int yBase = 15 * ch + 12; // 底部基线
+    
+    // 绘制通道索引和脉冲计数 (例如: "0:45")
+    display.setCursor(0, yBase - 8);
+    display.setTextColor(SSD1306_WHITE);
+    int count = scanner->getHighLevelPulseCount(ch);
+    display.print(ch); 
+    display.print(":"); 
+    display.print(count);
+    
+    // 绘制波形点
+    for (int x = 0; x < samples; x++) {
+      uint8_t state = scanner->getSample(ch, x);
+      int plotY = state ? (yBase - 8) : yBase; // 高电平在上，低电平在下
+      display.drawPixel(28 + x, plotY, SSD1306_WHITE); // x 偏移 28
+    }
+  }
+  
+  safeDisplay();
+}
+
 // 菜单渲染
 void OLED::renderMenu(MenuNode* node, int cursorIndex, int scrollOffset) {
     if (!isDisplayAvailable || node == nullptr) return;
@@ -577,9 +611,8 @@ bool OLED::safeDisplay() {
         
         // 自动恢复机制：如果连续失败，尝试重新初始化 I2C 总线
         if (i2cErrorCount % 50 == 0) {
-            Serial.printf("[OLED] Re-initializing Wire bus... (Internal Error: %d)\n", error);
-            Wire.begin(PIN_OLED_SDA, PIN_OLED_SCL);
-            Wire.setClock(100000);
+            Serial.printf("[OLED] Re-initializing Wire1 bus... (Internal Error: %d)\n", error);
+            Wire1.begin(PIN_OLED_SDA, PIN_OLED_SCL, 100000);
         }
         return false;
     }

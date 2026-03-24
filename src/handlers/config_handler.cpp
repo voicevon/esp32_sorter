@@ -12,7 +12,7 @@ void DiameterConfigHandler::initializeMode() {
 }
 
 void DiameterConfigHandler::update(uint32_t currentMs, bool btnPressed) {
-    // 1. 处理旋钮输入 (2:1 平滑分频)
+    // 1. 处理旋钮输入 (2:1 平和分频)
     int rawDelta = userInterface->getRawEncoderDelta();
     if (rawDelta != 0) {
         encoderAccumulator += rawDelta;
@@ -29,27 +29,26 @@ void DiameterConfigHandler::update(uint32_t currentMs, bool btnPressed) {
         refreshDisplay();
     }
 
-    // 3. 处理按键动作
+    // 3. 处理按键动作: 列表 -> 改大 -> 改小 -> 改长 -> 列表
     if (btnPressed) {
       lastRefreshMs = currentMs;
       
       if (uiState == STATE_SELECTOR) {
           if (currentSubMode == 0) {
-              // 模式切换项：立即翻转模式
               uint8_t m = sorter->getOutlet0Mode();
               sorter->setOutlet0Mode(m == 0 ? 1 : 0);
           } else if (currentSubMode == NUM_OUTLETS + 1) {
-              // 最后一行：SAVE & EXIT
               sorter->saveConfig(); 
               handleReturnToMenu();
               return; 
           } else {
-              // 进入量规编辑 (此时 currentSubMode 对应的是 outletIndex + 1)
               uiState = STATE_EDIT_MAX;
           }
       } else if (uiState == STATE_EDIT_MAX) {
           uiState = STATE_EDIT_MIN;
       } else if (uiState == STATE_EDIT_MIN) {
+          uiState = STATE_EDIT_LENGTH;
+      } else if (uiState == STATE_EDIT_LENGTH) {
           uiState = STATE_SELECTOR;
       }
       refreshDisplay();
@@ -57,9 +56,10 @@ void DiameterConfigHandler::update(uint32_t currentMs, bool btnPressed) {
 }
 
 void DiameterConfigHandler::refreshDisplay() {
+  const char* lenStrs[] = {"ANY", "S", "M", "L"};
+  
   if (uiState == STATE_SELECTOR) {
       String listContent = "";
-      // 这里的列表项总数为：1 (Mode) + 8 (Outlets) + 1 (Save) = 10 项
       int totalItems = NUM_OUTLETS + 2;
       int startIdx = max(0, currentSubMode - 2);
       int endIdx = min(totalItems, startIdx + 5);
@@ -70,14 +70,14 @@ void DiameterConfigHandler::refreshDisplay() {
           else listContent += "  ";
 
           if (i == 0) {
-              // 第一项：O1 工作模式
               String modeStr = (sorter->getOutlet0Mode() == 0) ? "MUL-OBJ" : "DIAMETER";
               listContent += "O1 MODE: [" + modeStr + "]\n";
           } else if (i <= NUM_OUTLETS) {
-              // 量规格位 (i 从 1 到 8)
               int outletIdx = i - 1;
               int minV = sorter->getOutletMinDiameter(outletIdx);
               int maxV = sorter->getOutletMaxDiameter(outletIdx);
+              uint8_t targetL = sorter->getOutlet(outletIdx)->getTargetLength();
+              
               bool isValid = true;
               if (minV >= maxV && outletIdx > 0) isValid = false;
               if (outletIdx > 1) {
@@ -85,39 +85,40 @@ void DiameterConfigHandler::refreshDisplay() {
                   if (maxV > prevMin) isValid = false;
               }
               if (!isValid && i != currentSubMode) {
-                  listContent.remove(listContent.length() - 2); // 移除 "  "
+                  listContent.remove(listContent.length() - 2);
                   listContent += "! ";
               }
               listContent += "O" + String(outletIdx + 1) + ": " + 
-                             String(minV) + "-" + String(maxV) + "mm\n";
+                             String(minV) + "-" + String(maxV) + " [" + String(lenStrs[targetL]) + "]\n";
           } else {
               listContent += "[ SAVE & EXIT ]\n";
           }
       }
-      userInterface->displayDiagnosticInfo("DIAMETER CONFIG", listContent);
+      userInterface->displayDiagnosticInfo("DIAMETER/LEN CONFIG", listContent);
       
   } else {
-      // 在编辑状态下，currentSubMode 依然是指向 O1~O8 (1-8)
       int outletIdx = currentSubMode - 1;
       String title = "OUTLET " + String(outletIdx + 1) + " SETUP";
-      String info = "";
       int minV = sorter->getOutletMinDiameter(outletIdx);
       int maxV = sorter->getOutletMaxDiameter(outletIdx);
+      uint8_t targetL = sorter->getOutlet(outletIdx)->getTargetLength();
       
-      int prevMin = (outletIdx > 1) ? sorter->getOutletMinDiameter(outletIdx - 1) : 255;
-      bool conflict = (outletIdx > 1 && maxV > prevMin);
-      
+      String info = "";
       if (uiState == STATE_EDIT_MAX) {
-          info = "Editing: MAX VALUE\n\n";
+          info = "Editing: MAX DIAMETER\n";
           info += " -> [" + String(maxV) + "] mm\n";
-          info += "    " + String(minV) + " mm\n\n";
-          if (conflict) info += "! WARN: Overlap O" + String(outletIdx);
-          else info += "Set range peak";
-      } else {
-          info = "Editing: MIN VALUE\n\n";
+          info += "    " + String(minV) + " mm\n";
+          info += "    Len: " + String(lenStrs[targetL]) + "\n";
+      } else if (uiState == STATE_EDIT_MIN) {
+          info = "Editing: MIN DIAMETER\n";
           info += "    " + String(maxV) + " mm\n";
-          info += " -> [" + String(minV) + "] mm\n\n";
-          info += (minV >= maxV && outletIdx > 0) ? "! WARN: Min >= Max" : "Set range start";
+          info += " -> [" + String(minV) + "] mm\n";
+          info += "    Len: " + String(lenStrs[targetL]) + "\n";
+      } else {
+          info = "Editing: TARGET LENGTH\n";
+          info += "    " + String(maxV) + " mm\n";
+          info += "    " + String(minV) + " mm\n";
+          info += " -> [" + String(lenStrs[targetL]) + "]\n";
       }
       userInterface->displayDiagnosticInfo(title, info);
   }
@@ -135,9 +136,14 @@ void DiameterConfigHandler::handleValueChange(int delta) {
       if (uiState == STATE_EDIT_MAX) {
           int val = sorter->getOutletMaxDiameter(targetOutlet);
           sorter->setOutletMaxDiameter(targetOutlet, constrain(val + delta, 0, 255));
-      } else {
+      } else if (uiState == STATE_EDIT_MIN) {
           int val = sorter->getOutletMinDiameter(targetOutlet);
           sorter->setOutletMinDiameter(targetOutlet, constrain(val + delta, 0, 255));
+      } else {
+          // 修改长度等级 (0-3 循环)
+          int currentL = sorter->getOutlet(targetOutlet)->getTargetLength();
+          int nextL = (currentL + (delta > 0 ? 1 : 3)) % 4;
+          sorter->getOutlet(targetOutlet)->setTargetLength(nextL);
       }
   }
   refreshDisplay();

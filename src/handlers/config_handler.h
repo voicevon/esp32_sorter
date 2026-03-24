@@ -95,8 +95,9 @@ class DiameterConfigHandler : public ConfigHandler {
 public:
   enum DiameterUIState {
       STATE_SELECTOR, // 列表滚动选择出口
-      STATE_EDIT_MIN, // 修改最小值
-      STATE_EDIT_MAX  // 修改最大值
+      STATE_EDIT_MAX,  // 修改最大值
+      STATE_EDIT_MIN,  // 修改最小值
+      STATE_EDIT_LENGTH // 修改长度级别 (ANY,S,M,L)
   };
 
   DiameterConfigHandler(UserInterface* ui, Sorter* s) : ConfigHandler(ui, s), uiState(STATE_SELECTOR) {}

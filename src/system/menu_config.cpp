@@ -56,8 +56,8 @@ void setupMenuTree() {
         scannerDiagnosticHandler.setSubMode(1);
         switchToMode(MODE_DIAGNOSE_SCANNER);
     }));
-    hardwareScannerMenu.addItem(MenuItem("Raw Diameter", MENU_TYPE_ACTION, nullptr, [](){
-        scannerDiagnosticHandler.setSubMode(2);
+    hardwareScannerMenu.addItem(MenuItem("Waveform+Raw", MENU_TYPE_ACTION, nullptr, [](){
+        scannerDiagnosticHandler.setSubMode(2); // The new combined mode will be submode 2
         switchToMode(MODE_DIAGNOSE_SCANNER);
     }));
     hardwareScannerMenu.addItem(MenuItem("< Back", MENU_TYPE_BACK));

@@ -26,6 +26,10 @@ private:
     volatile int lastPhase; // 记录上一次处理的相位 (ISR 内部使用)
     volatile bool isObjectPassing[4];
 
+    static const int MAX_SAMPLES = 200;
+    volatile uint8_t sensorBuffers[4][MAX_SAMPLES];
+    volatile int sampleCount;
+
     // 计算得到的直径值（整数）
     int nominalDiameter;
     
@@ -58,8 +62,22 @@ public:
     // 获取统计的物体数量
     int getObjectCount(int index) const;
     
+    // 获取长度级别 (1:S, 2:M, 3:L)
+    int getLengthLevel();
+    
     // 获取所有扫描点的物体数量总和
     int getTotalObjectCount() const;
+
+    // 获取缓冲区的总采样数
+    int getSampleCount() const { return sampleCount; }
+    
+    // 获取特定扫描点在特定采样阶段的状态
+    uint8_t getSample(int sensorIndex, int sampleIndex) const {
+        if (sensorIndex >= 0 && sensorIndex < 4 && sampleIndex >= 0 && sampleIndex < sampleCount) {
+            return sensorBuffers[sensorIndex][sampleIndex];
+        }
+        return 0;
+    }
 
     // 获取IO状态数组（用于诊断模式子模式1）
     bool* getIOStatusArray();
