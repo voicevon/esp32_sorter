@@ -56,14 +56,14 @@ void DiameterConfigHandler::update(uint32_t currentMs, bool btnPressed) {
 }
 
 void DiameterConfigHandler::refreshDisplay() {
-  const char* lenStrs[] = {"ANY", "S", "M", "L"};
+  const char* lenStrs[] = {"ALL", "S", "M", "L", "MS", "LM"};
   
   if (uiState == STATE_SELECTOR) {
       String listContent = "";
       int totalItems = NUM_OUTLETS + 2;
-      int startIdx = max(0, currentSubMode - 2);
-      int endIdx = min(totalItems, startIdx + 5);
-      if (endIdx - startIdx < 5) startIdx = max(0, endIdx - 5);
+      int startIdx = max(0, currentSubMode - 1);
+      int endIdx = min(totalItems, startIdx + 4); 
+      if (endIdx - startIdx < 4) startIdx = max(0, endIdx - 4);
 
       for (int i = startIdx; i < endIdx; i++) {
           if (i == currentSubMode) listContent += "> ";
@@ -88,8 +88,10 @@ void DiameterConfigHandler::refreshDisplay() {
                   listContent.remove(listContent.length() - 2);
                   listContent += "! ";
               }
+              // 处理索引越界保护
+              const char* lenStr = (targetL < 6) ? lenStrs[targetL] : "???";
               listContent += "O" + String(outletIdx + 1) + ": " + 
-                             String(minV) + "-" + String(maxV) + " [" + String(lenStrs[targetL]) + "]\n";
+                             String(minV) + "-" + String(maxV) + " [" + String(lenStr) + "]\n";
           } else {
               listContent += "[ SAVE & EXIT ]\n";
           }
@@ -103,30 +105,17 @@ void DiameterConfigHandler::refreshDisplay() {
       int maxV = sorter->getOutletMaxDiameter(outletIdx);
       uint8_t targetL = sorter->getOutlet(outletIdx)->getTargetLength();
       
-      String info = "";
-      if (uiState == STATE_EDIT_MAX) {
-          info = "Editing: MAX DIAMETER\n";
-          info += " -> [" + String(maxV) + "] mm\n";
-          info += "    " + String(minV) + " mm\n";
-          info += "    Len: " + String(lenStrs[targetL]) + "\n";
-      } else if (uiState == STATE_EDIT_MIN) {
-          info = "Editing: MIN DIAMETER\n";
-          info += "    " + String(maxV) + " mm\n";
-          info += " -> [" + String(minV) + "] mm\n";
-          info += "    Len: " + String(lenStrs[targetL]) + "\n";
-      } else {
-          info = "Editing: TARGET LENGTH\n";
-          info += "    " + String(maxV) + " mm\n";
-          info += "    " + String(minV) + " mm\n";
-          info += " -> [" + String(lenStrs[targetL]) + "]\n";
-      }
-      userInterface->displayDiagnosticInfo(title, info);
+      int activeField = (uiState == STATE_EDIT_MAX) ? 0 : 
+                        (uiState == STATE_EDIT_MIN) ? 1 : 2;
+      
+      userInterface->displayConfigEdit(title, maxV, minV, targetL, activeField);
   }
 }
 
 void DiameterConfigHandler::handleSubModeChange() {}
 
 void DiameterConfigHandler::handleValueChange(int delta) {
+  const uint8_t cycleSeq[] = {1, 2, 3, 4, 5, 0}; // S -> M -> L -> SM -> ML -> ALL
   int totalItems = NUM_OUTLETS + 2;
   if (uiState == STATE_SELECTOR) {
       currentSubMode = (currentSubMode + delta) % totalItems;
@@ -139,11 +128,13 @@ void DiameterConfigHandler::handleValueChange(int delta) {
       } else if (uiState == STATE_EDIT_MIN) {
           int val = sorter->getOutletMinDiameter(targetOutlet);
           sorter->setOutletMinDiameter(targetOutlet, constrain(val + delta, 0, 255));
-      } else {
-          // 修改长度等级 (0-3 循环)
-          int currentL = sorter->getOutlet(targetOutlet)->getTargetLength();
-          int nextL = (currentL + (delta > 0 ? 1 : 3)) % 4;
-          sorter->getOutlet(targetOutlet)->setTargetLength(nextL);
+      } else if (uiState == STATE_EDIT_LENGTH) {
+          uint8_t current = sorter->getOutlet(targetOutlet)->getTargetLength();
+          int seqIdx = 0;
+          for (int i = 0; i < 6; i++) { if (cycleSeq[i] == current) { seqIdx = i; break; } }
+          
+          int nextIdx = (seqIdx + (delta > 0 ? 1 : 5)) % 6;
+          sorter->getOutlet(targetOutlet)->setTargetLength(cycleSeq[nextIdx]);
       }
   }
   refreshDisplay();

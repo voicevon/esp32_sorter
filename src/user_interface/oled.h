@@ -113,6 +113,9 @@ public:
   // 显示诊断信息
   void displayDiagnosticInfo(const String& title, const String& info) override;
   
+  // 显示配置编辑详情 (支持长度选择的反白效果)
+  void displayConfigEdit(const String& title, int maxV, int minV, uint8_t targetMode, int activeField) override;
+
   // 显示出口测试模式图形
   void displayOutletTestGraphic(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen, int subMode) override;
   

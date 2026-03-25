@@ -72,11 +72,18 @@ void UserInterface::displayOutletStatus(uint8_t outletIndex, bool isOpen) {
     }
 }
 
-// 显示诊断信息
 void UserInterface::displayDiagnosticInfo(const String& title, const String& info) {
     // 遍历所有显示设备
     for (int i = 0; i < displayDeviceCount; i++) {
         displayDevices[i]->displayDiagnosticInfo(title, info);
+    }
+}
+
+// 显示配置详情（带针对长度选择的反色显示）
+void UserInterface::displayConfigEdit(const String& title, int maxV, int minV, uint8_t targetMode, int activeField) {
+    // 遍历所有显示设备
+    for (int i = 0; i < displayDeviceCount; i++) {
+        displayDevices[i]->displayConfigEdit(title, maxV, minV, targetMode, activeField);
     }
 }
 

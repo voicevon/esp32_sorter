@@ -113,10 +113,10 @@ int DiameterScanner::getDiameterAndStop() {
                   highLevelPulseCounts[0], highLevelPulseCounts[1], highLevelPulseCounts[2], highLevelPulseCounts[3], lastPhase, sampleCount);
     
     //在此处执行计算逻辑
-    float correctedCounts[4];
+    float correctedCounts[2];
     int validCount = 0;
             
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 2; i++) {
         correctedCounts[i] = highLevelPulseCounts[i] * SCANNER_WEIGHTS[i];
         
         if (correctedCounts[i] >= SCANNER_MIN_DIAMETER_UNIT) {
@@ -124,34 +124,21 @@ int DiameterScanner::getDiameterAndStop() {
         }
     }
             
-    if (validCount >= 2) {
-        float validValues[4];
+    if (validCount > 0) {
+        float validValues[2];
         int validIndex = 0;
         
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 2; i++) {
             if (correctedCounts[i] >= SCANNER_MIN_DIAMETER_UNIT) {
                 validValues[validIndex++] = correctedCounts[i];
             }
         }
         
-        // 冒泡排序
-        for (int i = 0; i < validCount - 1; i++) {
-            for (int j = i + 1; j < validCount; j++) {
-                if (validValues[i] > validValues[j]) {
-                    float temp = validValues[i];
-                    validValues[i] = validValues[j];
-                    validValues[j] = temp;
-                }
-            }
-        }
-        
-        // 根据有效值的数量计算标称直径，采用 0.5f 偏移量实现四舍五入
-        if (validCount == 2) {
+        if (validCount == 1) {
+            nominalDiameter = (int)(validValues[0] + 0.5f);
+        } else if (validCount == 2) {
+            // 取平均值
             nominalDiameter = (int)((validValues[0] + validValues[1]) / 2.0f + 0.5f);
-        } else if (validCount == 3) {
-            nominalDiameter = (int)(validValues[1] + 0.5f); // 取中间值并舍入
-        } else {
-            nominalDiameter = (int)((validValues[1] + validValues[2]) / 2.0f + 0.5f); // 排除极值后的平均舍入
         }
     } else {
         nominalDiameter = 0;

@@ -245,10 +245,18 @@ void Sorter::prepareOutlets() {
         bool diamMatch = (outletIdx == 1) ? (diameter > minD) : (diameter > minD && diameter <= maxD);
         if (!diamMatch) return false;
 
-        // 【新增阶段】三档长度匹配
+        // 【新增阶段】三档长度匹配 (位掩码组合模式)
         uint8_t targetLen = outlets[outletIdx].getTargetLength();
-        if (targetLen != 0 && targetLen != asparagusLength) {
-            return false; // 直径对但长度不对，不开启
+        if (targetLen != 0) { // 0 代表 ALL
+            bool lengthMatch = false;
+            // asparagusLength = 1(S), 2(M), 3(L)
+            if (targetLen == 1)      lengthMatch = (asparagusLength == 1);
+            else if (targetLen == 2) lengthMatch = (asparagusLength == 2);
+            else if (targetLen == 3) lengthMatch = (asparagusLength == 3);
+            else if (targetLen == 4) lengthMatch = (asparagusLength == 1 || asparagusLength == 2); // MS
+            else if (targetLen == 5) lengthMatch = (asparagusLength == 2 || asparagusLength == 3); // LM
+            
+            if (!lengthMatch) return false; // 直径对但长度不对，不开启
         }
 
         return true;

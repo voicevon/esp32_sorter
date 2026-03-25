@@ -322,7 +322,7 @@ void OLED::displayOutletStatus(uint8_t outletIndex, bool isOpen) {
   temporaryDisplayDuration = 500;
 }
 
-// 显示诊断详情
+// 显示诊断详情 (增强行间距版)
 void OLED::displayDiagnosticInfo(const String& title, const String& info) {
   if (!isDisplayAvailable) return;
   
@@ -332,7 +332,96 @@ void OLED::displayDiagnosticInfo(const String& title, const String& info) {
   display.setTextSize(1);
   display.println(title);
   display.println(F("----------------"));
-  display.println(info);
+  
+  // 渲染正文部分，增加行间距以提升 0.96 寸屏幕的可读性
+  int currentY = 16;
+  int lineHeight = 12; // 增加到 12 实现约 2.5 像素的额外间距
+  
+  int startIdx = 0;
+  int nextNewline = info.indexOf('\n');
+  
+  while (nextNewline != -1) {
+      String line = info.substring(startIdx, nextNewline);
+      display.setCursor(0, currentY);
+      display.print(line);
+      currentY += lineHeight;
+      startIdx = nextNewline + 1;
+      nextNewline = info.indexOf('\n', startIdx);
+  }
+  
+  // 绘制最后一行内容
+  if (startIdx < (int)info.length()) {
+      display.setCursor(0, currentY);
+      display.print(info.substring(startIdx));
+  }
+  
+  safeDisplay();
+  isDiagnosticModeActive = true;
+}
+
+// 显示配置编辑详情 (支持长度选择的反白效果)
+void OLED::displayConfigEdit(const String& title, int maxV, int minV, uint8_t targetMode, int activeField) {
+  if (!isDisplayAvailable) return;
+  
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
+  display.setCursor(0, 0);
+  display.setTextSize(1);
+  display.println(title);
+  display.println(F("----------------"));
+  
+  int currentY = 16;
+  int lineHeight = 12;
+
+  // 1. Max Diameter
+  display.setCursor(0, currentY);
+  if (activeField == 0) display.print(" -> "); else display.print("    ");
+  display.print("Max Diameter ");
+  display.print(maxV);
+  display.print(" mm");
+  currentY += lineHeight;
+
+  // 2. Min Diameter
+  display.setCursor(0, currentY);
+  if (activeField == 1) display.print(" -> "); else display.print("    ");
+  display.print("Min Diameter ");
+  display.print(minV);
+  display.print(" mm");
+  currentY += lineHeight;
+
+  // 3. Target (Length)
+  display.setCursor(0, currentY);
+  if (activeField == 2) display.print(" -> "); else display.print("    ");
+  display.print("Target ");
+  
+  int x = display.getCursorX() + 4;
+
+  // 映射 targetMode (0-5) 到位掩码 bit0=S, bit1=M, bit2=L
+  uint8_t mask = 0;
+  if (targetMode == 0) mask = 7;      // ALL
+  else if (targetMode == 1) mask = 1; // S
+  else if (targetMode == 2) mask = 2; // M
+  else if (targetMode == 3) mask = 4; // L
+  else if (targetMode == 4) mask = 3; // SM
+  else if (targetMode == 5) mask = 6; // ML
+
+  // 渲染 S M L 选项，选中的使用反白显示
+  auto drawOption = [&](const char* label, bool selected) {
+      if (selected) {
+          display.fillRect(x - 1, currentY - 1, 9, 10, SSD1306_WHITE);
+          display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+      } else {
+          display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
+      }
+      display.setCursor(x, currentY);
+      display.print(label);
+      x += 16; // 间距
+  };
+
+  drawOption("S", mask & 1);
+  drawOption("M", mask & 2);
+  drawOption("L", mask & 4);
+
   safeDisplay();
   isDiagnosticModeActive = true;
 }
@@ -453,27 +542,25 @@ void OLED::displayScannerWaveform(DiameterScanner* scanner) {
   display.clearDisplay();
   
   int samples = scanner->getSampleCount();
-  int maxWaveWidth = SCREEN_WIDTH - 28; // 左侧给文字留28像素宽度 (大概4位数字空间)
+  int maxWaveWidth = SCREEN_WIDTH; // 使用全屏 128px
   if (samples > maxWaveWidth) samples = maxWaveWidth;
   
   // 绘制 4 个通道的波形，每个通道占 15 像素高
   for (int ch = 0; ch < 4; ch++) {
     int yBase = 15 * ch + 12; // 底部基线
     
-    // 绘制通道索引和脉冲计数 (例如: "0:45")
-    display.setCursor(0, yBase - 8);
-    display.setTextColor(SSD1306_WHITE);
-    int count = scanner->getHighLevelPulseCount(ch);
-    display.print(ch); 
-    display.print(":"); 
-    display.print(count);
-    
-    // 绘制波形点
+    // 绘制波形点 (从 x=0 开始)
     for (int x = 0; x < samples; x++) {
       uint8_t state = scanner->getSample(ch, x);
       int plotY = state ? (yBase - 8) : yBase; // 高电平在上，低电平在下
-      display.drawPixel(28 + x, plotY, SSD1306_WHITE); // x 偏移 28
+      display.drawPixel(x, plotY, SSD1306_WHITE);
     }
+
+    // 绘制脉冲计数 (在波形绘制后，实现覆盖效果)
+    display.setCursor(0, yBase - 8);
+    display.setTextColor(SSD1306_WHITE);
+    // 只显示纯数字，不再显示 "0:" 或 "1:"
+    display.print(scanner->getHighLevelPulseCount(ch));
   }
   
   safeDisplay();

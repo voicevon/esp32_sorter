@@ -78,6 +78,9 @@ public:
     // 显示多行文本
     virtual void displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3 = "", const String& line4 = "", const String& line5 = "") = 0;
     
+    // 显示配置编辑详情 (支持长度选择的反白效果)
+    virtual void displayConfigEdit(const String& title, int maxV, int minV, uint8_t targetMode, int activeField) = 0;
+
     // 重置诊断模式
     virtual void resetDiagnosticMode() = 0;
   // 清理屏幕

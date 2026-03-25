@@ -79,6 +79,9 @@ public:
     void displayOutletStatus(uint8_t outletIndex, bool isOpen);
     void displayDiagnosticInfo(const String& title, const String& info);
     
+    // 显示配置详情（带针对长度选择的反色显示）
+    void displayConfigEdit(const String& title, int maxV, int minV, uint8_t targetMode, int activeField);
+
     // 显示出口测试模式图形
     void displayOutletTestGraphic(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen, int subMode);
     

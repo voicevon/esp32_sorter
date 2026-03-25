@@ -122,7 +122,7 @@ void vControlTask(void* pvParameters) {
     for (;;) {
         // 分拣逻辑消费执行
         // 只有在 Normal 模式或特定的分拣诊断模式下才运行逻辑处理槽
-        if (currentMode == MODE_NORMAL || currentMode == MODE_DIAGNOSE_OUTLET) {
+        if (currentMode == MODE_NORMAL || currentMode == MODE_DIAGNOSE_OUTLET || currentMode == MODE_DIAGNOSE_SCANNER) {
             sorter.run();
         }
         
