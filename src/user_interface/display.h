@@ -50,9 +50,10 @@ public:
     
     // 显示扫描仪编码器值
     virtual void displayScannerEncoderValues(const int* risingValues, const int* fallingValues) = 0;
-    
-    // 显示系统仪表盘
-    virtual void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount) = 0;
+    /**
+     * 显示主仪表盘 (运行模式)
+     */
+    virtual void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, int latestLengthLevel = 0) = 0;
     
     // 显示直径信息（功能专用方法）
     virtual void displayDiameter(int latestDiameter) = 0;

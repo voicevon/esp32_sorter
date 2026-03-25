@@ -162,13 +162,14 @@ void Sorter::run() {
     if (flagDataLatch) {
         int diameterMm = scanner->getDiameterAndStop();
         int objectCount = scanner->getTotalObjectCount();
+        int lengthLevel = scanner->getLengthLevel();
         
         if (diameterMm > 0) {
-            Serial.printf("[SORTER] Event -> LATCH DATA (170) | Diam: %d mm\n", diameterMm);
+            Serial.printf("[SORTER] Event -> LATCH DATA (170) | Diam: %d mm, Len: %d\n", diameterMm, lengthLevel);
         }
         
         // 推送到托盘系统的起始端
-        trayManager->pushNewAsparagus(diameterMm, objectCount);
+        trayManager->pushNewAsparagus(diameterMm, objectCount, lengthLevel);
         prepareOutlets(); // 预计算出口状态
         
         flagDataLatch = false;

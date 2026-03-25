@@ -130,7 +130,7 @@ public:
   
   // 通用显示方法 - 替代模式专用方法
   void renderMenu(MenuNode* node, int cursorIndex, int scrollOffset) override;
-  void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount) override;
+  void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, int latestLengthLevel = 0) override;
   void displayDiameter(int latestDiameter) override;
   
   // 实现Display抽象基类的方法（兼容旧接口）

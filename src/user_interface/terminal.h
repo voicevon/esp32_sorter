@@ -91,7 +91,7 @@ public:
   void renderMenu(MenuNode* node, int cursorIndex, int scrollOffset) override;
   
   // 显示系统仪表盘
-  void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount) override;
+  void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, int latestLengthLevel = 0) override;
   
   // 显示直径信息（功能专用方法）
   void displayDiameter(int latestDiameter) override;

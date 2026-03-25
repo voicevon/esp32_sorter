@@ -89,8 +89,8 @@ public:
     void displayOutletLifetimeGraphic(uint8_t outletCount, uint32_t cycleCount, bool outletState, int subMode);
     void displayScannerEncoderValues(const int* risingValues, const int* fallingValues);
     
-    // 正常模式专用显示方法
-    void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, bool forceRefresh = false);
+    // 显示系统仪表盘
+    void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, int latestLengthLevel = 0, bool forceRefresh = false);
     void displayNormalModeDiameter(int latestDiameter, bool forceRefresh = false);
     
     // 统一菜单显示代理

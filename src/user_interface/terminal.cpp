@@ -237,12 +237,8 @@ void Terminal::displayScannerEncoderValues(const int* risingValues, const int* f
 }
 
 // 显示系统仪表盘
-void Terminal::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount) {
-    if (isUpdateReady() || 
-        sortingSpeedPerSecond != previousSortingSpeedPerSecond ||
-        identifiedCount != previousIdentifiedCount ||
-        latestDiameter != previousLatestDiameter ||
-        latestScanCount != previousLatestScanCount) {
+void Terminal::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, int latestLengthLevel) {
+    if (isUpdateReady()) {
         
         // 检查是否是第一次显示
         static bool firstDisplay = true;
@@ -251,7 +247,7 @@ void Terminal::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPer
             Serial.println("\n" + STYLE_DATA_WINDOW_TITLE + "       === System Dashboard ===       " + STYLE_RESET);
             Serial.println(STYLE_DATA_WINDOW_CONTENT + "Speed:     0.0/s, 0/min, 0/h          " + STYLE_RESET);
             Serial.println(STYLE_DATA_WINDOW_CONTENT + "Identified: 0 | Transported: 0         " + STYLE_RESET);
-            Serial.println(STYLE_DATA_WINDOW_CONTENT + "Last:       0 mm | Pcs: 0              " + STYLE_RESET);
+            Serial.println(STYLE_DATA_WINDOW_CONTENT + "Last:       0 mm | Pcs: 0 | Len: --    " + STYLE_RESET);
             firstDisplay = false;
         } else {
             // 直接打印四行数据
@@ -275,16 +271,15 @@ void Terminal::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPer
 
             Serial.print(STYLE_DATA_WINDOW_CONTENT + "Last:       ");
             Serial.print(latestDiameter);
-            Serial.print(" mm | Pcs: ");
+            Serial.print(" | Pcs: ");
             Serial.print(latestScanCount);
+            Serial.print(" | Len: ");
+            if (latestLengthLevel == 1) Serial.print("S ");
+            else if (latestLengthLevel == 2) Serial.print("M ");
+            else if (latestLengthLevel == 3) Serial.print("L ");
+            else Serial.print("--");
             Serial.print("              "); Serial.println(STYLE_RESET);
         }
-        
-        // 更新上次显示的数据
-        previousSortingSpeedPerSecond = sortingSpeedPerSecond;
-        previousIdentifiedCount = identifiedCount;
-        previousLatestDiameter = latestDiameter;
-        previousLatestScanCount = latestScanCount;
         
         // 更新上次更新时间
         previousUpdateTime = millis();

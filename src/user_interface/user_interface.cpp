@@ -113,11 +113,11 @@ void UserInterface::displayScannerEncoderValues(const int* risingValues, const i
 }
 
 // 显示系统仪表盘 - 仅在强制刷新（如相位触发）时更新，移除定时刷新以保持界面稳定
-void UserInterface::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, bool forceRefresh) {
+void UserInterface::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, int latestLengthLevel, bool forceRefresh) {
     if (forceRefresh) {
         // 遍历所有显示设备
         for (int i = 0; i < displayDeviceCount; i++) {
-            displayDevices[i]->displayDashboard(sortingSpeedPerSecond, sortingSpeedPerMinute, sortingSpeedPerHour, identifiedCount, transportedTrayCount, latestDiameter, latestScanCount);
+            displayDevices[i]->displayDashboard(sortingSpeedPerSecond, sortingSpeedPerMinute, sortingSpeedPerHour, identifiedCount, transportedTrayCount, latestDiameter, latestScanCount, latestLengthLevel);
         }
         updateLastUpdateTime();
     }
