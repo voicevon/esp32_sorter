@@ -89,11 +89,11 @@ void OutletDiagnosticHandler::update(uint32_t currentMs, bool btnPressed) {
              * 子模式0：轮巡降落测试（常态闭合模式）
              * 行为：出口默认保持关闭状态，定期短暂打开后恢复关闭
              * 时序：
-             *   - 关闭状态保持时间：4.5秒（outletState为false时）
-             *   - 打开状态保持时间：1.5秒（outletState为true时）
+             *   - 关闭状态保持时间：0.5秒（outletState为false时）
+             *   - 打开状态保持时间：1.0秒（outletState为true时）
              * 应用场景：测试弹簧降落式出口的正常工作
              */
-            interval = outletState ? 1500 : 4500;
+            interval = outletState ? 1000 : 500;
             testType = "normally closed";  // 表示出口在非测试状态下是常闭的
             processCycleOperation(currentMs, interval, testType);
             break;
@@ -103,10 +103,10 @@ void OutletDiagnosticHandler::update(uint32_t currentMs, bool btnPressed) {
              * 子模式1：单点测试模式 (Single Outlet Test)
              * 行为：用户选择特定出口，周期性打开/关闭
              * 时序：
-             *   - 打开状态保持时间：1.5秒
-             *   - 关闭状态保持时间：1.5秒
+             *   - 打开状态保持时间：0.3秒
+             *   - 关闭状态保持时间：0.5秒
              */
-            interval = 1500;
+            interval = outletState ? 300 : 500;
             if (currentMs - lastOutletTime >= interval) {
                 lastOutletTime = currentMs;
                 outletState = !outletState; // 切换状态

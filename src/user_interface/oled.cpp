@@ -632,38 +632,50 @@ void OLED::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinu
     // 右半区 (X: 66-127): 实时扫描特写
     // -------------------------------------------------------------------
     
-    // A. 直径大号字体显示 (核心视觉) - 去除 mm
-    display.setCursor(72, 14);
+    // A. 直径大号字体显示 (核心视觉) - 右对齐
     display.setTextSize(3);
+    int diaX = 120; // 右边界基准
     if (latestDiameter > 0) {
+        if (latestDiameter >= 10) diaX -= 36; // 2位数字: 2 * (6*3) = 36px
+        else diaX -= 18; // 1位数字: 18px
+        display.setCursor(diaX, 14);
         display.print(latestDiameter);
     } else {
+        display.setCursor(120 - 36, 14); // "--" 占位
         display.print("--");
     }
     
-    // B. 长度指示器 (S M L 进度条式)
+    // B. 长度指示器 (S M L 进度条式) - 精确间距: 2格总间距，1格反白
     if (latestDiameter > 0) {
         int barY = 46;
-        int xPos = 72;
+        int barStartX = 66; 
         display.setTextSize(1);
         
+        // 定义关键坐标 (以 x=66 为基准)
+        // [66 --(Padding 20px)-- 86 (S) --(Gap 18px)-- 104 (M) --(Gap 18px)-- 122 (L)]
+        int xCoords[] = {86, 104, 122};
         const char* labels[] = {"S", "M", "L"};
+
+        // 1. 渲染前缀反白 (只要有物料，66-86 区域就反白)
+        if (latestLengthLevel >= 1) {
+            display.fillRect(barStartX, barY - 1, 20, 10, SSD1306_WHITE);
+        }
+
+        // 2. 循环处理各段
         for (int i = 0; i < 3; i++) {
-            bool inverted = (latestLengthLevel >= (i + 1));
-            bool nextInverted = (i < 2) && (latestLengthLevel >= (i + 2));
+            bool active = (latestLengthLevel >= (i + 1));
+            int charX = xCoords[i];
             
-            if (inverted) {
-                // 如果当前级别和下一级别都达到，则反色区域扩展以覆盖间隙 (16px)；否则仅反色当前字符块 (9px)
-                int barWidth = nextInverted ? 16 : 9;
-                display.fillRect(xPos - 1, barY - 1, barWidth, 10, SSD1306_WHITE);
+            if (active) {
+                // 如果激活，反白 [字符(6px) + 1个空格(6px) = 12px]
+                display.fillRect(charX - 1, barY - 1, 12, 10, SSD1306_WHITE);
                 display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
             } else {
                 display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
             }
             
-            display.setCursor(xPos, barY);
+            display.setCursor(charX, barY);
             display.print(labels[i]);
-            xPos += 16; // 间距 16px (72->88->104)
         }
         
         display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
