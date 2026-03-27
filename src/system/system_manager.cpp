@@ -23,6 +23,7 @@ extern MenuSystem menuSystem;
 extern bool menuModeActive;
 extern Sorter sorter;
 extern DiameterConfigHandler diameterConfigHandler;
+extern PhaseOffsetConfigHandler phaseOffsetConfigHandler;
 extern ScannerDiagnosticHandler scannerDiagnosticHandler;
 extern OutletDiagnosticHandler outletDiagnosticHandler;
 extern EncoderDiagnosticHandler encoderDiagnosticHandler;
@@ -83,6 +84,9 @@ void handleModeChange() {
         case MODE_CONFIG_DIAMETER:
             activeHandler = &diameterConfigHandler;
             break;
+        case MODE_CONFIG_PHASE_OFFSET:
+            activeHandler = &phaseOffsetConfigHandler;
+            break;
         default:
             activeHandler = nullptr;
             break;
@@ -94,6 +98,9 @@ void handleModeChange() {
     
     if (oldMode == MODE_CONFIG_DIAMETER && currentMode != MODE_CONFIG_DIAMETER) {
         diameterConfigHandler.reset();
+    }
+    if (oldMode == MODE_CONFIG_PHASE_OFFSET && currentMode != MODE_CONFIG_PHASE_OFFSET) {
+        phaseOffsetConfigHandler.reset();
     }
     
     // 获取模式名称的逻辑移动到 mode_processors

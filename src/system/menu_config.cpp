@@ -5,6 +5,8 @@
 #include "../handlers/config_handler.h"
 #include "../handlers/scanner_diagnostic_handler.h"
 
+extern PhaseOffsetConfigHandler phaseOffsetConfigHandler;
+
 // 全局变量定义
 MenuSystem menuSystem(5);
 bool menuModeActive = false;
@@ -80,6 +82,9 @@ void setupMenuTree() {
     // --- 3. 常规配置菜单 (General Config) ---
     generalConfigMenu.addItem(MenuItem("Diameter Ranges", MENU_TYPE_ACTION, nullptr, [](){
         switchToMode(MODE_CONFIG_DIAMETER);
+    }));
+    generalConfigMenu.addItem(MenuItem("Phase Offset", MENU_TYPE_ACTION, nullptr, [](){
+        switchToMode(MODE_CONFIG_PHASE_OFFSET);
     }));
     generalConfigMenu.addItem(MenuItem("< Back", MENU_TYPE_BACK));
 

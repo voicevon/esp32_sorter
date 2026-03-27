@@ -11,7 +11,8 @@ enum SystemMode {
   MODE_DIAGNOSE_OUTLET = 3,   // 诊断出口模式
   MODE_CONFIG_DIAMETER = 4,    // 配置出口直径范围模式
   MODE_VERSION_INFO = 5,       // 版本信息模式
-  MODE_DIAGNOSE_HMI = 6        // 诊断HMI编码器模式
+  MODE_DIAGNOSE_HMI = 6,       // 诊断HMI编码器模式
+  MODE_CONFIG_PHASE_OFFSET = 7 // 配置编码器零位偏移量
 };
 
 // 全局系统名称变量

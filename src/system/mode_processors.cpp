@@ -68,6 +68,7 @@ String getSystemModeName(SystemMode mode) {
         case MODE_VERSION_INFO: return "Version Info";
         case MODE_CONFIG_DIAMETER: return "Config Diameter";
         case MODE_DIAGNOSE_HMI: return "HMI Encoder Diag";
+        case MODE_CONFIG_PHASE_OFFSET: return "Config Phase Offset";
         default: return "Unknown Mode";
     }
 }

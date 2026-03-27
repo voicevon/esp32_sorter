@@ -51,18 +51,18 @@ void DiameterScanner::stop() {
 void DiameterScanner::sample(int phase) {
     if (!isScanning) return;
     
-    // 终极同步过滤器：只有当相位确实“向前进”时，才进行采样。
-    // 这彻底解决了编码器在高频震动或回弹（例如 100->99->100）时产生的重复计数。
+    // 终极同步过滤器：只有当相位确实"向前进"时，才进行采样。
+    // 修复：回绕检测不依赖固定的 199->0，而是检测任意大幅负跳变（超过半圈视为合法回绕）
     bool isForward = false;
     if (lastPhase == -1) {
-        isForward = true; // 第一次采样，由于 lastPhase 为 -1，允许进入
+        isForward = true; // 第一次采样，无条件允许
     } else if (phase > lastPhase) {
         isForward = true; // 正常前进
-    } else if (phase == 0 && lastPhase == 199) {
-        isForward = true; // 处理相位回零
+    } else if ((lastPhase - phase) > (ENCODER_MAX_PHASE / 2)) {
+        isForward = true; // 合法回绕（跨越半圈以上的负跳变）
     }
     
-    if (!isForward) return; // 过滤回零、震动回弹或重复触发
+    if (!isForward) return; // 过滤震动回弹或重复触发
     lastPhase = phase;
     
     // 仅通过数组记录采样点的原始高低电平状态，极大地降低中断开销

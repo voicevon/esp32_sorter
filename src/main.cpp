@@ -35,6 +35,7 @@ OutletDiagnosticHandler outletDiagnosticHandler;
 EncoderDiagnosticHandler encoderDiagnosticHandler;
 HMIDiagnosticHandler hmiDiagnosticHandler(UserInterface::getInstance());
 DiameterConfigHandler diameterConfigHandler(userInterface, &sorter);
+PhaseOffsetConfigHandler phaseOffsetConfigHandler(userInterface, &sorter);
 
 int normalModeSubmode = 0;
 bool hasVersionInfoDisplayed = false;
@@ -76,6 +77,18 @@ void setup() {
     EEPROM.commit();
     
     encoder->initialize();
+
+    // 开机从 EEPROM 加载 phaseOffset（带 magic 校验）
+    uint8_t phaseOffsetMagic  = EEPROM.read(EEPROM_ADDR_PHASE_OFFSET);
+    uint8_t phaseOffsetValue  = EEPROM.read(EEPROM_ADDR_PHASE_OFFSET + 1);
+    Serial.printf("[BOOT] EEPROM raw: magic=0x%02X value=%d\n", phaseOffsetMagic, phaseOffsetValue);
+    uint8_t savedOffset = 0;
+    if (phaseOffsetMagic == 0xA5 && phaseOffsetValue < ENCODER_MAX_PHASE) {
+        savedOffset = phaseOffsetValue;
+    }
+    encoder->setPhaseOffset(savedOffset);
+    Serial.printf("[BOOT] Phase offset applied: %d\n", savedOffset);
+
     sorter.initialize();
     diameterScanner->initialize();
     traySystem->loadFromEEPROM(EEPROM_ADDR_TRAY_DATA);

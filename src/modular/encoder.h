@@ -23,6 +23,7 @@ private:
     long zeroCrossRawCount;         // Z相触发时的原始计数值
     int forcedZeroCount;            // 强制清零次数
     long forcedZeroRawCount;        // 强制清零时的原始计数值
+    int phaseOffset;                // 零位偏移量：补偿各机器编码器安装位置差异
     
     // 引脚状态缓存（参考 SimpleFOC 优化）
     volatile int pinA_state;        // A相上一个状态
@@ -47,9 +48,15 @@ public:
     // 设置回调函数和上下文
     void setPhaseCallback(void* context, PhaseCallback callback);
     
-    // 获取当前逻辑位置
+    // 获取当前逻辑位置（已叠加 phaseOffset，对外统一使用此接口）
     int getCurrentPosition();
-    
+
+    // 设置零位偏移量（装机标定时调用一次，范围 0~199）
+    void setPhaseOffset(int offset) { phaseOffset = offset % ENCODER_MAX_PHASE; }
+
+    // 获取当前零位偏移量
+    int getPhaseOffset() const { return phaseOffset; }
+
     // 获取原始计数值
     long getRawCount() const { return rawEncoderCount; }
     

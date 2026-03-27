@@ -144,3 +144,62 @@ void DiameterConfigHandler::handleValueChange(int delta) {
 // ServoConfigHandler 实现
 // =========================
 // Deleted as per request.
+
+// =========================
+// PhaseOffsetConfigHandler 实现
+// =========================
+
+#include "../modular/encoder.h"
+#include "../config.h"
+
+void PhaseOffsetConfigHandler::initializeMode() {
+  // 从 Encoder 读取当前生效的偏移值作为编辑起点
+  editingOffset = Encoder::getInstance()->getPhaseOffset();
+  encoderAccumulator = 0;
+  // 排空菜单导航阶段积累的旋钮 delta，防止进入界面时自动偏移
+  userInterface->getRawEncoderDelta();
+  refreshDisplay();
+}
+
+void PhaseOffsetConfigHandler::update(uint32_t currentMs, bool btnPressed) {
+  // 旋钮输入：1:1 灵敏度
+  int rawDelta = userInterface->getRawEncoderDelta();
+  if (rawDelta != 0) {
+    handleValueChange(rawDelta);
+  }
+
+  // 自愈刷新
+  if (currentMs - lastRefreshMs >= 300) {
+    lastRefreshMs = currentMs;
+    refreshDisplay();
+  }
+
+  // 按键：保存并退出
+  if (btnPressed) {
+    // 写入 magic(0xA5) + value，使用 write() 避免类型推导问题
+    EEPROM.write(EEPROM_ADDR_PHASE_OFFSET,     0xA5);
+    EEPROM.write(EEPROM_ADDR_PHASE_OFFSET + 1, (uint8_t)editingOffset);
+    EEPROM.commit();
+
+    // 立即生效
+    Encoder::getInstance()->setPhaseOffset(editingOffset);
+
+    Serial.printf("[CONFIG] Phase offset saved: %d (addr=0x%03X, magic=0xA5)\n",
+                  editingOffset, EEPROM_ADDR_PHASE_OFFSET);
+
+    handleReturnToMenu();
+  }
+}
+
+void PhaseOffsetConfigHandler::handleValueChange(int delta) {
+  editingOffset = (editingOffset + delta + ENCODER_MAX_PHASE) % ENCODER_MAX_PHASE;
+  refreshDisplay();
+}
+
+void PhaseOffsetConfigHandler::refreshDisplay() {
+  String body = "";
+  body += "Offset: [" + String(editingOffset) + "]\n\n";
+  body += "Rotate: adjust\n";
+  body += "Press : save & exit";
+  userInterface->displayDiagnosticInfo("PHASE OFFSET CFG", body);
+}

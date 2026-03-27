@@ -122,5 +122,29 @@ protected:
   int getSubModeCount() override { return NUM_OUTLETS + 1; } // 8个出口 + 1个退出项
 };
 
+// 编码器零位偏移配置处理类
+class PhaseOffsetConfigHandler : public ConfigHandler {
+public:
+  PhaseOffsetConfigHandler(UserInterface* ui, Sorter* s)
+    : ConfigHandler(ui, s), editingOffset(0), encoderAccumulator(0) {}
+
+  void reset() {
+    ConfigHandler::reset();
+    encoderAccumulator = 0;
+  }
+
+protected:
+  int editingOffset;      // 当前正在编辑的偏移值（未保存）
+  int encoderAccumulator; // 旋钮分频累加器
+
+  int getSubModeCount() override { return 1; } // 只有一个编辑状态，按键=保存退出
+
+  void initializeMode() override;
+  void handleSubModeChange() override {}
+  void handleValueChange(int delta) override;
+  void refreshDisplay() override;
+  void update(uint32_t currentMs, bool btnPressed) override;
+};
+
 
 #endif // CONFIG_HANDLER_H
