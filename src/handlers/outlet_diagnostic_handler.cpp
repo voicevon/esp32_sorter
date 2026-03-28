@@ -130,9 +130,11 @@ void OutletDiagnosticHandler::update(uint32_t currentMs, bool btnPressed) {
              * 子模式2：电磁铁寿命测试模式
              * 行为：轮流打开关闭每个出口 (1开->1关->2开->2关...)
              * 时序：
-             *   - 状态维持时间：0.5秒
+             *   - 打开状态保持时间：0.3秒
+             *   - 关闭状态保持时间：0.1秒
+             * 计数：每 8 次开合动作显示更新一次
              */
-            interval = 500;  // 0.5s 响应
+            interval = outletState ? 300 : 100;  // open 0.3s / close 0.1s
             testType = "lifetime test";  
             
             if (currentMs - lastOutletTime >= interval) {
@@ -141,6 +143,9 @@ void OutletDiagnosticHandler::update(uint32_t currentMs, bool btnPressed) {
                 
                 if (outletState) {
                     cycleCount++;
+                    if (cycleCount % 8 == 0) {  // 每8次更新一次显示
+                        userInterface->displayOutletLifetimeGraphic(NUM_OUTLETS, cycleCount, outletState, currentSubMode);
+                    }
                 } else {
                     // 当关闭时，准备切换到下一个出口
                     currentOutlet = (currentOutlet + 1) % NUM_OUTLETS;
@@ -155,10 +160,9 @@ void OutletDiagnosticHandler::update(uint32_t currentMs, bool btnPressed) {
                     }
                     outlets[i]->execute();
                 }
-                
-                userInterface->displayOutletLifetimeGraphic(NUM_OUTLETS, cycleCount, outletState, currentSubMode);
             }
             break;
+
         }
     }
 }

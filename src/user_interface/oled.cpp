@@ -392,37 +392,30 @@ void OLED::displayConfigEdit(const String& title, int maxV, int minV, uint8_t ta
   // 3. Target (Length)
   display.setCursor(0, currentY);
   if (activeField == 2) display.print(" -> "); else display.print("    ");
-  display.print("Target ");
+  display.print("Len:");
   
-  int x = display.getCursorX() + 4;
+  int xValue = display.getCursorX() + 6;
 
-  // 映射 targetMode (0-5) 到位掩码 bit0=S, bit1=M, bit2=L
-  uint8_t mask = 0;
-  if (targetMode == 0) mask = 7;      // ALL
-  else if (targetMode == 1) mask = 1; // S
-  else if (targetMode == 2) mask = 2; // M
-  else if (targetMode == 3) mask = 4; // L
-  else if (targetMode == 4) mask = 3; // SM
-  else if (targetMode == 5) mask = 6; // ML
-
-  // 渲染 S M L 选项，选中的使用反白显示，且相邻选中项之间无缝连接（进度条效果）
+  // 渲染 S M L 选项，遵循“反白 = 有效”规则
   const char* labels[] = {"S", "M", "L"};
+  const uint8_t masks[] = {0x01, 0x02, 0x04}; // LEN_S, LEN_M, LEN_L
+  
   for (int i = 0; i < 3; i++) {
-      bool selected = (mask >> i) & 1;
-      bool nextSelected = (i < 2) && ((mask >> (i + 1)) & 1);
+      bool isSelected = (targetMode & masks[i]);
       
-      if (selected) {
-          // 如果下一项也选中，则反白区域向右扩展以覆盖间隙 (16px)；否则仅反白当前字符块 (9px)
-          int barWidth = nextSelected ? 16 : 9;
-          display.fillRect(x - 1, currentY - 1, barWidth, 10, SSD1306_WHITE);
+      if (isSelected) {
+          // 选中状态：反白 (Highlight = Effective)
+          display.fillRect(xValue - 2, currentY - 1, 10, 10, SSD1306_WHITE);
           display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
       } else {
+          // 未选中状态：空框 (Not Selected)
+          display.drawRect(xValue - 2, currentY - 1, 10, 10, SSD1306_WHITE);
           display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
       }
       
-      display.setCursor(x, currentY);
+      display.setCursor(xValue, currentY);
       display.print(labels[i]);
-      x += 16; // 移动到下一项的理论起点
+      xValue += 18; // 增加间距以保持独立感
   }
 
   safeDisplay();

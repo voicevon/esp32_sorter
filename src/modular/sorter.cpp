@@ -12,10 +12,11 @@ Sorter::Sorter() :
     flagDataLatch(false), 
     flagOutletExecute(false), 
     flagOutletReset(false),
-    lastSpeedCheckTime(0), 
+    lastSpeedCheckTime(0),
     lastEncoderPosition(0), 
     lastSpeed(0.0f), 
-    lastObjectCount(0) 
+    lastObjectCount(0),
+    shiftDriver(PIN_HC595_DS, PIN_HC595_SHCP, PIN_HC595_STCP)
 {
     // 实例化互斥锁
     mutex = xSemaphoreCreateMutex();
@@ -30,11 +31,8 @@ Sorter::Sorter() :
 }
 
 void Sorter::initialize() {
-    // 1. 初始化 74HC595 引脚（必须在初始化物理出口前完成，才能推入数据）
-    pinMode(PIN_HC595_DS, OUTPUT);
-    pinMode(PIN_HC595_SHCP, OUTPUT);
-    pinMode(PIN_HC595_STCP, OUTPUT);
-    digitalWrite(PIN_HC595_STCP, LOW);
+    // 1. 初始化硬件驱动
+    shiftDriver.initialize();
 
     // 2. 初始化出口位置
     uint8_t defaultDivergencePoints[NUM_OUTLETS] = {0, 2, 4, 6, 8, 10, 12, 14};
@@ -226,25 +224,21 @@ void Sorter::prepareOutlets() {
 
         // 通用直径匹配
         int diameter = trayManager->getTrayDiameter(p);
+        if (diameter <= 0) return false; // 排除空位或无效数据
+
         int minD = outlets[outletIdx].getMatchDiameterMin();
         int maxD = outlets[outletIdx].getMatchDiameterMax();
-        if (diameter <= 0 || diameter > 50) return false;
         
-        bool diamMatch = (outletIdx == 1) ? (diameter > minD) : (diameter > minD && diameter <= maxD);
-        if (!diamMatch) return false;
+        // 统一区间判定 (minD < diameter <= maxD)
+        if (diameter <= minD || diameter > maxD) return false;
 
-        // 【新增阶段】三档长度匹配 (位掩码组合模式)
-        uint8_t targetLen = outlets[outletIdx].getTargetLength();
-        if (targetLen != 0) { // 0 代表 ALL
-            bool lengthMatch = false;
-            // asparagusLength = 1(S), 2(M), 3(L)
-            if (targetLen == 1)      lengthMatch = (asparagusLength == 1);
-            else if (targetLen == 2) lengthMatch = (asparagusLength == 2);
-            else if (targetLen == 3) lengthMatch = (asparagusLength == 3);
-            else if (targetLen == 4) lengthMatch = (asparagusLength == 1 || asparagusLength == 2); // MS
-            else if (targetLen == 5) lengthMatch = (asparagusLength == 2 || asparagusLength == 3); // LM
-            
-            if (!lengthMatch) return false; // 直径对但长度不对，不开启
+        // 【新增阶段】长度匹配 (位掩码逻辑)
+        int detectedLength = trayManager->getTrayLengthLevel(p);
+        uint8_t targetLenMask = outlets[outletIdx].getTargetLength();
+        if (targetLenMask != LEN_ALL && targetLenMask != LEN_NONE) {
+            // detectedLength 也是一个 LengthMask (LEN_S, LEN_M, LEN_L)
+            // 直接通过位与运算判定是否在允许范围内
+            if (!(targetLenMask & detectedLength)) return false;
         }
 
         return true;
@@ -375,18 +369,8 @@ void Sorter::updateShiftRegisters() {
         }
     }
     
-    // 组合成 24 位数据以进行变化检测
-    uint32_t currentData = ((uint32_t)chip2Byte << 16) | ((uint32_t)chip1Byte << 8) | ledByte;
-    
-    // 仅在状态变化时刷新物理引脚
-    if (currentData != lastShiftData) {
-        digitalWrite(PIN_HC595_STCP, LOW);
-        shiftOut(PIN_HC595_DS, PIN_HC595_SHCP, MSBFIRST, chip2Byte); // Chip 2: 出口 4-7
-        shiftOut(PIN_HC595_DS, PIN_HC595_SHCP, MSBFIRST, chip1Byte); // Chip 1: 出口 0-3
-        shiftOut(PIN_HC595_DS, PIN_HC595_SHCP, MSBFIRST, ledByte);   // Chip 0: LED
-        digitalWrite(PIN_HC595_STCP, HIGH);
-        lastShiftData = currentData;
-    }
+    // 物理刷新 (由 Driver 负责脏检查)
+    shiftDriver.write(chip2Byte, chip1Byte, ledByte);
 }
 void Sorter::saveConfig() {
     Serial.println("[Sorter] Saving configuration to EEPROM...");

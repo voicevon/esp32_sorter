@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include "../config.h"
+#include <atomic>
 
 #include "../utils/singleton.h"
 
@@ -14,7 +15,7 @@ private:
     
     // 引脚定义（4个扫描点）
     int scannerPins[4];
-    bool isScanning;
+    std::atomic<bool> isScanning;
     // 高电平采样计数（每个扫描点）
     volatile int highLevelPulseCounts[4];
     
@@ -28,7 +29,7 @@ private:
 
     static const int MAX_SAMPLES = 200;
     volatile uint8_t sensorBuffers[4][MAX_SAMPLES];
-    volatile int sampleCount;
+    std::atomic<int> sampleCount;
 
     // 计算得到的直径值（整数）
     int nominalDiameter;

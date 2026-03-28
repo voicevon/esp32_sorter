@@ -56,7 +56,7 @@ void DiameterConfigHandler::update(uint32_t currentMs, bool btnPressed) {
 }
 
 void DiameterConfigHandler::refreshDisplay() {
-  const char* lenStrs[] = {"ALL", "S", "M", "L", "MS", "LM"};
+  // 3-bit: S(bit0), M(bit1), L(bit2). 0: invalid, 1-7: valid combinations.
   
   if (uiState == STATE_SELECTOR) {
       String listContent = "";
@@ -88,10 +88,15 @@ void DiameterConfigHandler::refreshDisplay() {
                   listContent.remove(listContent.length() - 2);
                   listContent += "! ";
               }
-              // 处理索引越界保护
-              const char* lenStr = (targetL < 6) ? lenStrs[targetL] : "???";
+              // 生成显式状态字符串，例如 "[S M  ]", "[  M L]", "[S M L]"
+              String modeStr = "[";
+              modeStr += (targetL & LEN_S) ? "S " : "  ";
+              modeStr += (targetL & LEN_M) ? "M " : "  ";
+              modeStr += (targetL & LEN_L) ? "L" : " ";
+              modeStr += "]";
+              
               listContent += "O" + String(outletIdx + 1) + ": " + 
-                             String(minV) + "-" + String(maxV) + " [" + String(lenStr) + "]\n";
+                             String(minV) + "-" + String(maxV) + " " + modeStr + "\n";
           } else {
               listContent += "[ SAVE & EXIT ]\n";
           }
@@ -112,10 +117,11 @@ void DiameterConfigHandler::refreshDisplay() {
   }
 }
 
-void DiameterConfigHandler::handleSubModeChange() {}
 
 void DiameterConfigHandler::handleValueChange(int delta) {
-  const uint8_t cycleSeq[] = {1, 2, 3, 4, 5, 0}; // S -> M -> L -> SM -> ML -> ALL
+  // 定义循环序列：S -> M -> S+M -> L -> S+L -> M+L -> ALL
+  const uint8_t cycleSeq[] = {LEN_S, LEN_M, (LEN_S|LEN_M), LEN_L, (LEN_S|LEN_L), (LEN_M|LEN_L), LEN_ALL};
+  const int seqCount = 7;
   int totalItems = NUM_OUTLETS + 2;
   if (uiState == STATE_SELECTOR) {
       currentSubMode = (currentSubMode + delta) % totalItems;
@@ -130,11 +136,11 @@ void DiameterConfigHandler::handleValueChange(int delta) {
           sorter->setOutletMinDiameter(targetOutlet, constrain(val + delta, 0, 255));
       } else if (uiState == STATE_EDIT_LENGTH) {
           uint8_t current = sorter->getOutlet(targetOutlet)->getTargetLength();
-          int seqIdx = 0;
-          for (int i = 0; i < 6; i++) { if (cycleSeq[i] == current) { seqIdx = i; break; } }
-          
-          int nextIdx = (seqIdx + (delta > 0 ? 1 : 5)) % 6;
-          sorter->getOutlet(targetOutlet)->setTargetLength(cycleSeq[nextIdx]);
+          // 在 1-7 (二进制 001 到 111) 之间循环，跳过 0 (None)
+          int next = (int)current + (delta > 0 ? 1 : -1);
+          if (next > 7) next = 1;
+          else if (next < 1) next = 7;
+          sorter->getOutlet(targetOutlet)->setTargetLength((uint8_t)next);
       }
   }
   refreshDisplay();

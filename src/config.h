@@ -86,6 +86,17 @@ constexpr int PHASE_OUTLET_EXECUTE = PHASE_SCAN_START - 20;
 // 4. 重置归位阶段：在当前托架周期结束前，重置出口控制信号位，清理中间计算标志位，准备下一轮
 constexpr int PHASE_OUTLET_RESET = 150;
 
+// ==========================================
+// Sorting Logic Constants
+// ==========================================
+enum LengthMask {
+    LEN_NONE = 0x00,
+    LEN_S    = 0x01, // 1 << 0
+    LEN_M    = 0x02, // 1 << 1
+    LEN_L    = 0x04, // 1 << 2
+    LEN_ALL  = 0x07  // S | M | L
+};
+
 
 
 // ==========================================

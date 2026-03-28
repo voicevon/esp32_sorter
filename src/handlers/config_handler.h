@@ -21,46 +21,12 @@ public:
   
   // 初始化配置模式 (覆盖 BaseDiagnosticHandler)
   virtual void begin() override {
-    // 每次进入都强制标记为初始化，并执行具体模式的开始逻辑
     modeInitialized = true;
     initializeMode();
   }
   
-  // 切换到下一个子模式
-  virtual void switchToNextSubMode() {
-    currentSubMode = (currentSubMode + 1) % getSubModeCount();
-    if (currentSubMode == getSubModeCount() - 1) {
-        // 预处理或显示提示，由具体实现决定
-    }
-    handleSubModeChange();
-  }
-  
-  // 检查是否在退出状态并处理
-  virtual bool checkExit() {
-      if (currentSubMode == getSubModeCount() - 1) {
-          handleReturnToMenu();
-          return true;
-      }
-      return false;
-  }
-
-  // 更新配置模式 (覆盖 BaseDiagnosticHandler)
-  virtual void update(uint32_t currentMs, bool btnPressed) override {
-    handleEncoderInputs();
-    
-    // 自愈刷新逻辑：即便没有物理动作，每 500ms 也强制同步一次 UI
-    if (currentMs - lastRefreshMs >= 500) {
-        lastRefreshMs = currentMs;
-        refreshDisplay();
-    }
-
-    if (btnPressed) {
-      if (!checkExit()) {
-          lastRefreshMs = currentMs;
-          switchToNextSubMode();
-      }
-    }
-  }
+  // 更新逻辑由子类完全实现
+  virtual void update(uint32_t currentMs, bool btnPressed) override = 0;
   
   void reset() {
     modeInitialized = false;
@@ -70,21 +36,7 @@ public:
   
 protected:
   virtual void initializeMode() = 0;
-  virtual void refreshDisplay() = 0; // 为基类添加这一项
-  virtual int getSubModeCount() { return 16; } 
-  
-protected:
-  
-  // 处理子模式变化（由子类实现）
-  virtual void handleSubModeChange() = 0;
-  
-  // 处理旋钮输入
-  virtual void handleEncoderInputs() {
-    int encDelta = userInterface->getEncoderDelta();
-    if (encDelta != 0) {
-      handleValueChange(encDelta);
-    }
-  }
+  virtual void refreshDisplay() = 0;
   
   // 处理配置值变化（由子类实现）
   virtual void handleValueChange(int delta) = 0;
@@ -113,13 +65,10 @@ protected:
   int encoderAccumulator; // 用于实现自定义灵敏度分频
 
   void initializeMode() override;
-  void handleSubModeChange() override;
   void handleValueChange(int delta) override;
   void refreshDisplay() override;
   // 覆盖按钮逻辑，实现状态跳转
   void update(uint32_t currentMs, bool btnPressed) override;
-  
-  int getSubModeCount() override { return NUM_OUTLETS + 1; } // 8个出口 + 1个退出项
 };
 
 // 编码器零位偏移配置处理类
@@ -137,10 +86,7 @@ protected:
   int editingOffset;      // 当前正在编辑的偏移值（未保存）
   int encoderAccumulator; // 旋钮分频累加器
 
-  int getSubModeCount() override { return 1; } // 只有一个编辑状态，按键=保存退出
-
   void initializeMode() override;
-  void handleSubModeChange() override {}
   void handleValueChange(int delta) override;
   void refreshDisplay() override;
   void update(uint32_t currentMs, bool btnPressed) override;

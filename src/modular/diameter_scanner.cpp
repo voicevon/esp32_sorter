@@ -110,7 +110,7 @@ int DiameterScanner::getDiameterAndStop() {
     
     // [DIAGNOSTIC LOG] 输出原始计数值和缓冲区大小
     Serial.printf("[SCANNER_DEBUG] Raw Counts: CH0:%d, CH1:%d, CH2:%d, CH3:%d | LastPhase:%d, Samples:%d\n", 
-                  highLevelPulseCounts[0], highLevelPulseCounts[1], highLevelPulseCounts[2], highLevelPulseCounts[3], lastPhase, sampleCount);
+                  highLevelPulseCounts[0], highLevelPulseCounts[1], highLevelPulseCounts[2], highLevelPulseCounts[3], lastPhase, sampleCount.load());
     
     //在此处执行计算逻辑
     float correctedCounts[2];
@@ -147,19 +147,19 @@ int DiameterScanner::getDiameterAndStop() {
     return nominalDiameter;
 }
 
-// 获取物体的长度级别 (1:S, 2:M, 3:L)
+// 获取物体的长度级别 (返回 LengthMask 位掩码)
 int DiameterScanner::getLengthLevel() {
     // 门限设定：5个脉冲约为 2.5mm，低于此值的触发视为干扰噪声
     const int LENGTH_NOISE_THRESHOLD = 5;
     
     // 如果最远端传感器（Index 3）被覆盖，确认为 L (长)
-    if (highLevelPulseCounts[3] >= LENGTH_NOISE_THRESHOLD) return 3;
+    if (highLevelPulseCounts[3] >= LENGTH_NOISE_THRESHOLD) return LEN_L;
     
     // 如果中端传感器（Index 2）被覆盖，确认为 M (中)
-    if (highLevelPulseCounts[2] >= LENGTH_NOISE_THRESHOLD) return 2;
+    if (highLevelPulseCounts[2] >= LENGTH_NOISE_THRESHOLD) return LEN_M;
     
     // 否则为 S (短)
-    return 1;
+    return LEN_S;
 }
 
 int DiameterScanner::getObjectCount(int index) const {

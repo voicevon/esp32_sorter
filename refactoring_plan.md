@@ -6,7 +6,7 @@
 
 ---
 
-## R1. 消除 EEPROM 魔法地址分裂 ⭐⭐⭐
+## R1. 消除 EEPROM 魔法地址分裂 ⭐⭐⭐ [DONE]
 
 ### 现状问题
 
@@ -35,7 +35,7 @@ EEPROM 地址分散在两处，且 `sorter.cpp` 内部使用裸常量，与 `con
 
 ---
 
-## R2. Sorter 类职责过重 ⭐⭐
+## R2. Sorter 类职责过重 ⭐⭐ [DONE]
 
 ### 现状问题
 
@@ -67,7 +67,7 @@ ShiftRegisterDriver
 
 ---
 
-## R3. ISR 路径中的 Serial 打印 ⭐⭐⭐
+## R3. ISR 路径中的 Serial 打印 ⭐⭐⭐ [DONE]
 
 ### 现状问题（严重性最高）
 
@@ -108,7 +108,7 @@ ShiftRegisterDriver
 
 ---
 
-## R5. `ConfigHandler` 基类死代码 ⭐
+## R5. `ConfigHandler` 基类死代码 ⭐ [DONE]
 
 ### 现状问题
 
@@ -130,10 +130,10 @@ virtual void update(uint32_t currentMs, bool btnPressed) = 0;
 
 | 项目 | 优先级 | 风险 | 预估改动量 |
 |---|---|---|---|
-| R3 Serial 打印 | 🔴 最高 | 低 | 删除 9 行 |
-| R1 EEPROM 魔法地址 | 🟠 高 | 低 | 改 20 行 |
-| R4 ISR 安全隐患 | 🟠 高 | 中 | 改 10 行 + 验证 |
-| R2 Sorter 类拆分 | 🟡 中 | 低-中 | 约 80 行新文件 |
-| R5 基类清理 | 🟢 低 | 低 | 删除约 30 行 |
+| R3 Serial 打印 | 🔴 最高 | 低 | 删除 9 行 | [DONE] |
+| R1 EEPROM 魔法地址 | 🟠 高 | 低 | 改 20 行 | [DONE] |
+| R4 ISR 安全隐患 | 🟠 高 | 中 | 改 10 行 + 验证 | [DONE] |
+| R2 Sorter 类拆分 | 🟡 中 | 低-中 | 约 80 行新文件 | [DONE] |
+| R5 基类清理 | 🟢 低 | 低 | 删除约 30 行 | [DONE] |
 
 > **建议顺序**：R3 → R1 → R4 → R2 → R5
