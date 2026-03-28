@@ -50,9 +50,10 @@ public:
     
     // 显示扫描仪编码器值
     virtual void displayScannerEncoderValues(const int* risingValues, const int* fallingValues) = 0;
-    
-    // 显示系统仪表盘
-    virtual void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount) = 0;
+    /**
+     * 显示主仪表盘 (运行模式)
+     */
+    virtual void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, int latestLengthLevel = 0) = 0;
     
     // 显示直径信息（功能专用方法）
     virtual void displayDiameter(int latestDiameter) = 0;
@@ -78,6 +79,9 @@ public:
     // 显示多行文本
     virtual void displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3 = "", const String& line4 = "", const String& line5 = "") = 0;
     
+    // 显示配置编辑详情 (支持长度选择的反白效果)
+    virtual void displayConfigEdit(const String& title, int maxV, int minV, uint8_t targetMode, int activeField) = 0;
+
     // 重置诊断模式
     virtual void resetDiagnosticMode() = 0;
   // 清理屏幕

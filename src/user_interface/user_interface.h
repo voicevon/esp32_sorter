@@ -79,6 +79,9 @@ public:
     void displayOutletStatus(uint8_t outletIndex, bool isOpen);
     void displayDiagnosticInfo(const String& title, const String& info);
     
+    // 显示配置详情（带针对长度选择的反色显示）
+    void displayConfigEdit(const String& title, int maxV, int minV, uint8_t targetMode, int activeField);
+
     // 显示出口测试模式图形
     void displayOutletTestGraphic(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen, int subMode);
     
@@ -86,8 +89,8 @@ public:
     void displayOutletLifetimeGraphic(uint8_t outletCount, uint32_t cycleCount, bool outletState, int subMode);
     void displayScannerEncoderValues(const int* risingValues, const int* fallingValues);
     
-    // 正常模式专用显示方法
-    void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, bool forceRefresh = false);
+    // 显示系统仪表盘
+    void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, int latestLengthLevel = 0, bool forceRefresh = false);
     void displayNormalModeDiameter(int latestDiameter, bool forceRefresh = false);
     
     // 统一菜单显示代理

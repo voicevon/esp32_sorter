@@ -86,14 +86,30 @@ constexpr int PHASE_OUTLET_EXECUTE = PHASE_SCAN_START - 20;
 // 4. 重置归位阶段：在当前托架周期结束前，重置出口控制信号位，清理中间计算标志位，准备下一轮
 constexpr int PHASE_OUTLET_RESET = 150;
 
+// ==========================================
+// Sorting Logic Constants
+// ==========================================
+enum LengthMask {
+    LEN_NONE = 0x00,
+    LEN_S    = 0x01, // 1 << 0
+    LEN_M    = 0x02, // 1 << 1
+    LEN_L    = 0x04, // 1 << 2
+    LEN_ALL  = 0x07  // S | M | L
+};
+
 
 
 // ==========================================
 // EEPROM Addresses
 // ==========================================
-constexpr int EEPROM_ADDR_DIAMETER = 0;
-constexpr int EEPROM_ADDR_BOOT_COUNT = 0x64; // 100 (Allocates 4 bytes)
-constexpr int EEPROM_ADDR_TRAY_DATA = 0x70; // 112 (Allocates ~100 bytes for tray array)
+// Layout: [0x00] Diameter  [0x64] BootCount  [0x70] TrayData  [0x110] PhaseOffset
+// TraySystem writes: magic(1) + 18*int*2 = 145 bytes => 0x70..0x100
+constexpr int EEPROM_ADDR_DIAMETER       = 0x00; // 1 byte:  magic marker (0xAA = initialized)
+constexpr int EEPROM_ADDR_DIAMETER_DATA  = 0x01; // 24 bytes: NUM_OUTLETS * 3 (min, max, length)
+constexpr int EEPROM_ADDR_OUTLET0_MODE   = 0x19; // 1 byte:  outlet 0 mode (0=multi-obj, 1=diameter)
+constexpr int EEPROM_ADDR_BOOT_COUNT     = 0x64; // 4 bytes: uint32 boot counter
+constexpr int EEPROM_ADDR_TRAY_DATA      = 0x70; // 145 bytes: magic + 18*(diameter+count) ints => ends at 0x100
+constexpr int EEPROM_ADDR_PHASE_OFFSET   = 0x110; // 2 bytes: [0]=magic(0xA5), [1]=offset value
 
 // Power Loss Threshold (ADC value: 0-4095)
 constexpr int POWER_LOSS_ADC_THRESHOLD = 3000;

@@ -19,7 +19,12 @@ private:
     // 成员变量
     int asparagusDiameters[QUEUE_CAPACITY];    // 存储每个芦笋的直径数据
     int asparagusCounts[QUEUE_CAPACITY];    // 存储每个位置的芦笋数量
+    int asparagusLengths[QUEUE_CAPACITY];   // 存储每个芦笋的长度等级 (1:S, 2:M, 3:L)
     
+    // 累计统计数据
+    uint32_t totalIdentifiedItems;             // 自启动以来识别到的芦笋总数
+    uint32_t totalTransportedTrays;            // 自启动以来经过的托盘总数
+
     // 线程安全互斥锁
     SemaphoreHandle_t mutex;
     
@@ -54,11 +59,12 @@ public:
     static TraySystem* getInstance();
     
     /**
-     * 从单点扫描仪添加新的芦笋数据（插入到索引0）
+     * 从单一扫描仪添加新的芦笋数据（插入到索引0）
      * @param diameter 直径值
-     * @param scanCount 扫描次数（整数）
+     * @param scanCount 扫描次数
+     * @param lengthLevel 长度等级 (1:S, 2:M, 3:L)
      */
-    void pushNewAsparagus(int diameter, int scanCount);
+    void pushNewAsparagus(int diameter, int scanCount, int lengthLevel = 0);
     
     /**
      * 重置所有直径数据
@@ -78,6 +84,13 @@ public:
      * @return 扫描次数
      */
     int getTrayScanCount(int index);
+
+    /**
+     * 获取托盘长度等级
+     * @param index 托盘索引
+     * @return 长度等级 (1:S, 2:M, 3:L)，无效返回0
+     */
+    int getTrayLengthLevel(int index);
     
     /**
      * 获取托盘队列容量
@@ -97,6 +110,15 @@ public:
      */
     void loadFromEEPROM(int startAddr);
 
+    /**
+     * 获取逻辑自启动以来识别到的芦笋总数
+     */
+    uint32_t getTotalIdentifiedItems() const { return totalIdentifiedItems; }
+
+    /**
+     * 获取逻辑自启动以来经过的托盘总数
+     */
+    uint32_t getTransportedTrayCount() const { return totalTransportedTrays; }
 };
 
 #endif // TRAY_SYSTEM_H

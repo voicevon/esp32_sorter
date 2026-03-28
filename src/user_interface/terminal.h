@@ -91,7 +91,7 @@ public:
   void renderMenu(MenuNode* node, int cursorIndex, int scrollOffset) override;
   
   // 显示系统仪表盘
-  void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount) override;
+  void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, int latestLengthLevel = 0) override;
   
   // 显示直径信息（功能专用方法）
   void displayDiameter(int latestDiameter) override;
@@ -113,11 +113,13 @@ public:
   
   // 显示诊断值
   void displayDiagnosticValues(const String& title, const String& value1, const String& value2) override;
-  
-  // 显示多行文本
-  void displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3 = "", const String& line4 = "", const String& line5 = "") override;
-  
-  // 重置诊断模式
+    // 显示多行文本
+    void displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3 = "", const String& line4 = "", const String& line5 = "") override;
+    
+    // 显示配置编辑详情
+    void displayConfigEdit(const String& title, int maxV, int minV, uint8_t targetMode, int activeField) override;
+
+    // 重置诊断模式
   void resetDiagnosticMode() override;
   
   // 清理屏幕 (Terminal可以用换行或清屏指令)

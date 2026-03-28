@@ -19,7 +19,7 @@ PA-43=120,   限速 单位是 rpm per volt,  120 => 330 RPM
     PA-28,   到达速度
 
 零漂相关
-   A-A0   ->  A-Spd -> StArt  -(长按 set)->  DonE
+   A-A0   ->  A-SPd -> StArt  -(长按 set)->  DonE
 
     PIN3   反转禁止   接到 Pin-43   【page50】
     PIN19  正转禁止   接到 Pin-43   【page50】
@@ -32,6 +32,18 @@ PA-43=120,   限速 单位是 rpm per volt,  120 => 330 RPM
 https://www.douyin.com/search/%E6%99%AE%E8%8F%B2%E5%BE%B7ps100%E4%BC%BA%E6%9C%8D%E9%A9%B1%E5%8A%A8%E5%99%A8%E8%AF%B4%E6%98%8E%E4%B9%A6?modal_id=7392899949119294758
 
 
+
+
+# 普菲德 技术支持  王工  137 0667 1854
+A-A0      A-spd     StArt   donE
+断电重启
+
+零漂钳位
+P3-2        from 3 to 7       Save(长按set)
+PA-55       to  0100          Save(长按set)
+PA-75       from 10 to 5      Save(长按set)
+
+断电重启。
 
 
 

@@ -5,8 +5,12 @@
  * 初始化出口逻辑状态
  */
 void Outlet::initialize() {
-    // 逻辑初始化：强制设定为关闭位置
-    executeClose();
+    // 逻辑初始化：仅复位内存状态，不产生物理脉冲以避免上电浪涌
+    isPulsing = false;
+    targetPulseState = false;
+    physicalOpen = false;
+    readyToOpenState = false;
+    stayOpenNext = false;
 }
 
 /**

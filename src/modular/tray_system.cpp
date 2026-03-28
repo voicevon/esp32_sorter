@@ -16,7 +16,10 @@ TraySystem::TraySystem() {
     for (uint8_t i = 0; i < QUEUE_CAPACITY; i++) {
         asparagusDiameters[i] = EMPTY_TRAY;
         asparagusCounts[i] = 0;
+        asparagusLengths[i] = 0;
     }
+    totalIdentifiedItems = 0;
+    totalTransportedTrays = 0;
     Serial.println("[TRAY] TraySystem instance created (Thread-safe).");
 }
 
@@ -40,7 +43,7 @@ TraySystem* TraySystem::getInstance() {
 /**
  * 添加新直径数据实现
  */
-void TraySystem::pushNewAsparagus(int diameter, int scanCount) {
+void TraySystem::pushNewAsparagus(int diameter, int scanCount, int lengthLevel) {
     if (xSemaphoreTake(mutex, pdMS_TO_TICKS(10)) == pdTRUE) {
         // 将所有现有数据向右移动一位
         shiftToRight();
@@ -48,7 +51,14 @@ void TraySystem::pushNewAsparagus(int diameter, int scanCount) {
         // 在索引0处添加新数据
         asparagusDiameters[0] = diameter;
         asparagusCounts[0] = scanCount;
+        asparagusLengths[0] = lengthLevel;
         
+        // 映射：只有直径大于 6mm 的芦笋才算作一个有效 Item (每个托盘最多计 1 个)
+        if (diameter > 6 && scanCount > 0) {
+            totalIdentifiedItems++;
+        }
+        totalTransportedTrays++;
+
         xSemaphoreGive(mutex);
     } else {
         Serial.println("[TRAY] Warning: Failed to get mutex in pushNewAsparagus");
@@ -62,19 +72,23 @@ void TraySystem::shiftToRight() {
     // 从最后一个位置开始，向前移动数据
     asparagusDiameters[QUEUE_CAPACITY - 1] = EMPTY_TRAY; // 最后一个位置数据丢弃
     asparagusCounts[QUEUE_CAPACITY - 1] = 0; // 扫描次数重置为0
+    asparagusLengths[QUEUE_CAPACITY - 1] = 0;
     
     for (int8_t i = QUEUE_CAPACITY - 2; i >= 0; i--) {
         if (asparagusDiameters[i] != EMPTY_TRAY) {
             // 将当前位置数据复制到下一个位置
             asparagusDiameters[i + 1] = asparagusDiameters[i];
             asparagusCounts[i + 1] = asparagusCounts[i];
+            asparagusLengths[i + 1] = asparagusLengths[i];
         } else {
             asparagusDiameters[i + 1] = EMPTY_TRAY;
             asparagusCounts[i + 1] = 0;
+            asparagusLengths[i + 1] = 0;
         }
         // 重置当前位置
         asparagusDiameters[i] = EMPTY_TRAY;
         asparagusCounts[i] = 0;
+        asparagusLengths[i] = 0;
     }
     
     // Serial.println("所有直径数据已向右移动");
@@ -88,9 +102,10 @@ void TraySystem::resetAllTraysData() {
         for (uint8_t i = 0; i < QUEUE_CAPACITY; i++) {
             asparagusDiameters[i] = EMPTY_TRAY;
             asparagusCounts[i] = 0;
+            asparagusLengths[i] = 0;
         }
         xSemaphoreGive(mutex);
-        Serial.println("所有直径数据和扫描次数数据已重置");
+        Serial.println("所有分拣数据已重置");
     }
 }
 
@@ -117,6 +132,20 @@ int TraySystem::getTrayScanCount(int index) {
     if (xSemaphoreTake(mutex, pdMS_TO_TICKS(5)) == pdTRUE) {
         if (index >= 0 && index < QUEUE_CAPACITY) {
             val = asparagusCounts[index];
+        }
+        xSemaphoreGive(mutex);
+    }
+    return val;
+}
+
+/**
+ * 获取托盘长度等级实现
+ */
+int TraySystem::getTrayLengthLevel(int index) {
+    int val = 0;
+    if (xSemaphoreTake(mutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+        if (index >= 0 && index < QUEUE_CAPACITY) {
+            val = asparagusLengths[index];
         }
         xSemaphoreGive(mutex);
     }

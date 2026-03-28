@@ -37,14 +37,13 @@ void processNormalMode() {
     int speedPerMinute = speedPerSecond * 60.0f;
     int speedPerHour = speedPerSecond * 3600.0f;
     
-    int identifiedCount = DiameterScanner::getInstance()->getTotalObjectCount();
-    const int pulsesPerTray = 200;
-    long encoderPosition = encoder->getRawCount();
-    int transportedTrayCount = encoderPosition / pulsesPerTray;
+    int identifiedCount = traySystem->getTotalIdentifiedItems();
+    int transportedTrayCount = traySystem->getTransportedTrayCount();
     
     // 获取最新一根物料的详细数据
     int latestDiameter = traySystem->getTrayDiameter(0);
     int latestScanCount = traySystem->getTrayScanCount(0);
+    int latestLengthLevel = traySystem->getTrayLengthLevel(0);
     
     // 调用功能增强版的仪表盘，设置 forceRefresh 为 true，由 UITask 控制刷新节奏
     UserInterface::getInstance()->displayDashboard(
@@ -55,6 +54,7 @@ void processNormalMode() {
         transportedTrayCount,
         latestDiameter,
         latestScanCount,
+        latestLengthLevel,
         true // 强制刷新，因为我们在 30Hz 的 UITask 中循环
     );
 }
@@ -68,6 +68,7 @@ String getSystemModeName(SystemMode mode) {
         case MODE_VERSION_INFO: return "Version Info";
         case MODE_CONFIG_DIAMETER: return "Config Diameter";
         case MODE_DIAGNOSE_HMI: return "HMI Encoder Diag";
+        case MODE_CONFIG_PHASE_OFFSET: return "Config Phase Offset";
         default: return "Unknown Mode";
     }
 }

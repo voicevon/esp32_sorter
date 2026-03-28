@@ -12,10 +12,11 @@ Sorter::Sorter() :
     flagDataLatch(false), 
     flagOutletExecute(false), 
     flagOutletReset(false),
-    lastSpeedCheckTime(0), 
+    lastSpeedCheckTime(0),
     lastEncoderPosition(0), 
     lastSpeed(0.0f), 
-    lastObjectCount(0) 
+    lastObjectCount(0),
+    shiftDriver(PIN_HC595_DS, PIN_HC595_SHCP, PIN_HC595_STCP)
 {
     // 实例化互斥锁
     mutex = xSemaphoreCreateMutex();
@@ -30,11 +31,8 @@ Sorter::Sorter() :
 }
 
 void Sorter::initialize() {
-    // 1. 初始化 74HC595 引脚（必须在初始化物理出口前完成，才能推入数据）
-    pinMode(PIN_HC595_DS, OUTPUT);
-    pinMode(PIN_HC595_SHCP, OUTPUT);
-    pinMode(PIN_HC595_STCP, OUTPUT);
-    digitalWrite(PIN_HC595_STCP, LOW);
+    // 1. 初始化硬件驱动
+    shiftDriver.initialize();
 
     // 2. 初始化出口位置
     uint8_t defaultDivergencePoints[NUM_OUTLETS] = {0, 2, 4, 6, 8, 10, 12, 14};
@@ -60,24 +58,23 @@ void Sorter::initialize() {
 }
 
 void Sorter::restoreOutletConfig() {
-    EEPROM.begin(512);
-    const int EEPROM_DIAMETER_RANGES_ADDR = 0;
-    
     // 检查 EEPROM 是否已初始化
-    if (EEPROM.read(EEPROM_DIAMETER_RANGES_ADDR) == 0xAA) {
+    if (EEPROM.read(EEPROM_ADDR_DIAMETER) == 0xAA) {
         Serial.println("[Sorter] Restoring configuration from EEPROM...");
-        // 读取直径配置
+        // 读取出口配置 (每个出口占 3 字节: Min, Max, Length)
         for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
-            int minD = EEPROM.read(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2);
-            int maxD = EEPROM.read(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2 + 1);
+            int minD = EEPROM.read(EEPROM_ADDR_DIAMETER_DATA + i * 3);
+            int maxD = EEPROM.read(EEPROM_ADDR_DIAMETER_DATA + i * 3 + 1);
+            int lenL = EEPROM.read(EEPROM_ADDR_DIAMETER_DATA + i * 3 + 2);
             outlets[i].setMatchDiameter(minD, maxD);
+            outlets[i].setTargetLength(lenL > 3 ? 0 : lenL);
         }
-        // 读取出口 0 模式 (地址 17)
-        outlet0Mode = EEPROM.read(EEPROM_DIAMETER_RANGES_ADDR + 17);
-        if (outlet0Mode > 1) outlet0Mode = 0; // 默认为多物检测
+        // 读取出口 0 模式
+        outlet0Mode = EEPROM.read(EEPROM_ADDR_OUTLET0_MODE);
+        if (outlet0Mode > 1) outlet0Mode = 0;
     } else {
         Serial.println("[Sorter] EEPROM empty, using default ranges.");
-        // 默认直径范围（如果EEPROM为空时使用）
+        // 默认直径范围
         int outletDiameterRanges[NUM_OUTLETS][2] = {
             {0, 0},     // 出口0：特殊处理
             {20, 255},  // 出口1：直径>20mm
@@ -153,21 +150,17 @@ void Sorter::run() {
     // A. 启动扫描阶段 (50)
     if (flagScanStart) {
         scanner->start();
-        flagScanStart = false; // 清理标志位，确保只处理一次
-        Serial.println("[SORTER] Event -> START SCAN (50)");
+        flagScanStart = false;
     } 
 
     // B. 数据锁存阶段 (170) -> 这里完成物体的判定
     if (flagDataLatch) {
         int diameterMm = scanner->getDiameterAndStop();
         int objectCount = scanner->getTotalObjectCount();
-        
-        if (diameterMm > 0) {
-            Serial.printf("[SORTER] Event -> LATCH DATA (170) | Diam: %d mm\n", diameterMm);
-        }
+        int lengthLevel = scanner->getLengthLevel();
         
         // 推送到托盘系统的起始端
-        trayManager->pushNewAsparagus(diameterMm, objectCount);
+        trayManager->pushNewAsparagus(diameterMm, objectCount, lengthLevel);
         prepareOutlets(); // 预计算出口状态
         
         flagDataLatch = false;
@@ -176,25 +169,19 @@ void Sorter::run() {
     // C. 执行分拣动作 (30)
     if (flagOutletExecute) {
         for (int i = 0; i < NUM_OUTLETS; i++) {
-            outlets[i].execute(); // 根据 170 相位算好的状态触发电磁铁动作
+            outlets[i].execute();
         }
-        
         flagOutletExecute = false;
-        Serial.println("[SORTER] Event -> EXECUTE OUTLETS (30)");
     }
 
     // D. 重置/关闭驱动信号 (150)
     if (flagOutletReset) {
-         for(int i = 0; i < NUM_OUTLETS; i++){
-            if (outlets[i].shouldStayOpenNext()) {
-                // Serial.printf("[SORTER] Predictive Action -> Stay OPEN for outlet %d\n", i);
-                continue; 
-            }
+        for (int i = 0; i < NUM_OUTLETS; i++) {
+            if (outlets[i].shouldStayOpenNext()) continue;
             outlets[i].setReadyToOpen(false);
             outlets[i].execute();
         }
         flagOutletReset = false;
-        Serial.println("[SORTER] Event -> RESET OUTLETS (150)");
     }
 
     // 3. 通用物理更新（每帧执行，处理脉冲宽度管理）
@@ -224,46 +211,44 @@ Outlet* Sorter::getOutlet(uint8_t index) {
 // 实现预设出口功能
 void Sorter::prepareOutlets() {
     uint8_t capacity = TraySystem::getCapacity();
-    
-    // 定义统一的匹配判定逻辑 (Lambda)，确保当前和前瞻使用同一套规则
+    int asparagusLength = scanner->getLengthLevel();
+
+    // 定义统一的匹配判定逻辑 (Lambda)
     auto isMatch = [&](int p, int outletIdx) -> bool {
         if (p < 0 || p >= capacity) return false;
         
-        if (outletIdx == 0) {
-            // 出口 0：多模复用
-            if (outlet0Mode == 0) { 
-                // 模式 0: 多物体/碎料检测模式
-                return trayManager->getTrayScanCount(p) > 1;
-            } else {
-                // 模式 1: 直径分级模式 (遵循常规直径逻辑)
-                int diameter = trayManager->getTrayDiameter(p);
-                int minD = outlets[outletIdx].getMatchDiameterMin();
-                int maxD = outlets[outletIdx].getMatchDiameterMax();
-                if (diameter <= 0 || diameter > 50) return false;
-                return (diameter > minD && diameter <= maxD);
-            }
-        } else {
-            // 出口 1-7：直径分级
-            int diameter = trayManager->getTrayDiameter(p);
-            int minD = outlets[outletIdx].getMatchDiameterMin();
-            int maxD = outlets[outletIdx].getMatchDiameterMax();
-            
-            if (diameter <= 0 || diameter > 50) return false;
-            
-            // 出口 1 为 > minD；出口 2-7 为 (minD, maxD]
-            if (outletIdx == 1) return diameter > minD;
-            return (diameter > minD && diameter <= maxD);
+        if (outletIdx == 0 && outlet0Mode == 0) {
+            // 出口 0 的特殊识别模式：多物体/碎料检测
+            return trayManager->getTrayScanCount(p) > 1;
         }
+
+        // 通用直径匹配
+        int diameter = trayManager->getTrayDiameter(p);
+        if (diameter <= 0) return false; // 排除空位或无效数据
+
+        int minD = outlets[outletIdx].getMatchDiameterMin();
+        int maxD = outlets[outletIdx].getMatchDiameterMax();
+        
+        // 统一区间判定 (minD < diameter <= maxD)
+        if (diameter <= minD || diameter > maxD) return false;
+
+        // 【新增阶段】长度匹配 (位掩码逻辑)
+        int detectedLength = trayManager->getTrayLengthLevel(p);
+        uint8_t targetLenMask = outlets[outletIdx].getTargetLength();
+        if (targetLenMask != LEN_ALL && targetLenMask != LEN_NONE) {
+            // detectedLength 也是一个 LengthMask (LEN_S, LEN_M, LEN_L)
+            // 直接通过位与运算判定是否在允许范围内
+            if (!(targetLenMask & detectedLength)) return false;
+        }
+
+        return true;
     };
 
     for (int i = 0; i < NUM_OUTLETS; i++) {
         int pos = outletDivergencePoints[i];
         
-        // 1. 确定当前时刻该出口是否需要打开
         bool currentMatch = isMatch(pos, i);
-
-        // 2. [预判前瞻] 判定紧随其后的托盘 (pos-1) 是否也需要进该出口
-        // 如果连续两个托盘合意，则标记 stayOpenNext，指示 150 相位跳过复位
+        // [预判前瞻] 此处暂不考虑长度前瞻，仅以直径合意为准或需精确判定
         bool nextMatch = isMatch(pos - 1, i);
 
         outlets[i].setReadyToOpen(currentMatch);
@@ -384,49 +369,18 @@ void Sorter::updateShiftRegisters() {
         }
     }
     
-    // 组合成 24 位数据以进行变化检测
-    uint32_t currentData = ((uint32_t)chip2Byte << 16) | ((uint32_t)chip1Byte << 8) | ledByte;
-    
-    // 仅在状态变化时刷新物理引脚
-    if (currentData != lastShiftData) {
-        // 如果有任何脉冲处于活动状态，打印详细的出口信息
-        if (chip1Byte != 0 || chip2Byte != 0) {
-            Serial.printf("[595] Data Change! -> 24-bit: 0x%06X | Active: ", currentData);
-            for(int i=0; i<NUM_OUTLETS; i++) {
-                if(outlets[i].isOpenPulseActive()) Serial.printf("O%d(Open) ", i);
-                if(outlets[i].isClosePulseActive()) Serial.printf("O%d(Close) ", i);
-            }
-            Serial.println();
-        } else {
-            Serial.printf("[595] Data Change! -> 24-bit: 0x%06X (Idle Mode, LEDs Only)\n", currentData);
-        }
-                      
-        digitalWrite(PIN_HC595_STCP, LOW);
-        
-        // 发送顺序：最先发出的字节会被推到级联链路的最末端 (Chip 2)
-        // 1. 发送 Chip 2 数据 (出口 4-7)
-        shiftOut(PIN_HC595_DS, PIN_HC595_SHCP, MSBFIRST, chip2Byte);
-        // 2. 发送 Chip 1 数据 (出口 0-3)
-        shiftOut(PIN_HC595_DS, PIN_HC595_SHCP, MSBFIRST, chip1Byte);
-        // 3. 发送 Chip 0 数据 (LED 指示灯)
-        shiftOut(PIN_HC595_DS, PIN_HC595_SHCP, MSBFIRST, ledByte);
-        
-        digitalWrite(PIN_HC595_STCP, HIGH);
-        lastShiftData = currentData;
-    }
+    // 物理刷新 (由 Driver 负责脏检查)
+    shiftDriver.write(chip2Byte, chip1Byte, ledByte);
 }
 void Sorter::saveConfig() {
     Serial.println("[Sorter] Saving configuration to EEPROM...");
-    EEPROM.begin(512);
-    const int EEPROM_DIAMETER_RANGES_ADDR = 0;
-    EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR, 0xAA);
+    EEPROM.write(EEPROM_ADDR_DIAMETER, 0xAA);
     for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
-        EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2, outlets[i].getMatchDiameterMin());
-        EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR + 1 + i * 2 + 1, outlets[i].getMatchDiameterMax());
+        EEPROM.write(EEPROM_ADDR_DIAMETER_DATA + i * 3,     outlets[i].getMatchDiameterMin());
+        EEPROM.write(EEPROM_ADDR_DIAMETER_DATA + i * 3 + 1, outlets[i].getMatchDiameterMax());
+        EEPROM.write(EEPROM_ADDR_DIAMETER_DATA + i * 3 + 2, outlets[i].getTargetLength());
     }
-    // 保存模式设置
-    EEPROM.write(EEPROM_DIAMETER_RANGES_ADDR + 17, outlet0Mode);
-    
+    EEPROM.write(EEPROM_ADDR_OUTLET0_MODE, outlet0Mode);
     EEPROM.commit();
     Serial.println("[Sorter] Configuration saved successfully.");
 }

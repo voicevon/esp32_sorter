@@ -34,6 +34,7 @@ void DiameterScanner::initialize() {
 void DiameterScanner::start() {
     isScanning = true;
     nominalDiameter = 0;
+    sampleCount = 0;
     for (int i = 0; i < 4; i++) {
         highLevelPulseCounts[i] = 0;
         objectCount[i] = 0;
@@ -50,52 +51,26 @@ void DiameterScanner::stop() {
 void DiameterScanner::sample(int phase) {
     if (!isScanning) return;
     
-    // 终极同步过滤器：只有当相位确实“向前进”时，才进行采样。
-    // 这彻底解决了编码器在高频震动或回弹（例如 100->99->100）时产生的重复计数。
+    // 终极同步过滤器：只有当相位确实"向前进"时，才进行采样。
+    // 修复：回绕检测不依赖固定的 199->0，而是检测任意大幅负跳变（超过半圈视为合法回绕）
     bool isForward = false;
     if (lastPhase == -1) {
-        isForward = true; // 第一次采样，由于 lastPhase 为 -1，允许进入
+        isForward = true; // 第一次采样，无条件允许
     } else if (phase > lastPhase) {
         isForward = true; // 正常前进
-    } else if (phase == 0 && lastPhase == 199) {
-        isForward = true; // 处理相位回零
+    } else if ((lastPhase - phase) > (ENCODER_MAX_PHASE / 2)) {
+        isForward = true; // 合法回绕（跨越半圈以上的负跳变）
     }
     
-    if (!isForward) return; // 过滤回零、震动回弹或重复触发
+    if (!isForward) return; // 过滤震动回弹或重复触发
     lastPhase = phase;
     
-    bool anyHigh = false;
-    bool allFinished = true;
-    
-    for (int i = 0; i < 4; i++) {
-        bool currentState = (digitalRead(scannerPins[i]) == HIGH);
-        
-        if (currentState) {
-            anyHigh = true;
-            allFinished = false;
-            
-            if (!isObjectPassing[i]) {
-                isObjectPassing[i] = true;
-                highLevelPulseCounts[i] = 0;
-            }
-            
-            highLevelPulseCounts[i]++;
-        } else {
-            if (isObjectPassing[i]) {
-                isObjectPassing[i] = false;
-                
-                // 当传感器从高电平变为低电平时，计数加一（物体通过）
-                objectCount[i]++;
-            }
+    // 仅通过数组记录采样点的原始高低电平状态，极大地降低中断开销
+    if (sampleCount < MAX_SAMPLES) {
+        for (int i = 0; i < 4; i++) {
+            sensorBuffers[i][sampleCount] = (digitalRead(scannerPins[i]) == HIGH) ? 1 : 0;
         }
-        
-        lastSensorStates[i] = currentState;
-    }
-    
-    // 仅负责状态检测和计数
-    if (!anyHigh && allFinished) {
-        // 之前在此处的计算逻辑已移至 getDiameterAndStop()
-        // 此处只负责检测结束状态（如果需要）
+        sampleCount++;
     }
 }
 
@@ -104,15 +79,44 @@ int DiameterScanner::getDiameterAndStop() {
     // 在 Sorter::onPhaseChange 中理应已调用过一次 stop()，此处为双重保险。
     stop(); 
     
-    // [DIAGNOSTIC LOG] 输出原始计数值，寻找 500mm 读数根源
-    Serial.printf("[SCANNER_DEBUG] Raw Counts: CH0:%d, CH1:%d, CH2:%d, CH3:%d | LastPhase:%d\n", 
-                  highLevelPulseCounts[0], highLevelPulseCounts[1], highLevelPulseCounts[2], highLevelPulseCounts[3], lastPhase);
+    // 初始化计算状态变量，清零旧数据
+    for (int i = 0; i < 4; i++) {
+        highLevelPulseCounts[i] = 0;
+        objectCount[i] = 0;
+        lastSensorStates[i] = false;
+        isObjectPassing[i] = false;
+    }
+
+    // 后期处理：遍历缓存区，回放采样历史，计算有效高电平脉冲计数
+    for (int idx = 0; idx < sampleCount; idx++) {
+        for (int i = 0; i < 4; i++) {
+            bool currentState = (sensorBuffers[i][idx] == 1);
+            
+            if (currentState) {
+                if (!isObjectPassing[i]) {
+                    isObjectPassing[i] = true;
+                    highLevelPulseCounts[i] = 0; // 一旦新物体遮挡，重新计数
+                }
+                highLevelPulseCounts[i]++;
+            } else {
+                if (isObjectPassing[i]) {
+                    isObjectPassing[i] = false;
+                    // 当传感器从高电平变为低电平时，计数加一（物体通过）
+                    objectCount[i]++;
+                }
+            }
+        }
+    }
+    
+    // [DIAGNOSTIC LOG] 输出原始计数值和缓冲区大小
+    Serial.printf("[SCANNER_DEBUG] Raw Counts: CH0:%d, CH1:%d, CH2:%d, CH3:%d | LastPhase:%d, Samples:%d\n", 
+                  highLevelPulseCounts[0], highLevelPulseCounts[1], highLevelPulseCounts[2], highLevelPulseCounts[3], lastPhase, sampleCount.load());
     
     //在此处执行计算逻辑
-    float correctedCounts[4];
+    float correctedCounts[2];
     int validCount = 0;
             
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 2; i++) {
         correctedCounts[i] = highLevelPulseCounts[i] * SCANNER_WEIGHTS[i];
         
         if (correctedCounts[i] >= SCANNER_MIN_DIAMETER_UNIT) {
@@ -120,40 +124,42 @@ int DiameterScanner::getDiameterAndStop() {
         }
     }
             
-    if (validCount >= 2) {
-        float validValues[4];
+    if (validCount > 0) {
+        float validValues[2];
         int validIndex = 0;
         
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 2; i++) {
             if (correctedCounts[i] >= SCANNER_MIN_DIAMETER_UNIT) {
                 validValues[validIndex++] = correctedCounts[i];
             }
         }
         
-        // 冒泡排序
-        for (int i = 0; i < validCount - 1; i++) {
-            for (int j = i + 1; j < validCount; j++) {
-                if (validValues[i] > validValues[j]) {
-                    float temp = validValues[i];
-                    validValues[i] = validValues[j];
-                    validValues[j] = temp;
-                }
-            }
-        }
-        
-        // 根据有效值的数量计算标称直径，采用 0.5f 偏移量实现四舍五入
-        if (validCount == 2) {
+        if (validCount == 1) {
+            nominalDiameter = (int)(validValues[0] + 0.5f);
+        } else if (validCount == 2) {
+            // 取平均值
             nominalDiameter = (int)((validValues[0] + validValues[1]) / 2.0f + 0.5f);
-        } else if (validCount == 3) {
-            nominalDiameter = (int)(validValues[1] + 0.5f); // 取中间值并舍入
-        } else {
-            nominalDiameter = (int)((validValues[1] + validValues[2]) / 2.0f + 0.5f); // 排除极值后的平均舍入
         }
     } else {
         nominalDiameter = 0;
     }
 
     return nominalDiameter;
+}
+
+// 获取物体的长度级别 (返回 LengthMask 位掩码)
+int DiameterScanner::getLengthLevel() {
+    // 门限设定：5个脉冲约为 2.5mm，低于此值的触发视为干扰噪声
+    const int LENGTH_NOISE_THRESHOLD = 5;
+    
+    // 如果最远端传感器（Index 3）被覆盖，确认为 L (长)
+    if (highLevelPulseCounts[3] >= LENGTH_NOISE_THRESHOLD) return LEN_L;
+    
+    // 如果中端传感器（Index 2）被覆盖，确认为 M (中)
+    if (highLevelPulseCounts[2] >= LENGTH_NOISE_THRESHOLD) return LEN_M;
+    
+    // 否则为 S (短)
+    return LEN_S;
 }
 
 int DiameterScanner::getObjectCount(int index) const {

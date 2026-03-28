@@ -34,6 +34,7 @@ private:
     void handleIOStatusCheck();       // 子模式0：IO状态检查
     void handleEncoderValues();       // 子模式1：记录并显示传感器上升沿和下降沿的编码器值
     void handleRawDiameterDisplay();  // 子模式2：显示原始直径
+    void handleWaveformDisplay();     // 子模式3：显示缓冲区的波形图
 
 public:
     /**

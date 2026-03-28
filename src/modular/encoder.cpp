@@ -17,6 +17,7 @@ Encoder::Encoder() {
     zeroCrossRawCount = 0;
     forcedZeroCount = 0;
     forcedZeroRawCount = 0;
+    phaseOffset = 0;  // 默认无偏移，装机标定后可修改
     
     // 初始化回调函数指针为nullptr
     encoderPhaseCallback = nullptr;
@@ -62,13 +63,12 @@ void Encoder::initialize() {
  * 获取当前逻辑位置（0-199）
  */
 int Encoder::getCurrentPosition() {
-    // 通过count % 200计算得到逻辑位置
     int position = rawEncoderCount % ENCODER_LOGICAL_POSITION_RANGE;
-    // 确保位置为非负数
     if (position < 0) {
         position += ENCODER_LOGICAL_POSITION_RANGE;
     }
-    return position;
+    // 叠加零位偏移量，补偿各机器编码器安装位置差异
+    return (position + phaseOffset) % ENCODER_LOGICAL_POSITION_RANGE;
 }
 
 /**
@@ -150,7 +150,9 @@ void Encoder::handleZPhaseInterrupt() {
  */
 void Encoder::triggerPhaseCallback() {
     if (encoderPhaseCallback != nullptr) {
-        int currentPhase = rawEncoderCount % ENCODER_LOGICAL_POSITION_RANGE;
+        int raw = rawEncoderCount % ENCODER_LOGICAL_POSITION_RANGE;
+        if (raw < 0) raw += ENCODER_LOGICAL_POSITION_RANGE;
+        int currentPhase = (raw + phaseOffset) % ENCODER_LOGICAL_POSITION_RANGE;
         encoderPhaseCallback(encoderPhaseCallbackContext, currentPhase);
     }
 }

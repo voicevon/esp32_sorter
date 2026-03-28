@@ -20,6 +20,9 @@
 // 系统工作模式前向声明
 enum SystemMode;
 
+// 扫描仪前向声明
+class DiameterScanner;
+
 /**
  * @class OLED
  * @brief SSD1306 I2C显示器管理类
@@ -110,6 +113,9 @@ public:
   // 显示诊断信息
   void displayDiagnosticInfo(const String& title, const String& info) override;
   
+  // 显示配置编辑详情 (支持长度选择的反白效果)
+  void displayConfigEdit(const String& title, int maxV, int minV, uint8_t targetMode, int activeField) override;
+
   // 显示出口测试模式图形
   void displayOutletTestGraphic(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen, int subMode) override;
   
@@ -119,9 +125,12 @@ public:
   // 显示扫描仪编码器值
   void displayScannerEncoderValues(const int* risingValues, const int* fallingValues) override;
   
+  // 显示扫描仪波形图 (点划线)
+  void displayScannerWaveform(DiameterScanner* scanner);
+  
   // 通用显示方法 - 替代模式专用方法
   void renderMenu(MenuNode* node, int cursorIndex, int scrollOffset) override;
-  void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount) override;
+  void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, int latestLengthLevel = 0) override;
   void displayDiameter(int latestDiameter) override;
   
   // 实现Display抽象基类的方法（兼容旧接口）

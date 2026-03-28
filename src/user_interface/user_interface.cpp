@@ -72,11 +72,18 @@ void UserInterface::displayOutletStatus(uint8_t outletIndex, bool isOpen) {
     }
 }
 
-// 显示诊断信息
 void UserInterface::displayDiagnosticInfo(const String& title, const String& info) {
     // 遍历所有显示设备
     for (int i = 0; i < displayDeviceCount; i++) {
         displayDevices[i]->displayDiagnosticInfo(title, info);
+    }
+}
+
+// 显示配置详情（带针对长度选择的反色显示）
+void UserInterface::displayConfigEdit(const String& title, int maxV, int minV, uint8_t targetMode, int activeField) {
+    // 遍历所有显示设备
+    for (int i = 0; i < displayDeviceCount; i++) {
+        displayDevices[i]->displayConfigEdit(title, maxV, minV, targetMode, activeField);
     }
 }
 
@@ -106,11 +113,11 @@ void UserInterface::displayScannerEncoderValues(const int* risingValues, const i
 }
 
 // 显示系统仪表盘 - 仅在强制刷新（如相位触发）时更新，移除定时刷新以保持界面稳定
-void UserInterface::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, bool forceRefresh) {
+void UserInterface::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, int latestLengthLevel, bool forceRefresh) {
     if (forceRefresh) {
         // 遍历所有显示设备
         for (int i = 0; i < displayDeviceCount; i++) {
-            displayDevices[i]->displayDashboard(sortingSpeedPerSecond, sortingSpeedPerMinute, sortingSpeedPerHour, identifiedCount, transportedTrayCount, latestDiameter, latestScanCount);
+            displayDevices[i]->displayDashboard(sortingSpeedPerSecond, sortingSpeedPerMinute, sortingSpeedPerHour, identifiedCount, transportedTrayCount, latestDiameter, latestScanCount, latestLengthLevel);
         }
         updateLastUpdateTime();
     }

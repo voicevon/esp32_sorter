@@ -237,12 +237,8 @@ void Terminal::displayScannerEncoderValues(const int* risingValues, const int* f
 }
 
 // 显示系统仪表盘
-void Terminal::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount) {
-    if (isUpdateReady() || 
-        sortingSpeedPerSecond != previousSortingSpeedPerSecond ||
-        identifiedCount != previousIdentifiedCount ||
-        latestDiameter != previousLatestDiameter ||
-        latestScanCount != previousLatestScanCount) {
+void Terminal::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, int latestLengthLevel) {
+    if (isUpdateReady()) {
         
         // 检查是否是第一次显示
         static bool firstDisplay = true;
@@ -251,7 +247,7 @@ void Terminal::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPer
             Serial.println("\n" + STYLE_DATA_WINDOW_TITLE + "       === System Dashboard ===       " + STYLE_RESET);
             Serial.println(STYLE_DATA_WINDOW_CONTENT + "Speed:     0.0/s, 0/min, 0/h          " + STYLE_RESET);
             Serial.println(STYLE_DATA_WINDOW_CONTENT + "Identified: 0 | Transported: 0         " + STYLE_RESET);
-            Serial.println(STYLE_DATA_WINDOW_CONTENT + "Last:       0 mm | Pcs: 0              " + STYLE_RESET);
+            Serial.println(STYLE_DATA_WINDOW_CONTENT + "Last:       0 mm | Pcs: 0 | Len: --    " + STYLE_RESET);
             firstDisplay = false;
         } else {
             // 直接打印四行数据
@@ -275,16 +271,15 @@ void Terminal::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPer
 
             Serial.print(STYLE_DATA_WINDOW_CONTENT + "Last:       ");
             Serial.print(latestDiameter);
-            Serial.print(" mm | Pcs: ");
+            Serial.print(" | Pcs: ");
             Serial.print(latestScanCount);
+            Serial.print(" | Len: ");
+            if (latestLengthLevel == 1) Serial.print("S ");
+            else if (latestLengthLevel == 2) Serial.print("M ");
+            else if (latestLengthLevel == 3) Serial.print("L ");
+            else Serial.print("--");
             Serial.print("              "); Serial.println(STYLE_RESET);
         }
-        
-        // 更新上次显示的数据
-        previousSortingSpeedPerSecond = sortingSpeedPerSecond;
-        previousIdentifiedCount = identifiedCount;
-        previousLatestDiameter = latestDiameter;
-        previousLatestScanCount = latestScanCount;
         
         // 更新上次更新时间
         previousUpdateTime = millis();
@@ -490,6 +485,35 @@ void Terminal::displayMultiLineText(const String& title, const String& line1, co
     if (!line3.isEmpty()) Serial.println(line3);
     if (!line4.isEmpty()) Serial.println(line4);
     if (!line5.isEmpty()) Serial.println(line5);
+}
+
+// 显示配置编辑详情 (Terminal 版)
+void Terminal::displayConfigEdit(const String& title, int maxV, int minV, uint8_t targetMode, int activeField) {
+    String info = "";
+    if (activeField == 0) info += " -> Max Diameter: "; else info += "    Max Diameter: ";
+    info += String(maxV) + " mm\n";
+    
+    if (activeField == 1) info += " -> Min Diameter: "; else info += "    Min Diameter: ";
+    info += String(minV) + " mm\n";
+    
+    if (activeField == 2) info += " -> Target: "; else info += "    Target: ";
+    
+    // 映射 targetMode (0-5) 到 bitmask
+    uint8_t mask = 0; // bit0=S, bit1=M, bit2=L
+    if (targetMode == 0) mask = 7; // ALL
+    else if (targetMode == 1) mask = 1; // S
+    else if (targetMode == 2) mask = 2; // M
+    else if (targetMode == 3) mask = 4; // L
+    else if (targetMode == 4) mask = 3; // SM
+    else if (targetMode == 5) mask = 6; // ML
+    
+    const char* labels[] = {"S", "M", "L"};
+    for (int i = 0; i < 3; i++) {
+        if (mask & (1 << i)) info += "[" + String(labels[i]) + "] ";
+        else info += " " + String(labels[i]) + "  ";
+    }
+    
+    displayDiagnosticInfo(title, info);
 }
 
 // 重置诊断模式

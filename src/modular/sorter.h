@@ -4,11 +4,13 @@
 #include "diameter_scanner.h"
 #include "tray_system.h"
 #include "outlet.h"
+#include "shift_register_driver.h"
 #include "../config.h"
 #include "main.h"
 #include "user_interface/simple_hmi.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
+#include <atomic>
 
 // 定义分拣系统参数
 // 注：NUM_OUTLETS 及其它全局物理定义已在 config.h 中由中央管理
@@ -35,10 +37,10 @@ private:
 
     
     // 状态触发标志位 (ISR 置位, run() 消费)
-    volatile bool flagScanStart;
-    volatile bool flagDataLatch;
-    volatile bool flagOutletExecute;
-    volatile bool flagOutletReset;
+    std::atomic<bool> flagScanStart;
+    std::atomic<bool> flagDataLatch;
+    std::atomic<bool> flagOutletExecute;
+    std::atomic<bool> flagOutletReset;
     
     // 速度计算相关变量
     unsigned long lastSpeedCheckTime;
@@ -51,9 +53,9 @@ private:
     void restoreOutletConfig(); // Initializes EEPROM and creates outlets
     void initializeDivergencePoints(const uint8_t positions[NUM_OUTLETS]);
     
-    // 74HC595 同步控制逻辑 (支持 3 级联：LED + Open Coils + Close Coils)
+    // 74HC595 硬件驱动 (支持 3 级联：LED + Open Coils + Close Coils)
     void updateShiftRegisters();
-    uint32_t lastShiftData = 0xFFFFFF; // 记录上次发送的 24 位数据
+    ShiftRegisterDriver shiftDriver;
 
     // 线程安全互斥锁
     SemaphoreHandle_t mutex;

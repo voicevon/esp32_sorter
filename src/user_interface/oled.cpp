@@ -4,6 +4,8 @@
 extern String systemName;
 extern String firmwareVersion;
 
+#include "../modular/diameter_scanner.h"
+
 // 初始化静态实例指针
 OLED* OLED::instance = nullptr;
 
@@ -320,7 +322,7 @@ void OLED::displayOutletStatus(uint8_t outletIndex, bool isOpen) {
   temporaryDisplayDuration = 500;
 }
 
-// 显示诊断详情
+// 显示诊断详情 (增强行间距版)
 void OLED::displayDiagnosticInfo(const String& title, const String& info) {
   if (!isDisplayAvailable) return;
   
@@ -330,7 +332,92 @@ void OLED::displayDiagnosticInfo(const String& title, const String& info) {
   display.setTextSize(1);
   display.println(title);
   display.println(F("----------------"));
-  display.println(info);
+  
+  // 渲染正文部分，增加行间距以提升 0.96 寸屏幕的可读性
+  int currentY = 16;
+  int lineHeight = 12; // 增加到 12 实现约 2.5 像素的额外间距
+  
+  int startIdx = 0;
+  int nextNewline = info.indexOf('\n');
+  
+  while (nextNewline != -1) {
+      String line = info.substring(startIdx, nextNewline);
+      display.setCursor(0, currentY);
+      display.print(line);
+      currentY += lineHeight;
+      startIdx = nextNewline + 1;
+      nextNewline = info.indexOf('\n', startIdx);
+  }
+  
+  // 绘制最后一行内容
+  if (startIdx < (int)info.length()) {
+      display.setCursor(0, currentY);
+      display.print(info.substring(startIdx));
+  }
+  
+  safeDisplay();
+  isDiagnosticModeActive = true;
+}
+
+// 显示配置编辑详情 (支持长度选择的反白效果)
+void OLED::displayConfigEdit(const String& title, int maxV, int minV, uint8_t targetMode, int activeField) {
+  if (!isDisplayAvailable) return;
+  
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
+  display.setCursor(0, 0);
+  display.setTextSize(1);
+  display.println(title);
+  display.println(F("----------------"));
+  
+  int currentY = 16;
+  int lineHeight = 12;
+
+  // 1. Max Diameter
+  display.setCursor(0, currentY);
+  if (activeField == 0) display.print(" -> "); else display.print("    ");
+  display.print("Max Diameter ");
+  display.print(maxV);
+  display.print(" mm");
+  currentY += lineHeight;
+
+  // 2. Min Diameter
+  display.setCursor(0, currentY);
+  if (activeField == 1) display.print(" -> "); else display.print("    ");
+  display.print("Min Diameter ");
+  display.print(minV);
+  display.print(" mm");
+  currentY += lineHeight;
+
+  // 3. Target (Length)
+  display.setCursor(0, currentY);
+  if (activeField == 2) display.print(" -> "); else display.print("    ");
+  display.print("Len:");
+  
+  int xValue = display.getCursorX() + 6;
+
+  // 渲染 S M L 选项，遵循“反白 = 有效”规则
+  const char* labels[] = {"S", "M", "L"};
+  const uint8_t masks[] = {0x01, 0x02, 0x04}; // LEN_S, LEN_M, LEN_L
+  
+  for (int i = 0; i < 3; i++) {
+      bool isSelected = (targetMode & masks[i]);
+      
+      if (isSelected) {
+          // 选中状态：反白 (Highlight = Effective)
+          display.fillRect(xValue - 2, currentY - 1, 10, 10, SSD1306_WHITE);
+          display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+      } else {
+          // 未选中状态：空框 (Not Selected)
+          display.drawRect(xValue - 2, currentY - 1, 10, 10, SSD1306_WHITE);
+          display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
+      }
+      
+      display.setCursor(xValue, currentY);
+      display.print(labels[i]);
+      xValue += 18; // 增加间距以保持独立感
+  }
+
   safeDisplay();
   isDiagnosticModeActive = true;
 }
@@ -445,6 +532,36 @@ void OLED::displayScannerEncoderValues(const int* risingValues, const int* falli
   safeDisplay();
 }
 
+// 扫描仪波形图和原始计数合并显示
+void OLED::displayScannerWaveform(DiameterScanner* scanner) {
+  if (!isDisplayAvailable) return;
+  display.clearDisplay();
+  
+  int samples = scanner->getSampleCount();
+  int maxWaveWidth = SCREEN_WIDTH; // 使用全屏 128px
+  if (samples > maxWaveWidth) samples = maxWaveWidth;
+  
+  // 绘制 4 个通道的波形，每个通道占 15 像素高
+  for (int ch = 0; ch < 4; ch++) {
+    int yBase = 15 * ch + 12; // 底部基线
+    
+    // 绘制波形点 (从 x=0 开始)
+    for (int x = 0; x < samples; x++) {
+      uint8_t state = scanner->getSample(ch, x);
+      int plotY = state ? (yBase - 8) : yBase; // 高电平在上，低电平在下
+      display.drawPixel(x, plotY, SSD1306_WHITE);
+    }
+
+    // 绘制脉冲计数 (在波形绘制后，实现覆盖效果)
+    display.setCursor(0, yBase - 8);
+    display.setTextColor(SSD1306_WHITE);
+    // 只显示纯数字，不再显示 "0:" 或 "1:"
+    display.print(scanner->getHighLevelPulseCount(ch));
+  }
+  
+  safeDisplay();
+}
+
 // 菜单渲染
 void OLED::renderMenu(MenuNode* node, int cursorIndex, int scrollOffset) {
     if (!isDisplayAvailable || node == nullptr) return;
@@ -479,31 +596,27 @@ void OLED::renderMenu(MenuNode* node, int cursorIndex, int scrollOffset) {
 }
 
 // 仪表盘 (128x64 整合版设计)
-void OLED::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount) {
+void OLED::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, int latestLengthLevel) {
     if (!isDisplayAvailable || isTemporaryDisplayActive) { checkTemporaryDisplayEnd(); return; }
     
     display.clearDisplay();
     renderHeader();
     
     // -------------------------------------------------------------------
-    // 左半区 (X: 0-63): 统计信息
+    // 左半区 (X: 0-64): 统计信息
     // -------------------------------------------------------------------
     display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
     display.setCursor(0, 14);
-    display.print(F("Spd/s: ")); 
-    display.print(sortingSpeedPerSecond, 1);
-    
+    display.print(F("Spd/s: ")); display.print(sortingSpeedPerSecond, 1);
     display.setCursor(0, 24);
-    display.print(F("Spd/m: ")); 
-    display.print(sortingSpeedPerMinute);
-    
+    display.print(F("Spd/m: ")); display.print(sortingSpeedPerMinute);
     display.setCursor(0, 34);
-    display.print(F("Items: ")); 
-    display.print(identifiedCount);
-    
+    display.print(F("Items: ")); display.print(identifiedCount);
     display.setCursor(0, 44);
-    display.print(F("Trays: ")); 
-    display.print(transportedTrayCount);
+    display.print(F("Trays: ")); display.print(transportedTrayCount);
+    display.setCursor(0, 54);
+    display.print(F("Pcs  : ")); display.print(latestScanCount);
 
     // 绘制垂直分割线
     display.drawFastVLine(65, 12, 52, SSD1306_WHITE);
@@ -512,29 +625,65 @@ void OLED::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinu
     // 右半区 (X: 66-127): 实时扫描特写
     // -------------------------------------------------------------------
     
-    // A. 直径大号字体显示 (核心视觉)
-    display.setCursor(72, 14);
-    display.setTextSize(3); // 降低到3以容纳3位数直径（如 120mm）
+    // A. 直径大号字体显示 (核心视觉) - 右对齐
+    display.setTextSize(3);
+    int diaX = 120; // 右边界基准
     if (latestDiameter > 0) {
+        if (latestDiameter >= 10) diaX -= 36; // 2位数字: 2 * (6*3) = 36px
+        else diaX -= 18; // 1位数字: 18px
+        display.setCursor(diaX, 14);
         display.print(latestDiameter);
     } else {
+        display.setCursor(120 - 36, 14); // "--" 占位
         display.print("--");
     }
     
-    display.setTextSize(1);
-    display.setCursor(72, 38);
-    display.print(F(" mm"));
+    // B. 长度指示器 (S M L 进度条式) - 精确间距: 2格总间距，1格反白
+    if (latestDiameter > 0) {
+        int barY = 46;
+        int barStartX = 66; 
+        display.setTextSize(1);
+        
+        // 定义关键坐标 (以 x=66 为基准)
+        // [66 --(Padding 20px)-- 86 (S) --(Gap 18px)-- 104 (M) --(Gap 18px)-- 122 (L)]
+        int xCoords[] = {86, 104, 122};
+        const char* labels[] = {"S", "M", "L"};
 
-    // B. 托架根数显示 (底部)
-    display.setCursor(72, 52);
-    display.print(F("Pcs: "));
-    display.print(latestScanCount);
+        // 1. 渲染前缀反白 (只要有物料，66-86 区域就反白)
+        if (latestLengthLevel >= 1) {
+            display.fillRect(barStartX, barY - 1, 20, 10, SSD1306_WHITE);
+        }
+
+        // 2. 循环处理各段
+        for (int i = 0; i < 3; i++) {
+            bool active = (latestLengthLevel >= (i + 1));
+            int charX = xCoords[i];
+            
+            if (active) {
+                // 如果激活，反白 [字符(6px) + 1个空格(6px) = 12px]
+                display.fillRect(charX - 1, barY - 1, 12, 10, SSD1306_WHITE);
+                display.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+            } else {
+                display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
+            }
+            
+            display.setCursor(charX, barY);
+            display.print(labels[i]);
+        }
+        
+        display.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
+    } else {
+        display.setCursor(72, 46);
+        display.setTextSize(1);
+        display.print(F("WAITING"));
+    }
     
     safeDisplay();
+    isDiagnosticModeActive = false;
 }
-
 void OLED::displayNormalModeStats(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount) {
-    displayDashboard(sortingSpeedPerSecond, sortingSpeedPerMinute, sortingSpeedPerHour, identifiedCount, transportedTrayCount, latestDiameter, latestScanCount);
+    // 保持兼容性，但内部调用增强版逻辑 (长度等级默认为 0)
+    displayDashboard(sortingSpeedPerSecond, sortingSpeedPerMinute, sortingSpeedPerHour, identifiedCount, transportedTrayCount, latestDiameter, latestScanCount, 0);
 }
 
 void OLED::displayNormalModeDiameter(int latestDiameter) {
@@ -577,9 +726,8 @@ bool OLED::safeDisplay() {
         
         // 自动恢复机制：如果连续失败，尝试重新初始化 I2C 总线
         if (i2cErrorCount % 50 == 0) {
-            Serial.printf("[OLED] Re-initializing Wire bus... (Internal Error: %d)\n", error);
-            Wire.begin(PIN_OLED_SDA, PIN_OLED_SCL);
-            Wire.setClock(100000);
+            Serial.printf("[OLED] Re-initializing Wire1 bus... (Internal Error: %d)\n", error);
+            Wire1.begin(PIN_OLED_SDA, PIN_OLED_SCL, 100000);
         }
         return false;
     }
