@@ -84,10 +84,13 @@ void DiameterConfigHandler::refreshDisplay() {
                   int prevMin = sorter->getOutletMinDiameter(outletIdx - 1);
                   if (maxV > prevMin) isValid = false;
               }
+              /* 
               if (!isValid && i != currentSubMode) {
+                  // 规则有变，暂不显示感叹号
                   listContent.remove(listContent.length() - 2);
                   listContent += "! ";
               }
+              */
               // 生成显式状态字符串，例如 "[S M  ]", "[  M L]", "[S M L]"
               String modeStr = "[";
               modeStr += (targetL & LEN_S) ? "S " : "  ";

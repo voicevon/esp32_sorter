@@ -17,7 +17,7 @@ void processVersionInfoMode() {
     if (!hasVersionInfoDisplayedLocal) {
         hasVersionInfoDisplayedLocal = true;
         Serial.println("[VERSION] Version Info Mode Activated");
-        String versionInfo = "\n\nAsparagus sorter\n\n";
+        String versionInfo = "Asparagus Sorter\n\n2026-03\n\n";
         versionInfo += "Tel: 133-0640-0990\n";
         versionInfo += "Boot Count: " + String(systemBootCount);
         UserInterface::getInstance()->displayDiagnosticInfo(systemName, versionInfo);
