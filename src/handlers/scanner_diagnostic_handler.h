@@ -29,6 +29,7 @@ private:
     String lastIOStatus;       // 上一次IO状态字符串，用于避免重复输出
     int lastRawDiameters[4];   // 上一次原始直径值，用于避免重复输出
     int risingEdgeCounts[4];   // 上升沿计数器
+    bool isFirstRun;           // 标记是否为该模式下第一次显示，用于串口表头重置
     
     // 子模式处理方法
     void handleIOStatusCheck();       // 子模式0：IO状态检查

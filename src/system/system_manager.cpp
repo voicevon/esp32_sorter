@@ -28,6 +28,7 @@ extern ScannerDiagnosticHandler scannerDiagnosticHandler;
 extern OutletDiagnosticHandler outletDiagnosticHandler;
 extern EncoderDiagnosticHandler encoderDiagnosticHandler;
 extern HMIDiagnosticHandler hmiDiagnosticHandler;
+extern bool hasVersionInfoDisplayed;
 
 void switchToMode(SystemMode mode) {
     pendingMode = mode;
@@ -41,6 +42,7 @@ void handleReturnToMenu() {
         activeHandler = nullptr;
     }
     menuModeActive = true;
+    hasVersionInfoDisplayed = false;
     UserInterface::getInstance()->resetDiagnosticMode();
     
     Serial.println("[MENU] Returned to Main Menu");

@@ -67,7 +67,8 @@ void Sorter::restoreOutletConfig() {
             int maxD = EEPROM.read(EEPROM_ADDR_DIAMETER_DATA + i * 3 + 1);
             int lenL = EEPROM.read(EEPROM_ADDR_DIAMETER_DATA + i * 3 + 2);
             outlets[i].setMatchDiameter(minD, maxD);
-            outlets[i].setTargetLength(lenL > 3 ? 0 : lenL);
+            // 修正：掩码最大值为 7 (LEN_ALL)，若读取到非法值则默认为 LEN_ALL
+            outlets[i].setTargetLength(lenL > 7 ? LEN_ALL : lenL);
         }
         // 读取出口 0 模式
         outlet0Mode = EEPROM.read(EEPROM_ADDR_OUTLET0_MODE);
@@ -275,12 +276,7 @@ int Sorter::getTransportedTrayCount() {
 
 // 获取传送带速度（托架/秒）- 返回float类型
 float Sorter::getConveyorSpeedPerSecond() {
-    float val = 0.0f;
-    if (xSemaphoreTake(mutex, pdMS_TO_TICKS(5)) == pdTRUE) {
-        val = lastSpeed;
-        xSemaphoreGive(mutex);
-    }
-    return val;
+    return lastSpeed.load(); // 原子读取，无需互斥锁保护
 }
 
 // 获取显示数据（用于 UserInterface）

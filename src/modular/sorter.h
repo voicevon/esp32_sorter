@@ -44,8 +44,8 @@ private:
     
     // 速度计算相关变量
     unsigned long lastSpeedCheckTime;
-    long lastEncoderPosition;  // 上次编码器位置
-    float lastSpeed;  // 上一次计算的速度值，用于过滤短时间差的异常值
+    std::atomic<long> lastEncoderPosition;  // 上次编码器位置
+    std::atomic<float> lastSpeed;  // 上一次计算的速度值，用于过滤短时间差的异常值
     int lastObjectCount;  // 保留用于向后兼容
     
     // 私有方法

@@ -5,7 +5,8 @@ ScannerDiagnosticHandler::ScannerDiagnosticHandler() :
     userInterface(UserInterface::getInstance()),
     currentSubMode(0),
     lastSubMode(-1),
-    hasCalculatedDifferences(false) {
+    hasCalculatedDifferences(false),
+    isFirstRun(true) {
     // 获取直径扫描仪单例实例
     scanner = DiameterScanner::getInstance();
     encoder = Encoder::getInstance();
@@ -193,9 +194,7 @@ void ScannerDiagnosticHandler::handleEncoderValues() {
         String encoderInfo = "Encoder Values";
         
         // 串口输出 - 窗口式显示
-        static bool firstDisplay = true;
-        
-        if (firstDisplay) {
+        if (isFirstRun) {
             // 第一次显示时，打印六行格式（蓝色背景，红色标题，白色正文）
             Serial.println("\n\033[44m\033[31m    === Encoder Value Recording ===    \033[0m");
             Serial.println("\033[44m\033[37m  Min Rising:      0   0   0   0      \033[0m");
@@ -203,7 +202,7 @@ void ScannerDiagnosticHandler::handleEncoderValues() {
             Serial.println("\033[44m\033[37m  Current Falling: 0   0   0   0      \033[0m");
             Serial.println("\033[44m\033[37m  Max Falling:     0   0   0   0      \033[0m");
             Serial.println("\033[44m\033[37m  Differences:     0   0   0   0      \033[0m");
-            firstDisplay = false;
+            isFirstRun = false;
         } else {
             // 使用回到行首的方式更新六行数据
             Serial.print("\033[6A"); // 向上移动6行到标题行
@@ -348,6 +347,7 @@ void ScannerDiagnosticHandler::handleWaveformDisplay() {
 
 void ScannerDiagnosticHandler::begin() {
     lastIOStatus = "";
+    isFirstRun = true;
     // 不再重置 currentSubMode，以保留从菜单传进来的设置
     Serial.printf("[DIAGNOSTIC] Scanner Diagnostic Started (Mode: %d)\n", currentSubMode);
     

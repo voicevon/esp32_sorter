@@ -13,9 +13,8 @@ extern bool hasVersionInfoDisplayed;
 extern int normalModeSubmode;
 
 void processVersionInfoMode() {
-    static bool hasVersionInfoDisplayedLocal = false;
-    if (!hasVersionInfoDisplayedLocal) {
-        hasVersionInfoDisplayedLocal = true;
+    if (!hasVersionInfoDisplayed) {
+        hasVersionInfoDisplayed = true;
         Serial.println("[VERSION] Version Info Mode Activated");
         String versionInfo = "Asparagus Sorter\n\n2026-03\n\n";
         versionInfo += "Tel: 133-0640-0990\n";
