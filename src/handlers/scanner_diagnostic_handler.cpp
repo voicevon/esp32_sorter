@@ -1,5 +1,5 @@
 #include "scanner_diagnostic_handler.h"
-#include "../user_interface/oled.h"
+#include "../user_interface/drv_oled_rotary/oled.h"
 
 ScannerDiagnosticHandler::ScannerDiagnosticHandler() : 
     userInterface(UserInterface::getInstance()),

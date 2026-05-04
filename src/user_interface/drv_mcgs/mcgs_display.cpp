@@ -12,8 +12,8 @@
  * Modbus 寄存器规约详见 hmi_registers.h。
  */
 #include "mcgs_display.h"
-#include "../main.h"
-#include "user_interface.h"
+#include "../../main.h"
+#include "../user_interface.h"
 
 // ── 构造函数 ──────────────────────────────────────────────────────────────────
 McgsDisplay::McgsDisplay()
@@ -23,6 +23,8 @@ McgsDisplay::McgsDisplay()
 
 // ── 初始化 ────────────────────────────────────────────────────────────────────
 void McgsDisplay::initialize() {
+    if (_isAvailable) return; // 防止重复初始化
+
     _modbus.begin();
     _isAvailable = true;
 
@@ -84,6 +86,7 @@ void McgsDisplay::pollCommand() {
         _lastHeartbeatUpdate = now;
         _heartbeat++;
         _modbus.asyncWrite(_slaveId, HMI_REG_HEARTBEAT, _heartbeat, nullptr);
+        Serial.printf("[McgsDisplay] Heartbeat: %d\n", _heartbeat);
     }
 
     // 异步读取 5 个触控控制寄存器（40100–40104）
@@ -100,8 +103,6 @@ void McgsDisplay::pollCommand() {
             // 处理触控命令
             if (cmd != HmiCmd::NONE) {
                 handleCmdCode(cmd);
-                // 握手：立即回写 CmdCode = 0
-                _modbus.asyncWrite(_slaveId, HMI_REG_CMD_CODE, 0, nullptr);
             }
 
             // 处理参数写入（OK 命令触发时，ParamField + ParamValue 有效）
@@ -126,13 +127,25 @@ void McgsDisplay::pushProductionData(uint16_t diameter, uint16_t speedPerHour,
     if (!_isAvailable) return;
 
     // §B 生产数据区，8 个寄存器一次批量写入（但 asyncWrite 是单寄存器逐个写）
-    // 实际上 McgsDisplay 自己调用 4 次 asyncWrite，间隔由 Modbus 任务保证时序
+    // 实际上 McgsDisplay自己调用 4 次 asyncWrite，间隔由 Modbus 任务保证时序
     _modbus.asyncWrite(_slaveId, HMI_REG_DIAMETER,  diameter,     nullptr);
     _modbus.asyncWrite(_slaveId, HMI_REG_SPEED_PER_HOUR, speedPerHour, nullptr);
     _modbus.asyncWrite(_slaveId, HMI_REG_TOTAL_HI,  (uint16_t)(totalCount >> 16),  nullptr);
     _modbus.asyncWrite(_slaveId, HMI_REG_TOTAL_LO,  (uint16_t)(totalCount & 0xFFFF), nullptr);
     _modbus.asyncWrite(_slaveId, HMI_REG_IDENT_HI,  (uint16_t)(identCount >> 16),  nullptr);
     _modbus.asyncWrite(_slaveId, HMI_REG_IDENT_LO,  (uint16_t)(identCount & 0xFFFF), nullptr);
+}
+
+// ── InputSource 接口实现 ──────────────────────────────────────────────
+
+bool McgsDisplay::hasIntent() {
+    return _pendingIntent.isValid();
+}
+
+UIIntent McgsDisplay::pollIntent() {
+    UIIntent intent = _pendingIntent;
+    _pendingIntent = UIIntent(UIAction::NONE);
+    return intent;
 }
 
 // ── Display 接口：有意义的实现 ───────────────────────────────────────────────
@@ -188,22 +201,30 @@ void McgsDisplay::displayDiameter(int latestDiameter) {
 
 // ── 内部辅助 ──────────────────────────────────────────────────────────────────
 void McgsDisplay::handleCmdCode(uint16_t cmd) {
-    // 将 MCGS 触控命令转换为 UserInterface 按键事件注入
-    // TODO: 待 UserInterface::injectKeyEvent() 实现后完善此处
-    // 当前版本：仅打印日志，预留接口
+    if (cmd == 0) return;
+    
     Serial.printf("[McgsDisplay] CmdCode=%d received\n", cmd);
-
-    /*
-     * 预期实现（UserInterface 扩展后启用）：
-     *
-     * switch (cmd) {
-     *     case HmiCmd::MENU:  ui->injectKeyEvent(KEY_BTN_LONG);  break;
-     *     case HmiCmd::OK:    ui->injectKeyEvent(KEY_BTN_CLICK); break;
-     *     case HmiCmd::UP:    ui->injectKeyEvent(KEY_ENC_UP);    break;
-     *     case HmiCmd::DOWN:  ui->injectKeyEvent(KEY_ENC_DOWN);  break;
-     *     case HmiCmd::BACK:  ui->injectKeyEvent(KEY_BTN_CLICK); break;
-     * }
-     */
+    
+    // 映射到逻辑意图 (UIIntent)
+    switch (cmd) {
+        case 1: // 向上
+            _pendingIntent = UIIntent(UIAction::NAVIGATE_RELATIVE, -1);
+            break;
+        case 2: // 向下
+            _pendingIntent = UIIntent(UIAction::NAVIGATE_RELATIVE, 1);
+            break;
+        case 3: // 确定
+            _pendingIntent = UIIntent(UIAction::ACTIVATE);
+            break;
+        case 4: // 返回
+            _pendingIntent = UIIntent(UIAction::BACK);
+            break;
+        default:
+            break;
+    }
+    
+    // 握手：处理完指令后，将从机的 CmdCode 寄存器清零，防止重复触发
+    _modbus.asyncWrite(_slaveId, HMI_REG_CMD_CODE, 0, nullptr);
 }
 
 void McgsDisplay::handleParamWrite(uint8_t outletIdx, uint8_t field, uint16_t value) {

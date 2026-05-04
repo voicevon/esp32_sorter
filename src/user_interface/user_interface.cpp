@@ -6,6 +6,7 @@ UserInterface* UserInterface::instance = nullptr;
 
 // 私有构造函数实现
 UserInterface::UserInterface() {
+    instance = this; // 立即赋值，防止 addInputSource 内部触发递归
     hmi = RotaryInputSource::getInstance();
     
     // 初始化显示设备数组
@@ -13,6 +14,15 @@ UserInterface::UserInterface() {
     for (int i = 0; i < MAX_DISPLAY_DEVICES; i++) {
         displayDevices[i] = nullptr;
     }
+    
+    // 初始化输入设备数组
+    inputSourceCount = 0;
+    for (int i = 0; i < MAX_INPUT_SOURCES; i++) {
+        inputSources[i] = nullptr;
+    }
+    
+    // 默认添加物理旋钮作为第一个输入源
+    addInputSource(hmi);
     
     // 初始化输出渠道（默认禁用所有输出渠道，需要在setup()中显式启用）
     outputChannels = 0;
@@ -52,6 +62,21 @@ void UserInterface::initialize() {
 void UserInterface::addExternalDisplayDevice(Display* display) {
     // 获取UserInterface实例，将显示设备添加到数组中
     getInstance()->addDisplayDevice(display);
+}
+
+// 添加输入源的静态方法
+void UserInterface::addInputSource(InputSource* source) {
+    if (source == nullptr) return;
+    
+    UserInterface* ui = getInstance();
+    if (ui->inputSourceCount >= MAX_INPUT_SOURCES) return;
+    
+    // 检查重复
+    for (int i = 0; i < ui->inputSourceCount; i++) {
+        if (ui->inputSources[i] == source) return;
+    }
+    
+    ui->inputSources[ui->inputSourceCount++] = source;
 }
 
 // 更新显示内容 - 已移除，改用功能专用方法
@@ -235,6 +260,24 @@ void UserInterface::clearDisplay() {
     }
 }
 
+// 获取下一个待处理的用户意图
+UIIntent UserInterface::getNextIntent() {
+    // 依次轮询所有注册的输入源
+    for (int i = 0; i < inputSourceCount; i++) {
+        if (inputSources[i] == nullptr) continue;
+        
+        // 执行驱动心跳（如处理异步读取、消抖等）
+        inputSources[i]->tick();
+        
+        // 检查并消费意图
+        if (inputSources[i]->hasIntent()) {
+            return inputSources[i]->pollIntent();
+        }
+    }
+    
+    return UIIntent(UIAction::NONE);
+}
+
 // 获取编码器旋转增量
 int UserInterface::getEncoderDelta() {
     return hmi->getEncoderDelta();
@@ -331,6 +374,14 @@ void UserInterface::clearAllDisplayDevices() {
         displayDevices[i] = nullptr;
     }
     displayDeviceCount = 0;
+}
+
+// 清除所有输入源
+void UserInterface::clearAllInputSources() {
+    for (int i = 0; i < inputSourceCount; i++) {
+        inputSources[i] = nullptr;
+    }
+    inputSourceCount = 0;
 }
 
 // 设置当前语言

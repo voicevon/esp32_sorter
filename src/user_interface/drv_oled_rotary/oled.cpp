@@ -4,7 +4,7 @@
 extern String systemName;
 extern String firmwareVersion;
 
-#include "../modular/diameter_scanner.h"
+#include "../../modular/diameter_scanner.h"
 
 // 初始化静态实例指针
 OLED* OLED::instance = nullptr;

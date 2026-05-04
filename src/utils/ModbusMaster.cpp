@@ -282,16 +282,16 @@ void ModbusMaster::modbusTask(void* param) {
                             self->_status = ST_ERROR;
 
                         } else {
-                            if (self->_logLevel >= MBUS_LOG_ERROR) {
-                                Serial.printf("[ModbusMaster] UNHANDLED FN:0x%02X ID:%d\n",
+                            // 收到非预期的功能码 (例如 HMI 作为 Master 误发出的 0x02 轮询请求)
+                            // 在多主机或 HMI 配置不当时常见。此处仅记录并忽略，不终止当前等待的事务，
+                            // 这样真正的从机回复（如 0x03/0x06）仍有机会在超时前被接收。
+                            if (self->_logLevel >= MBUS_LOG_INFO) {
+                                Serial.printf("[ModbusMaster] IGNORE stray frame: FN:0x%02X ID:%d. Raw: ",
                                               fn, self->_rxBuf[0]);
+                                for (int i = 0; i < idx; i++) Serial.printf("%02X ", self->_rxBuf[i]);
+                                Serial.println("(Likely HMI auto-poll, check HMI config)");
                             }
-                            if (self->_pendingCb) {
-                                cbTransaction cb = self->_pendingCb;
-                                self->_pendingCb = nullptr;
-                                cb(Modbus::EX_ERROR, self->_lastTid, nullptr);
-                            }
-                            self->_status = ST_ERROR;
+                            // 不清除 _status 和 _pendingCb，让循环继续等待
                         }
 
                     } else {

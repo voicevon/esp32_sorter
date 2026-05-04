@@ -5,10 +5,10 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#include "../config.h"
-#include "main.h"
-#include "user_interface/display.h"  // 包含Display抽象基类头文件
-#include "user_interface/menu_system.h"
+#include "../../config.h"
+#include "../../main.h"
+#include "../common/display.h"  // 包含Display抽象基类头文件
+#include "menu_system.h"
 
 // SSD1306 I2C显示器引脚定义
 #define SCREEN_WIDTH 128

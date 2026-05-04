@@ -2,9 +2,9 @@
 #define DISPLAY_H
 
 #include <Arduino.h>
-#include "../main.h"  // 相对路径，因为这个文件将放在user_interface子目录中
-#include "../config.h"
-#include "menu_system.h"
+#include "../../main.h"  // 相对路径
+#include "../../config.h"
+class MenuNode;
 
 // 系统工作模式前向声明
 enum SystemMode;

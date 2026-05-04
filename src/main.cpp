@@ -5,9 +5,10 @@
 #include "main.h"
 #include "config.h"
 #include "user_interface/user_interface.h"
-#include "user_interface/oled.h"
-#include "user_interface/terminal.h"
-#include "user_interface/menu_system.h"
+#include "user_interface/drv_oled_rotary/oled.h"
+#include "user_interface/drv_terminal/terminal.h"
+#include "user_interface/drv_oled_rotary/menu_system.h"
+#include "user_interface/hmi_factory.h"
 #include "modular/encoder.h"
 #include "modular/sorter.h"
 #include "handlers/scanner_diagnostic_handler.h"
@@ -54,22 +55,19 @@ void setup() {
     Serial.println("Feng's Sorter system starting...");
     
     userInterface->initialize();
-    OLED::getInstance()->initialize();
-    Terminal::getInstance()->initialize();
     
-    // 注入显示设备
-    UserInterface::addExternalDisplayDevice(OLED::getInstance());
-    UserInterface::addExternalDisplayDevice(Terminal::getInstance());
-    
-    userInterface->enableOutputChannel(OUTPUT_ALL);
-    
-    delay(500);
+    // delay(500); // 移除不必要的延时
     
     for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
         outletDiagnosticHandler.setOutlet(i, sorter.getOutlet(i));
     }
     
     EEPROM.begin(512);
+    
+    // ── HMI 统一配置 ────────────────────────────────────────────────────────
+    // 从 config.h 读取宏定义，由工厂完成配对注入
+    HmiFactory::setupHmi((HmiType)CURRENT_HMI_TYPE);
+    
     EEPROM.get(EEPROM_ADDR_BOOT_COUNT, systemBootCount);
     if (systemBootCount == 0xFFFFFFFF) systemBootCount = 0;
     systemBootCount++;
@@ -148,20 +146,32 @@ void vUITask(void* pvParameters) {
     Serial.println("[FreeRTOS] UITask (Core 0) started.");
 
     for (;;) {
-        int delta = userInterface->getEncoderDelta();
-        bool btnPressed = userInterface->isMasterButtonPressed();
+        // ── 意图驱动输入 ──
+        // 自动轮询所有已注册的输入源 (如物理旋钮、MCGS 触控、串口指令)
+        UIIntent intent = userInterface->getNextIntent();
+        
+        // 映射为旧逻辑兼容变量
+        int delta = (intent.action == UIAction::NAVIGATE_RELATIVE) ? intent.value : 0;
+        bool btnPressed = (intent.action == UIAction::ACTIVATE);
+        bool backPressed = (intent.action == UIAction::BACK);
+        
         uint32_t currentMs = millis();
         
         if (menuModeActive) {
             bool needsRefresh = false;
-            if (delta != 0) {
-                menuSystem.handleInput(delta, false);
+            
+            if (intent.action == UIAction::NAVIGATE_RELATIVE) {
+                menuSystem.handleInput(intent.value, false);
                 needsRefresh = true;
-            }
-            if (btnPressed) {
+            } else if (intent.action == UIAction::ACTIVATE) {
                 menuSystem.handleInput(0, true);
                 if (menuModeActive) needsRefresh = true;
+            } else if (intent.action == UIAction::BACK) {
+                // 返回逻辑
+                handleReturnToMenu();
+                needsRefresh = true;
             }
+            
             if (needsRefresh) {
                 userInterface->renderMenu(menuSystem.getCurrentNode(), menuSystem.getCursorIndex(), menuSystem.getScrollOffset());
             }
@@ -179,7 +189,7 @@ void vUITask(void* pvParameters) {
                     }
                 }
             } else {
-                if (btnPressed) {
+                if (btnPressed || backPressed) {
                     handleReturnToMenu();
                 } else {
                     switch (currentMode) {

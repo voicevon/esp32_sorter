@@ -181,3 +181,31 @@ bool RotaryInputSource::isMasterButtonLongPressed() {
 uint32_t RotaryInputSource::getIllegalTransitionCount() {
     return illegalTransitions;
 }
+
+// ── InputSource 接口实现 ──────────────────────────────────────────────
+
+bool RotaryInputSource::hasIntent() {
+    // 非破坏性检查：查看是否有待处理的位移或按钮标志
+    int rawDiff = encoderTotalSteps - lastConsumedTotalSteps;
+    return masterButtonClickFlag || masterButtonLongPressFlag || (abs(rawDiff) >= 4);
+}
+
+UIIntent RotaryInputSource::pollIntent() {
+    // 优先处理长按：在菜单逻辑中通常映射为 BACK 或 进入/退出菜单
+    if (isMasterButtonLongPressed()) {
+        return UIIntent(UIAction::BACK);
+    }
+    
+    // 处理短按：映射为 ACTIVATE (确认)
+    if (isMasterButtonPressed()) {
+        return UIIntent(UIAction::ACTIVATE);
+    }
+    
+    // 处理旋转：映射为相对导航
+    int delta = getEncoderDelta();
+    if (delta != 0) {
+        return UIIntent(UIAction::NAVIGATE_RELATIVE, delta);
+    }
+    
+    return UIIntent(UIAction::NONE);
+}

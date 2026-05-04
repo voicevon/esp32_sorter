@@ -2,7 +2,7 @@
 #define MENU_CONFIG_H
 
 #include <Arduino.h>
-#include "user_interface/menu_system.h"
+#include "user_interface/drv_oled_rotary/menu_system.h"
 
 // 全局菜单实例
 extern MenuSystem menuSystem;

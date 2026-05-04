@@ -3,10 +3,11 @@
 
 #include <Arduino.h>
 #include <EEPROM.h>
-#include "display.h"
-#include "../utils/ModbusMaster.h"
+#include "../common/display.h"
+#include "../common/input_source.h"
+#include "../../utils/ModbusMaster.h"
 #include "hmi_registers.h"
-#include "../config.h"
+#include "../../config.h"
 
 /**
  * @class McgsDisplay
@@ -30,7 +31,7 @@
  *  vControlTask() 每 500ms：
  *    mcgsDisplay.pushProductionData(...);
  */
-class McgsDisplay : public Display {
+class McgsDisplay : public Display, public InputSource {
 public:
     McgsDisplay();
     ~McgsDisplay() override = default;
@@ -69,6 +70,12 @@ public:
     void syncConfigToScreen();
 
     // ── Display 接口实现 ──────────────────────────────────────────────────────
+    // ── InputSource 接口实现 ──────────────────────────────────────────────
+    void tick() override { pollCommand(); }
+    bool hasIntent() override;
+    UIIntent pollIntent() override;
+    String getName() const override { return "McgsDisplay"; }
+
     // 以下方法由 UserInterface 统一调度，McgsDisplay 实现有意义的子集，
     // 其余以空实现占位（OLED/Terminal 专用的绘图指令在屏幕侧无对应控件）。
 
@@ -130,6 +137,9 @@ private:
 
     /** 处理 EEPROM 持久化确认命令 */
     void handleCmdConfirm();
+
+    // ── 输入意图 ─────────────────────────────────────────────────────────────
+    UIIntent _pendingIntent;
 
     // ── 心跳测试 ─────────────────────────────────────────────────────────────
     uint16_t _heartbeat = 0;

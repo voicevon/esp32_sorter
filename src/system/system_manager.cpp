@@ -1,4 +1,5 @@
 #include "system_manager.h"
+#include "menu_config.h"
 #include "../config.h"
 #include "user_interface/user_interface.h"
 #include "modular/sorter.h"

@@ -10,6 +10,13 @@ constexpr const char* SYSTEM_NAME = "ESP32 Sorter";
 constexpr const char* FIRMWARE_VERSION = "2.0.0";
 
 // ==========================================
+// HMI Configuration (Factory Mode)
+// ==========================================
+// 0: NONE, 1: TERMINAL, 2: OLED_ROTARY, 3: MCGS, 4: LVGL_TOUCHSCREEN
+#define CURRENT_HMI_TYPE 4  // 切换为自研 LVGL RS485 触摸屏模式
+
+
+// ==========================================
 // Pin Definitions
 // ==========================================
 

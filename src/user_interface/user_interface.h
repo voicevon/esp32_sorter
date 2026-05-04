@@ -2,12 +2,14 @@
 #define USER_INTERFACE_H
 
 #include <Arduino.h>
-#include "user_interface/RotaryInputSource.h"
-#include "user_interface/display.h"  // 包含Display抽象基类
+#include "drv_oled_rotary/RotaryInputSource.h"
+#include "common/input_source.h"
+#include "common/display.h"  // 包含Display抽象基类
 
 // 前向声明，不需要包含具体实现的头文件
 class OLED;
 class Terminal;
+class MenuNode;
 // #include "display_data.h"已移除，不再需要
 
 // 系统工作模式前向声明
@@ -48,6 +50,11 @@ private:
     // 内部组件
     RotaryInputSource* hmi;
     
+    // 输入设备数组
+    static const int MAX_INPUT_SOURCES = 4;
+    InputSource* inputSources[MAX_INPUT_SOURCES];
+    int inputSourceCount;
+    
     // 显示设备数组
     static const int MAX_DISPLAY_DEVICES = 4;  // 最大显示设备数量
     Display* displayDevices[MAX_DISPLAY_DEVICES];  // 显示设备数组
@@ -73,6 +80,9 @@ public:
   
   // 添加显示设备的静态方法（允许外部注入显示设备）
   static void addExternalDisplayDevice(Display* display);
+  
+  // 添加输入源的静态方法
+  static void addInputSource(InputSource* source);
     
     // 显示相关方法 - updateDisplay已移除，改用功能专用方法
     void displayModeChange(SystemMode newMode);
@@ -113,7 +123,10 @@ public:
     bool isDisplayAvailable() const;
     void clearDisplay(); // 新增：清理所有显示设备的屏幕
     
-    // 输入相关方法
+    // 意图驱动的输入方法
+    UIIntent getNextIntent();
+    
+    // 输入相关方法 (旧接口，兼容物理旋钮)
     // 获取编码器逻辑旋转增量 (通常带分频)
     int getEncoderDelta();
     
@@ -126,6 +139,7 @@ public:
     bool addDisplayDevice(Display* display);  // 添加显示设备
     bool removeDisplayDevice(Display* display);  // 移除显示设备
     void clearAllDisplayDevices();  // 清除所有显示设备
+    void clearAllInputSources();    // 清除所有输入源
     
     // 输出控制方法
     void enableOutputChannel(OutputChannel channel);  // 启用指定输出渠道

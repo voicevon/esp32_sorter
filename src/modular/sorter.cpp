@@ -1,6 +1,6 @@
 #include "sorter.h"
 #include "HardwareSerial.h"
-#include "user_interface/oled.h"
+#include "user_interface/drv_oled_rotary/oled.h"
 #include "../config.h"
 #include "tray_system.h"
 #include <Arduino.h>

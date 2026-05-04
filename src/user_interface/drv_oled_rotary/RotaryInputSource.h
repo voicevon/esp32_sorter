@@ -3,7 +3,8 @@
 #define ROTARY_INPUT_SOURCE_H
 
 #include <Arduino.h>
-#include "../config.h"
+#include "../../config.h"
+#include "../common/input_source.h"
 
 // 防抖动参数
 #define DEBOUNCE_DELAY 50  // 防抖动延迟时间（毫秒）
@@ -11,7 +12,7 @@
 #define ENCODER_LOCKOUT 20 // 编码器计数锁定时间（毫秒），防止抖动导致双倍计数
 
 // 基本按钮和LED功能定义 - 单例模式实现
-class RotaryInputSource {
+class RotaryInputSource : public InputSource {
 private:
     // 引脚配置
     int masterButtonPin;
@@ -69,6 +70,12 @@ public:
 
     // 获取干扰统计
     uint32_t getIllegalTransitionCount();
+
+    // ── InputSource 接口实现 ──────────────────────────────────────────────
+    void tick() override {} // 基于中断，无需额外轮询逻辑
+    bool hasIntent() override;
+    UIIntent pollIntent() override;
+    String getName() const override { return "RotaryInputSource"; }
 
     // 中断处理函数需要访问私有成员
     friend void IRAM_ATTR masterButtonISR();

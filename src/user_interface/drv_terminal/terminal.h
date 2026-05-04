@@ -2,8 +2,8 @@
 #define TERMINAL_H
 
 #include <Arduino.h>
-#include "main.h"
-#include "user_interface/display.h"  // 包含Display抽象基类头文件
+#include "../../main.h"
+#include "../common/display.h"  // 包含Display抽象基类头文件
 
 // 系统工作模式前向声明
 enum SystemMode;

@@ -3,7 +3,7 @@
 
 #include "base_diagnostic_handler.h"
 #include "../user_interface/user_interface.h"
-#include "../user_interface/RotaryInputSource.h"
+#include "../user_interface/drv_oled_rotary/RotaryInputSource.h"
 
 class HMIDiagnosticHandler : public BaseDiagnosticHandler {
 private:
