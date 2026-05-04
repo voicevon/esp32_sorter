@@ -1,14 +1,14 @@
 // 精简版人机交互模块实现
-#include "simple_hmi.h"
+#include "RotaryInputSource.h"
 
 // 静态实例初始化
-SimpleHMI* SimpleHMI::instance = nullptr;
+RotaryInputSource* RotaryInputSource::instance = nullptr;
 
 // 中断处理函数 - 实现按下-释放的完整事件检测
 void IRAM_ATTR masterButtonISR() {
     unsigned long currentTime = millis();
     // 获取实例指针
-    SimpleHMI* hmi = SimpleHMI::instance;
+    RotaryInputSource* hmi = RotaryInputSource::instance;
     if (hmi == nullptr) return;
     
     // 读取当前按钮状态
@@ -48,7 +48,7 @@ void IRAM_ATTR masterButtonISR() {
     // 临时的按钮按下状态
 // HMI 专用编码器中断 - 极速解码 & 降噪方案
 void IRAM_ATTR hmiEncoderISR() {
-    SimpleHMI* hmi = SimpleHMI::instance;
+    RotaryInputSource* hmi = RotaryInputSource::instance;
     if (hmi == nullptr) return;
     
     // 软件电平读取
@@ -76,7 +76,7 @@ void IRAM_ATTR hmiEncoderISR() {
 }
 
 // 私有构造函数
-SimpleHMI::SimpleHMI() : 
+RotaryInputSource::RotaryInputSource() : 
     masterButtonPin(PIN_HMI_BTN),
     encoderPinA(PIN_HMI_ENC_A),
     encoderPinB(PIN_HMI_ENC_B),
@@ -95,15 +95,15 @@ SimpleHMI::SimpleHMI() :
 }
 
 // 获取单例实例（懒汉模式）
-SimpleHMI* SimpleHMI::getInstance() {
+RotaryInputSource* RotaryInputSource::getInstance() {
     // 注意：在多线程环境中可能需要添加互斥锁
     if (instance == nullptr) {
-        instance = new SimpleHMI();
+        instance = new RotaryInputSource();
     }
     return instance;
 }
 
-void SimpleHMI::initialize() {
+void RotaryInputSource::initialize() {
     // 配置按钮和编码器引脚为输入上拉模式
     pinMode(masterButtonPin, INPUT_PULLUP);
     pinMode(encoderPinA, INPUT_PULLUP);
@@ -120,12 +120,12 @@ void SimpleHMI::initialize() {
 }
 
 // 获取编码器总步数
-int SimpleHMI::getEncoderTotalSteps() {
+int RotaryInputSource::getEncoderTotalSteps() {
     return encoderTotalSteps;
 }
 
 // 获取编码器旋转增量（应用 2:1 分频，独立消耗，不干扰他人）
-int SimpleHMI::getEncoderDelta() {
+int RotaryInputSource::getEncoderDelta() {
     int delta = 0;
     
     // 读取当前总数
@@ -147,7 +147,7 @@ int SimpleHMI::getEncoderDelta() {
 }
 
 // 获取原始旋转增量（独立消费）
-int SimpleHMI::getRawEncoderDelta() {
+int RotaryInputSource::getRawEncoderDelta() {
     // 这里我们可以给 Handler 一个专门的接口，或者 Handler 自己维护 lastCount。
     // 为了方便，这里我们也维护一个隐含的 lastRawCount 吗？
     // 不，最好让 Handler 自己在 update 中维护。
@@ -160,7 +160,7 @@ int SimpleHMI::getRawEncoderDelta() {
 }
 
 // 检查按钮状态（通过中断标志）- 自动清除标志
-bool SimpleHMI::isMasterButtonPressed() {
+bool RotaryInputSource::isMasterButtonPressed() {
     bool result = masterButtonClickFlag;
     if (result) {
         masterButtonClickFlag = false;
@@ -169,7 +169,7 @@ bool SimpleHMI::isMasterButtonPressed() {
 }
 
 // 检查按钮长按状态 - 自动清除标志
-bool SimpleHMI::isMasterButtonLongPressed() {
+bool RotaryInputSource::isMasterButtonLongPressed() {
     bool result = masterButtonLongPressFlag;
     if (result) {
         masterButtonLongPressFlag = false;
@@ -178,6 +178,6 @@ bool SimpleHMI::isMasterButtonLongPressed() {
 }
 
 // 获取干扰统计
-uint32_t SimpleHMI::getIllegalTransitionCount() {
+uint32_t RotaryInputSource::getIllegalTransitionCount() {
     return illegalTransitions;
 }

@@ -23,7 +23,7 @@ Sorter::Sorter() :
 
     // 实例获取
     encoder = Encoder::getInstance();
-    simpleHmi = SimpleHMI::getInstance();
+    simpleHmi = RotaryInputSource::getInstance();
     trayManager = TraySystem::getInstance();
     scanner = DiameterScanner::getInstance(); // 初始化scanner指针，防止空指针异常
     

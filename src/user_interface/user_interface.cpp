@@ -6,7 +6,7 @@ UserInterface* UserInterface::instance = nullptr;
 
 // 私有构造函数实现
 UserInterface::UserInterface() {
-    hmi = SimpleHMI::getInstance();
+    hmi = RotaryInputSource::getInstance();
     
     // 初始化显示设备数组
     displayDeviceCount = 0;

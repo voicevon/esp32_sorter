@@ -2,7 +2,7 @@
 #define USER_INTERFACE_H
 
 #include <Arduino.h>
-#include "user_interface/simple_hmi.h"
+#include "user_interface/RotaryInputSource.h"
 #include "user_interface/display.h"  // 包含Display抽象基类
 
 // 前向声明，不需要包含具体实现的头文件
@@ -28,7 +28,7 @@ enum Language {
 
 /**
  * @class UserInterface
- * @brief 用户界面管理类，合并 OLED 显示和 SimpleHMI 输入功能
+ * @brief 用户界面管理类，合并 OLED 显示和 RotaryInputSource 输入功能
  * 
  * 该类使用单例模式实现，负责管理所有用户交互功能
  * 包括 OLED 显示、按钮输入、LED 输出等
@@ -46,7 +46,7 @@ private:
     static UserInterface* instance;
     
     // 内部组件
-    SimpleHMI* hmi;
+    RotaryInputSource* hmi;
     
     // 显示设备数组
     static const int MAX_DISPLAY_DEVICES = 4;  // 最大显示设备数量

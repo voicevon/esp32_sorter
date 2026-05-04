@@ -7,9 +7,9 @@
   
   <rect width="1600" height="1000" fill="#1a1a2e" />
   
-  <text x="800" y="40" font-family="Arial" font-size="28" text-anchor="middle" font-weight="bold" fill="#f72585">ESP32 Sorter 系统类图（重构后）</text>
+  <text x="800" y="40" font-family="Arial" font-size="28" text-anchor="middle" font-weight="bold" fill="#f72585">ESP32 Sorter 系统类图（重构后�?/text>
 
-  <!-- Encoder类 - 左上 -->
+  <!-- Encoder�?- 左上 -->
   <rect x="50" y="80" width="320" height="260" fill="#2d6a4f" stroke="#48bb78" stroke-width="2" rx="8" />
   <text x="210" y="110" font-family="Arial" font-size="20" text-anchor="middle" font-weight="bold" fill="#ffffff">Encoder</text>
   <text x="210" y="130" font-family="Arial" font-size="12" text-anchor="middle" fill="#48bb78">单例模式</text>
@@ -32,7 +32,7 @@
   <text x="65" y="475" font-family="Arial" font-size="11" fill="#ffffff">+ handleZPhaseInterrupt(): void</text>
   <text x="65" y="495" font-family="Arial" font-size="11" fill="#ffffff">+ printout(): void</text>
 
-  <!-- DiameterScanner类 - 右上 -->
+  <!-- DiameterScanner�?- 右上 -->
   <rect x="1200" y="80" width="350" height="300" fill="#e74c3c" stroke="#c0392b" stroke-width="2" rx="8" />
   <text x="1375" y="110" font-family="Arial" font-size="20" text-anchor="middle" font-weight="bold" fill="#ffffff">DiameterScanner</text>
   <line x1="1200" y1="145" x2="1550" y2="145" stroke="#c0392b" stroke-width="2" />
@@ -56,7 +56,7 @@
   <text x="1215" y="515" font-family="Arial" font-size="11" fill="#ffffff">+ displayIOStatus(): void</text>
   <text x="1215" y="535" font-family="Arial" font-size="11" fill="#ffffff">+ displayRawDiameters(): void</text>
 
-  <!-- TraySystem类 - 左下 -->
+  <!-- TraySystem�?- 左下 -->
   <rect x="50" y="550" width="320" height="240" fill="#06d6a0" stroke="#0891b2" stroke-width="2" rx="8" />
   <text x="210" y="580" font-family="Arial" font-size="20" text-anchor="middle" font-weight="bold" fill="#ffffff">TraySystem</text>
   <line x1="50" y1="605" x2="370" y2="605" stroke="#0891b2" stroke-width="2" />
@@ -73,10 +73,10 @@
   <text x="65" y="835" font-family="Arial" font-size="11" fill="#ffffff">+ getTrayScanCount(int): int</text>
   <text x="65" y="855" font-family="Arial" font-size="11" fill="#ffffff">+ getTotalTrays(): uint8_t</text>
 
-  <!-- Outlet类 - 右下 -->
+  <!-- Outlet�?- 右下 -->
   <rect x="1250" y="550" width="300" height="200" fill="#f4a261" stroke="#e76f51" stroke-width="2" rx="8" />
   <text x="1400" y="580" font-family="Arial" font-size="20" text-anchor="middle" font-weight="bold" fill="#ffffff">Outlet</text>
-  <text x="1400" y="600" font-family="Arial" font-size="12" text-anchor="middle" fill="#e76f51">8个实例</text>
+  <text x="1400" y="600" font-family="Arial" font-size="12" text-anchor="middle" fill="#e76f51">8个实�?/text>
   <line x1="1250" y1="615" x2="1550" y2="615" stroke="#e76f51" stroke-width="2" />
   <text x="1265" y="640" font-family="Arial" font-size="11" font-style="italic" fill="#ffffff">- servo: Servo</text>
   <text x="1265" y="660" font-family="Arial" font-size="11" font-style="italic" fill="#ffffff">- pin: int</text>
@@ -92,10 +92,10 @@
   <text x="1265" y="865" font-family="Arial" font-size="11" fill="#ffffff">+ preOpen(bool): void</text>
   <text x="1265" y="885" font-family="Arial" font-size="11" fill="#ffffff">+ execute(): void</text>
 
-  <!-- Sorter类 - 核心控制器 -->
+  <!-- Sorter�?- 核心控制�?-->
   <rect x="450" y="300" width="400" height="320" fill="#2d3748" stroke="#4cc9f0" stroke-width="3" rx="8" />
   <text x="650" y="330" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" fill="#ffffff">Sorter</text>
-  <text x="650" y="350" font-family="Arial" font-size="12" text-anchor="middle" fill="#4cc9f0">核心控制器</text>
+  <text x="650" y="350" font-family="Arial" font-size="12" text-anchor="middle" fill="#4cc9f0">核心控制�?/text>
   <line x1="450" y1="365" x2="850" y2="365" stroke="#4cc9f0" stroke-width="2" />
   <text x="465" y="390" font-family="Arial" font-size="11" font-style="italic" fill="#ffffff">- encoder: Encoder*</text>
   <text x="465" y="410" font-family="Arial" font-size="11" font-style="italic" fill="#ffffff">- traySystem: TraySystem</text>
@@ -107,22 +107,22 @@
   <text x="465" y="535" font-family="Arial" font-size="11" fill="#4cc9f0">+ getDisplayData(): DisplayData</text>
   <text x="465" y="555" font-family="Arial" font-size="11" fill="#ffffff">+ onPhaseChange(int): void</text>
 
-  <!-- UserInterface类 - 左中 -->
+  <!-- UserInterface�?- 左中 -->
   <rect x="880" y="350" width="220" height="200" fill="#9b5de5" stroke="#7b2cbf" stroke-width="2" rx="8" />
   <text x="990" y="380" font-family="Arial" font-size="18" text-anchor="middle" font-weight="bold" fill="#ffffff">UserInterface</text>
   <text x="990" y="400" font-family="Arial" font-size="11" text-anchor="middle" fill="#9b5de5">单例模式</text>
   <line x1="880" y1="415" x2="1100" y2="415" stroke="#7b2cbf" stroke-width="2" />
   <text x="895" y="440" font-family="Arial" font-size="10" font-style="italic" fill="#ffffff">- oled: OLED*</text>
-  <text x="895" y="460" font-family="Arial" font-size="10" font-style="italic" fill="#ffffff">- hmi: SimpleHMI*</text>
+  <text x="895" y="460" font-family="Arial" font-size="10" font-style="italic" fill="#ffffff">- hmi: RotaryInputSource*</text>
   <line x1="880" y1="480" x2="1100" y2="480" stroke="#7b2cbf" stroke-width="1" />
   <text x="895" y="505" font-family="Arial" font-size="10" fill="#ffffff">+ initialize(): void</text>
   <text x="895" y="525" font-family="Arial" font-size="10" fill="#ffffff">+ updateDisplay(...): void</text>
   <text x="895" y="545" font-family="Arial" font-size="10" fill="#ffffff">+ isMasterButtonPressed(): bool</text>
 
-  <!-- DisplayData结构体 - 右中，靠近UserInterface -->
+  <!-- DisplayData结构�?- 右中，靠近UserInterface -->
   <rect x="1130" y="350" width="240" height="200" fill="#ffd166" stroke="#e9c46a" stroke-width="2" rx="8" />
   <text x="1250" y="380" font-family="Arial" font-size="18" text-anchor="middle" font-weight="bold" fill="#ffffff">DisplayData</text>
-  <text x="1250" y="400" font-family="Arial" font-size="11" text-anchor="middle" fill="#ffd166">数据结构体</text>
+  <text x="1250" y="400" font-family="Arial" font-size="11" text-anchor="middle" fill="#ffd166">数据结构�?/text>
   <line x1="1130" y1="415" x2="1370" y2="415" stroke="#e9c46a" stroke-width="2" />
   <text x="1145" y="440" font-family="Arial" font-size="10" fill="#ffffff">+ currentMode: SystemMode</text>
   <text x="1145" y="460" font-family="Arial" font-size="10" fill="#ffffff">+ encoderPosition: int</text>
@@ -161,9 +161,9 @@
 
   <!-- 系统说明 -->
   <rect x="400" y="820" width="1150" height="130" fill="#16213e" stroke="#4cc9f0" stroke-width="1" rx="5" />
-  <text x="975" y="850" font-family="Arial" font-size="14" text-anchor="middle" font-weight="bold" fill="#ffffff">系统架构说明（重构后）</text>
-  <text x="420" y="880" font-family="Arial" font-size="11" fill="#4cc9f0">• Sorter 是核心控制器，协调所有子系统</text>
-  <text x="420" y="900" font-family="Arial" font-size="11" fill="#4cc9f0">• UserInterface 合并了 OLED 和 SimpleHMI，统一管理显示和输入</text>
-  <text x="420" y="920" font-family="Arial" font-size="11" fill="#4cc9f0">• DisplayData 是纯数据结构，用于在 Sorter 和 UserInterface 之间传递数据</text>
-  <text x="420" y="940" font-family="Arial" font-size="11" fill="#4cc9f0">• 所有类通过主循环协调，OLED 不再直接依赖 Encoder 和 Sorter</text>
+  <text x="975" y="850" font-family="Arial" font-size="14" text-anchor="middle" font-weight="bold" fill="#ffffff">系统架构说明（重构后�?/text>
+  <text x="420" y="880" font-family="Arial" font-size="11" fill="#4cc9f0">�?Sorter 是核心控制器，协调所有子系统</text>
+  <text x="420" y="900" font-family="Arial" font-size="11" fill="#4cc9f0">�?UserInterface 合并�?OLED �?RotaryInputSource，统一管理显示和输�?/text>
+  <text x="420" y="920" font-family="Arial" font-size="11" fill="#4cc9f0">�?DisplayData 是纯数据结构，用于在 Sorter �?UserInterface 之间传递数�?/text>
+  <text x="420" y="940" font-family="Arial" font-size="11" fill="#4cc9f0">�?所有类通过主循环协调，OLED 不再直接依赖 Encoder �?Sorter</text>
 </svg>

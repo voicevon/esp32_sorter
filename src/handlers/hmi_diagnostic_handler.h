@@ -3,7 +3,7 @@
 
 #include "base_diagnostic_handler.h"
 #include "../user_interface/user_interface.h"
-#include "../user_interface/simple_hmi.h"
+#include "../user_interface/RotaryInputSource.h"
 
 class HMIDiagnosticHandler : public BaseDiagnosticHandler {
 private:
@@ -32,10 +32,10 @@ public:
             return;
         }
         
-        // 实际上 SimpleHMI 的单例 getEncoderDelta 会清零累计值。
+        // 实际上 RotaryInputSource 的单例 getEncoderDelta 会清零累计值。
         // 为了不破坏 normal 逻辑，我们专门增加一个 getRawEncoderDelta。
         
-        SimpleHMI* hmi = SimpleHMI::getInstance();
+        RotaryInputSource* hmi = RotaryInputSource::getInstance();
         int rawDelta = hmi->getRawEncoderDelta();
         if (rawDelta != 0) {
             totalRawPulses += rawDelta;

@@ -4,7 +4,7 @@
 
 ## 1. 核心组件
 系统由四个核心类协同工作：
-- **SimpleHMI**: 底层驱动，负责读取物理引脚（编码器 A/B、按钮）的状态，并处理中断和初步事件封装（如长按/短按）。
+- **RotaryInputSource**: 底层驱动，负责读取物理引脚（编码器 A/B、按钮）的状态，并处理中断和初步事件封装（如长按/短按）。
 - **MenuSystem**: 逻辑控制层，负责维护菜单树结构、当前选中的索引、滚动位置等。它不负责绘图。
 - **OLED / Terminal**: 表现层，负责将 MenuSystem 的状态渲染到物理屏幕或控制台。
 - **UserInterface**: 门面管理器，将上述三个类组合在一起，提供给 `main.cpp` 统一的调用接口。
@@ -12,14 +12,14 @@
 ## 2. 交互逻辑流 (Event Flow)
 
 ### 2.1 菜单导航
-1. 旋转编码器 -> 触发 `SimpleHMI` 中断。
-2. `SimpleHMI` 累计 `encoderDelta`。
+1. 旋转编码器 -> 触发 `RotaryInputSource` 中断。
+2. `RotaryInputSource` 累计 `encoderDelta`。
 3. `main.cpp` 在 `loop` 中轮询 `userInterface->getEncoderDelta()`。
 4. 如果有偏移 -> 调用 `menuSystem->navigate(delta)`。
 5. 调用 `userInterface->renderMenu()` 刷新屏幕。
 
 ### 2.2 动作触发 (动作选择)
-1. 点击按键 -> `SimpleHMI` 记录 `masterButtonClickFlag`。
+1. 点击按键 -> `RotaryInputSource` 记录 `masterButtonClickFlag`。
 2. `main.cpp` 检测到点击 -> 获取当前选中的菜单项内容。
 3. 如果是子菜单 -> 进入并刷新。
 4. 如果是执行命令 (如诊断模式) -> 设置 `isMenuMode = false`，进入特定模式。

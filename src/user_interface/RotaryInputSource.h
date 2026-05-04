@@ -1,6 +1,6 @@
 // 精简版人机交互模块
-#ifndef SIMPLE_HMI_H
-#define SIMPLE_HMI_H
+#ifndef ROTARY_INPUT_SOURCE_H
+#define ROTARY_INPUT_SOURCE_H
 
 #include <Arduino.h>
 #include "../config.h"
@@ -11,7 +11,7 @@
 #define ENCODER_LOCKOUT 20 // 编码器计数锁定时间（毫秒），防止抖动导致双倍计数
 
 // 基本按钮和LED功能定义 - 单例模式实现
-class SimpleHMI {
+class RotaryInputSource {
 private:
     // 引脚配置
     int masterButtonPin;
@@ -35,15 +35,15 @@ private:
     int lastConsumedTotalSteps;
     
     // 私有构造函数，防止外部创建实例
-    SimpleHMI();
+    RotaryInputSource();
     
     // 防止拷贝
-    SimpleHMI(const SimpleHMI&) = delete;
-    SimpleHMI& operator=(const SimpleHMI&) = delete;
+    RotaryInputSource(const RotaryInputSource&) = delete;
+    RotaryInputSource& operator=(const RotaryInputSource&) = delete;
     
 public:
     // 获取单例实例（静态方法）
-    static SimpleHMI* getInstance();
+    static RotaryInputSource* getInstance();
     
     // 初始化HMI
     void initialize();
@@ -76,7 +76,7 @@ public:
     
 private:
     // 静态实例指针
-    static SimpleHMI* instance;
+    static RotaryInputSource* instance;
 };
 
-#endif // SIMPLE_HMI_H
+#endif // ROTARY_INPUT_SOURCE_H
