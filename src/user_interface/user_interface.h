@@ -2,7 +2,6 @@
 #define USER_INTERFACE_H
 
 #include <Arduino.h>
-#include "drv_oled_rotary/RotaryInputSource.h"
 #include "common/input_source.h"
 #include "common/display.h"  // 包含Display抽象基类
 
@@ -47,8 +46,7 @@ private:
     // 静态实例指针
     static UserInterface* instance;
     
-    // 内部组件
-    RotaryInputSource* hmi;
+    // 内部组件已移除，改为由外部注入
     
     // 输入设备数组
     static const int MAX_INPUT_SOURCES = 4;

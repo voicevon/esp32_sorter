@@ -11,7 +11,7 @@ Rs485TouchScreen::Rs485TouchScreen() : _serial(&Serial2), _state(STATE_IDLE), _t
 void Rs485TouchScreen::initialize() {
     pinMode(PIN_HMI_485_EN, OUTPUT);
     digitalWrite(PIN_HMI_485_EN, LOW); // Receive mode
-    _serial->begin(HMI_MODBUS_BAUD, SERIAL_8N1, PIN_HMI_485_RX, PIN_HMI_485_TX);
+    _serial->begin(HMI_MODBUS_BAUD, SERIAL_8N2, PIN_HMI_485_RX, PIN_HMI_485_TX);
     _rxBuffer.reserve(512);
     Serial.println("[Rs485TouchScreen] Initialized on Serial2");
 }

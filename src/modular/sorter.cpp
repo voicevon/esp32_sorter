@@ -1,6 +1,5 @@
 #include "sorter.h"
 #include "HardwareSerial.h"
-#include "user_interface/drv_oled_rotary/oled.h"
 #include "../config.h"
 #include "tray_system.h"
 #include <Arduino.h>
@@ -23,7 +22,6 @@ Sorter::Sorter() :
 
     // 实例获取
     encoder = Encoder::getInstance();
-    simpleHmi = RotaryInputSource::getInstance();
     trayManager = TraySystem::getInstance();
     scanner = DiameterScanner::getInstance(); // 初始化scanner指针，防止空指针异常
     

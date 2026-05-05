@@ -59,7 +59,7 @@ constexpr int PIN_HMI_485_TX        = 17;
 constexpr int PIN_HMI_485_RX        = 16;
 constexpr int PIN_HMI_485_EN        = 5;    // DE/RE 方向控制 (GPIO5, JTAG 已禁用)
 constexpr uint8_t  HMI_MODBUS_SLAVE_ID = 1;
-constexpr long     HMI_MODBUS_BAUD     = 115200;
+constexpr long     HMI_MODBUS_BAUD     = 9600;
 
 
 constexpr int PINS_SCANNER[5] = {

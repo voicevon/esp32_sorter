@@ -7,7 +7,6 @@
 #include "shift_register_driver.h"
 #include "../config.h"
 #include "main.h"
-#include "user_interface/drv_oled_rotary/RotaryInputSource.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <atomic>
@@ -31,7 +30,6 @@ private:
     // 指针实例
     DiameterScanner* scanner;
     Encoder* encoder;
-    RotaryInputSource* simpleHmi;
     TraySystem* trayManager;
 
 

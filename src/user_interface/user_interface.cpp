@@ -7,7 +7,6 @@ UserInterface* UserInterface::instance = nullptr;
 // 私有构造函数实现
 UserInterface::UserInterface() {
     instance = this; // 立即赋值，防止 addInputSource 内部触发递归
-    hmi = RotaryInputSource::getInstance();
     
     // 初始化显示设备数组
     displayDeviceCount = 0;
@@ -21,8 +20,7 @@ UserInterface::UserInterface() {
         inputSources[i] = nullptr;
     }
     
-    // 默认添加物理旋钮作为第一个输入源
-    addInputSource(hmi);
+    // 不再默认添加物理旋钮，改为在 main.cpp 中显式添加
     
     // 初始化输出渠道（默认禁用所有输出渠道，需要在setup()中显式启用）
     outputChannels = 0;
@@ -52,9 +50,9 @@ UserInterface* UserInterface::getInstance() {
     return instance;
 }
 
-// 初始化所有 UI 硬件（不创建显示设备实例）
+// 初始化所有 UI 状态
 void UserInterface::initialize() {
-    hmi->initialize();
+    // 不再初始化硬件，硬件初始化移至 main.cpp
     // 不再创建显示设备实例，改为由外部注入
 }
 
@@ -278,24 +276,24 @@ UIIntent UserInterface::getNextIntent() {
     return UIIntent(UIAction::NONE);
 }
 
-// 获取编码器旋转增量
+// [已弃用] 获取编码器旋转增量
 int UserInterface::getEncoderDelta() {
-    return hmi->getEncoderDelta();
+    return 0;
 }
-
-// 获取原始旋转增量 (1:1 高灵敏度)
+ 
+// [已弃用] 获取原始旋转增量 (1:1 高灵敏度)
 int UserInterface::getRawEncoderDelta() {
-    return hmi->getRawEncoderDelta();
+    return 0;
 }
-
-// 检查主按钮是否被按下
+ 
+// [已弃用] 检查主按钮是否被按下
 bool UserInterface::isMasterButtonPressed() {
-    return hmi->isMasterButtonPressed();
+    return false;
 }
-
-// 检查主按钮是否被长按
+ 
+// [已弃用] 检查主按钮是否被长按
 bool UserInterface::isMasterButtonLongPressed() {
-    return hmi->isMasterButtonLongPressed();
+    return false;
 }
 
 // 启用指定输出渠道

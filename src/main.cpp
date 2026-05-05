@@ -8,7 +8,8 @@
 #include "user_interface/drv_oled_rotary/oled.h"
 #include "user_interface/drv_terminal/terminal.h"
 #include "user_interface/drv_oled_rotary/menu_system.h"
-#include "user_interface/hmi_factory.h"
+#include "user_interface/drv_rs485_screen/rs485_touch_screen.h"
+#include "user_interface/drv_mcgs/mcgs_display.h"
 #include "modular/encoder.h"
 #include "modular/sorter.h"
 #include "handlers/scanner_diagnostic_handler.h"
@@ -50,52 +51,119 @@ TaskHandle_t hUITask = nullptr;
 void vControlTask(void* pvParameters);
 void vUITask(void* pvParameters);
 
-void setup() {
-    Serial.begin(115200);
-    Serial.println("Feng's Sorter system starting...");
-    
-    userInterface->initialize();
-    
-    // delay(500); // 移除不必要的延时
-    
-    for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
-        outletDiagnosticHandler.setOutlet(i, sorter.getOutlet(i));
-    }
-    
+// ── 初始化子函数 ────────────────────────────────────────────────────────
+
+/**
+ * @brief 配置 HMI 硬件驱动并注入到 UI 抽象层
+ */
+void setupHmi() {
+    userInterface->clearAllDisplayDevices();
+    userInterface->clearAllInputSources();
+
+    #if CURRENT_HMI_TYPE == 1 // TERMINAL
+        Terminal* term = Terminal::getInstance();
+        term->initialize();
+        userInterface->addDisplayDevice(term);
+        userInterface->enableOutputChannel(OUTPUT_SERIAL);
+        Serial.println("[BOOT] HMI: TERMINAL");
+
+    #elif CURRENT_HMI_TYPE == 2 // OLED_ROTARY
+        OLED* oled = OLED::getInstance();
+        oled->initialize();
+        userInterface->addDisplayDevice(oled);
+        
+        RotaryInputSource* rotary = RotaryInputSource::getInstance();
+        rotary->initialize();
+        userInterface->addInputSource(rotary);
+        
+        userInterface->enableOutputChannel(OUTPUT_OLED);
+        Serial.println("[BOOT] HMI: OLED_ROTARY");
+
+    #elif CURRENT_HMI_TYPE == 3 // MCGS
+        static McgsDisplay mcgs;
+        mcgs.initialize();
+        userInterface->addDisplayDevice(&mcgs);
+        userInterface->addInputSource(&mcgs);
+        Serial.println("[BOOT] HMI: MCGS");
+
+    #elif CURRENT_HMI_TYPE == 4 // LVGL_TOUCHSCREEN
+        Rs485TouchScreen* hmiScreen = Rs485TouchScreen::getInstance();
+        hmiScreen->initialize();
+        userInterface->addDisplayDevice(hmiScreen);
+        userInterface->addInputSource(hmiScreen);
+        Serial.println("[BOOT] HMI: RS485_TOUCHSCREEN");
+        
+    #else
+        Serial.println("[BOOT] HMI: NONE");
+    #endif
+
+    userInterface->initialize(); // 初始化 UI 逻辑状态
+}
+
+/**
+ * @brief 初始化 EEPROM 并加载系统持久化数据
+ */
+void setupSystemData() {
     EEPROM.begin(512);
-    
-    // ── HMI 统一配置 ────────────────────────────────────────────────────────
-    // 从 config.h 读取宏定义，由工厂完成配对注入
-    HmiFactory::setupHmi((HmiType)CURRENT_HMI_TYPE);
-    
+
+    // 1. 处理开机计数
     EEPROM.get(EEPROM_ADDR_BOOT_COUNT, systemBootCount);
     if (systemBootCount == 0xFFFFFFFF) systemBootCount = 0;
     systemBootCount++;
     EEPROM.put(EEPROM_ADDR_BOOT_COUNT, systemBootCount);
     EEPROM.commit();
-    
-    encoder->initialize();
+    Serial.printf("[BOOT] System Boot Count: %u\n", systemBootCount);
 
-    // 开机从 EEPROM 加载 phaseOffset（带 magic 校验）
-    uint8_t phaseOffsetMagic  = EEPROM.read(EEPROM_ADDR_PHASE_OFFSET);
-    uint8_t phaseOffsetValue  = EEPROM.read(EEPROM_ADDR_PHASE_OFFSET + 1);
-    Serial.printf("[BOOT] EEPROM raw: magic=0x%02X value=%d\n", phaseOffsetMagic, phaseOffsetValue);
+    // 2. 加载相位偏移 (Phase Offset)
+    uint8_t phaseOffsetMagic = EEPROM.read(EEPROM_ADDR_PHASE_OFFSET);
+    uint8_t phaseOffsetValue = EEPROM.read(EEPROM_ADDR_PHASE_OFFSET + 1);
     uint8_t savedOffset = 0;
     if (phaseOffsetMagic == 0xA5 && phaseOffsetValue < ENCODER_MAX_PHASE) {
         savedOffset = phaseOffsetValue;
     }
     encoder->setPhaseOffset(savedOffset);
-    Serial.printf("[BOOT] Phase offset applied: %d\n", savedOffset);
+    Serial.printf("[BOOT] Phase Offset Loaded: %d\n", savedOffset);
 
+    // 3. 加载托盘历史数据
+    traySystem->loadFromEEPROM(EEPROM_ADDR_TRAY_DATA);
+}
+
+/**
+ * @brief 初始化核心业务模块与诊断处理器
+ */
+void setupModules() {
+    // 初始化分拣执行器与传感器
+    encoder->initialize();
     sorter.initialize();
     diameterScanner->initialize();
-    traySystem->loadFromEEPROM(EEPROM_ADDR_TRAY_DATA);
     
+    // 初始化诊断处理器（注入 UI 引用）
     outletDiagnosticHandler.initialize(userInterface);
     encoderDiagnosticHandler.initialize(userInterface);
     
+    // 为诊断处理器绑定出口引用
+    for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
+        outletDiagnosticHandler.setOutlet(i, sorter.getOutlet(i));
+    }
+}
+
+void setup() {
+    Serial.begin(115200);
+    Serial.println("\n--- Feng's Sorter System Booting ---");
+    
+    // 1. 硬件/驱动注入
+    setupHmi();
+    
+    // 2. 数据与持久化
+    setupSystemData();
+    
+    // 3. 业务模块初始化
+    setupModules();
+    
+    // 4. 菜单树构建
     setupMenuTree();
-    Serial.println("System ready");
+    
+    Serial.println("[BOOT] All systems ready\n");
 
     // ==========================================
     // 任务创建：将分拣控制核心与 UI 交互核心物理隔离
