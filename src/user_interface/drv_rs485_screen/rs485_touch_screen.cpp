@@ -37,12 +37,16 @@ void Rs485TouchScreen::sendPayload(const String& jsonStr) {
     if (crc < 0x10) outStr += "0";
     outStr += String(crc, HEX);
     outStr += "\n";
-    outStr.toUpperCase();
 
     digitalWrite(PIN_HMI_485_EN, HIGH); // TX mode
     _serial->print(outStr);
     _serial->flush();
     digitalWrite(PIN_HMI_485_EN, LOW);  // RX mode
+    
+    // Clear any local echo or noise that occurred during TX
+    while (_serial->available()) {
+        _serial->read();
+    }
 
     _txTimestamp = millis();
     _state = STATE_WAITING_ACK;
@@ -57,6 +61,7 @@ void Rs485TouchScreen::displayDashboard(float sortingSpeedPerSecond, int sorting
     StaticJsonDocument<512> doc;
     doc["type"] = "dashboard";
     JsonObject data = doc.createNestedObject("data");
+    data["frame_counter"] = _frameCounter++; 
     data["speed"] = sortingSpeedPerSecond;
     data["yield"] = identifiedCount;
     data["capacity"] = sortingSpeedPerHour;
@@ -71,6 +76,7 @@ void Rs485TouchScreen::displayDashboard(float sortingSpeedPerSecond, int sorting
 void Rs485TouchScreen::tick() {
     if (_state == STATE_WAITING_ACK) {
         if (millis() - _txTimestamp > 100) { // 100ms timeout
+            Serial.println("[Rs485TouchScreen] RX Timeout (No response from slave)");
             _state = STATE_IDLE;
             _rxBuffer = "";
             return;
@@ -94,11 +100,22 @@ void Rs485TouchScreen::tick() {
 }
 
 void Rs485TouchScreen::processLine(const String& line) {
+    
     String cleanLine = line;
     cleanLine.trim();
-    if (!cleanLine.startsWith("$")) return;
+    
+    if (!cleanLine.startsWith("$")) {
+        if (cleanLine.length() > 0) {
+            Serial.println("[Rs485TouchScreen] Skip: Not starting with $");
+        }
+        return;
+    }
+    
     int starIdx = cleanLine.lastIndexOf('*');
-    if (starIdx < 1) return;
+    if (starIdx < 1) {
+        Serial.println("[Rs485TouchScreen] Skip: No * found or invalid position");
+        return;
+    }
 
     String jsonStr = cleanLine.substring(1, starIdx);
     String crcHexStr = cleanLine.substring(starIdx + 1);
@@ -107,13 +124,34 @@ void Rs485TouchScreen::processLine(const String& line) {
     uint8_t recvCrc = (uint8_t) strtol(crcHexStr.c_str(), NULL, 16);
 
     if (calcCrc != recvCrc) {
-        Serial.printf("[Rs485TouchScreen] CRC mismatch! Calc:%02X Recv:%02X\n", calcCrc, recvCrc);
+        Serial.printf("[Rs485TouchScreen] CRC mismatch! Calc:%02X Recv:%02X, Raw Line: %s\n", calcCrc, recvCrc, cleanLine.c_str());
         return;
     }
 
     StaticJsonDocument<512> doc;
     DeserializationError error = deserializeJson(doc, jsonStr);
-    if (error) return;
+    if (error) {
+        Serial.print(F("[Rs485TouchScreen] deserializeJson() failed: "));
+        Serial.println(error.f_str());
+        return;
+    }
+
+    static String lastJsonStr = "";
+    static uint32_t printCounter = 0;
+    
+    printCounter++;
+    if (jsonStr != lastJsonStr || printCounter >= 20) {
+        if (jsonStr != lastJsonStr) {
+            Serial.println("\n[Rs485TouchScreen] 收到从机 JSON 数据 (内容有变化):");
+        } else {
+            Serial.println("\n[Rs485TouchScreen] 收到从机 JSON 数据 (心跳打印):");
+        }
+        serializeJsonPretty(doc, Serial);
+        Serial.println();
+        lastJsonStr = jsonStr;
+        printCounter = 0;
+    }
+
 
     // Parse events (if any) and push to intent queue
     if (doc.containsKey("events")) {

@@ -55,6 +55,7 @@ private:
     
     Rs485CommState _state;
     uint32_t _txTimestamp;
+    uint32_t _frameCounter = 0; // 帧序列计数
     
     std::queue<UIIntent> _intentQueue;
 
