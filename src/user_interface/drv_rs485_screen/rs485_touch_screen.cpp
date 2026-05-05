@@ -64,7 +64,7 @@ void Rs485TouchScreen::displayDashboard(float sortingSpeedPerSecond, int sorting
     }
 
     StaticJsonDocument<512> doc;
-    doc["type"] = "dashboard";
+    doc["page"] = "dashboard";
     JsonObject data = doc.createNestedObject("data");
     data["frame_counter"] = _frameCounter++; 
     data["speed"] = sortingSpeedPerSecond;
@@ -159,8 +159,8 @@ void Rs485TouchScreen::processLine(const String& line) {
 
 
     // Capture slave page
-    if (doc.containsKey("current_page")) {
-        _slavePage = doc["current_page"].as<String>();
+    if (doc.containsKey("page")) {
+        _slavePage = doc["page"].as<String>();
     }
 
     // Parse events (if any) and push to intent queue
@@ -209,7 +209,7 @@ void Rs485TouchScreen::displayDiagnosticValues(const String& title, const String
         Encoder* enc = Encoder::getInstance();
         
         StaticJsonDocument<512> doc;
-        doc["type"] = "diag_encoder";
+        doc["page"] = "diag_encoder";
         JsonObject data = doc.createNestedObject("data");
         
         data["raw_val"]       = enc->getRawCount();
@@ -228,7 +228,7 @@ void Rs485TouchScreen::displayDiagnosticValues(const String& title, const String
         sendPayload(jsonStr);
     } else if (_slavePage == "diag_outlets" || _slavePage == "config_outlets") {
         StaticJsonDocument<1024> doc;
-        doc["type"] = _slavePage; // Echo back the requested type
+        doc["page"] = _slavePage; // Echo back the requested page
         JsonArray data = doc.createNestedArray("data");
         for (int i = 0; i < NUM_OUTLETS; i++) {
             JsonObject obj = data.createNestedObject();
@@ -258,7 +258,7 @@ void Rs485TouchScreen::displayScannerEncoderValues(const int* risingValues, cons
     if (_slavePage == "diag_laser") {
         DiameterScanner* ds = DiameterScanner::getInstance();
         StaticJsonDocument<1536> doc;
-        doc["type"] = "diag_laser";
+        doc["page"] = "diag_laser";
         JsonObject data = doc.createNestedObject("data");
         
         // 1. 当前电平状态位掩码 (Bit 0-NUM_SCAN_POINTS-1)
