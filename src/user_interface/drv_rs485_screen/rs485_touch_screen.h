@@ -26,7 +26,7 @@ public:
     void displayDiagnosticInfo(const String& title, const String& info) override {}
     void displayOutletTestGraphic(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen, int subMode) override {}
     void displayOutletLifetimeTestGraphic(uint8_t outletCount, uint32_t cycleCount, bool outletState, int subMode) override {}
-    void displayScannerEncoderValues(const int* risingValues, const int* fallingValues) override {}
+    void displayScannerEncoderValues(const int* risingValues, const int* fallingValues) override;
     void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, int latestLengthLevel = 0) override;
     void displayDiameter(int latestDiameter) override {}
     void displayNormalModeDiameter(int latestDiameter) override {}
@@ -34,8 +34,8 @@ public:
     void displaySpeedStats(int speedPerSecond, int speedPerMinute, int speedPerHour, int itemCount, int trayCount) override {}
     void displaySingleValue(const String& label, int value, const String& unit) override {}
     void displayPositionInfo(const String& title, int position, bool showOnlyOnChange) override {}
-    void displayDiagnosticValues(const String& title, const String& value1, const String& value2) override {}
-    void displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3 = "", const String& line4 = "", const String& line5 = "") override {}
+    void displayDiagnosticValues(const String& title, const String& value1, const String& value2) override;
+    void displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3 = "", const String& line4 = "", const String& line5 = "") override;
     void displayConfigEdit(const String& title, int maxV, int minV, uint8_t targetMode, int activeField) override {}
     void resetDiagnosticMode() override {}
     void clearDisplay() override {}
@@ -62,6 +62,7 @@ private:
     void processLine(const String& line);
     uint8_t calculateCRC8(const char* data, size_t len);
     void sendPayload(const String& jsonStr);
+    String _slavePage; // Tracks current page on Slave
 };
 
 #endif // RS485_TOUCH_SCREEN_H

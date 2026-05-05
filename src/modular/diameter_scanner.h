@@ -11,24 +11,27 @@ class DiameterScanner : public Singleton<DiameterScanner> {
     friend class Singleton<DiameterScanner>;
 private:
     // 单例模式静态实例 - Managed by Singleton
+    // 单例模式静态实例 - Managed by Singleton
     // static DiameterScanner* instance;
     
-    // 引脚定义（4个扫描点）
-    int scannerPins[4];
+    #define NUM_SCAN_POINTS 4
+
+    // 引脚定义（5个扫描点）
+    int scannerPins[NUM_SCAN_POINTS];
     std::atomic<bool> isScanning;
     // 高电平采样计数（每个扫描点）
-    volatile int highLevelPulseCounts[4];
+    volatile int highLevelPulseCounts[NUM_SCAN_POINTS];
     
     // 统计次数（计算实际物体数量）- 每个扫描点一个计数器
-    volatile int objectCount[4];
+    volatile int objectCount[NUM_SCAN_POINTS];
     
     // 上一次的传感器状态（每个扫描点）
-    bool lastSensorStates[4];
+    bool lastSensorStates[NUM_SCAN_POINTS];
     volatile int lastPhase; // 记录上一次处理的相位 (ISR 内部使用)
-    volatile bool isObjectPassing[4];
+    volatile bool isObjectPassing[NUM_SCAN_POINTS];
 
     static const int MAX_SAMPLES = 200;
-    volatile uint8_t sensorBuffers[4][MAX_SAMPLES];
+    volatile uint8_t sensorBuffers[NUM_SCAN_POINTS][MAX_SAMPLES];
     std::atomic<int> sampleCount;
 
     // 计算得到的直径值（整数）

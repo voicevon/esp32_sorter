@@ -1,5 +1,10 @@
 #include "rs485_touch_screen.h"
 #include "../../config.h"
+#include "../../modular/encoder.h"
+#include "../../modular/diameter_scanner.h"
+#include "../../modular/sorter.h"
+
+extern Sorter sorter;
 
 Rs485TouchScreen* Rs485TouchScreen::getInstance() {
     static Rs485TouchScreen instance;
@@ -153,6 +158,11 @@ void Rs485TouchScreen::processLine(const String& line) {
     }
 
 
+    // Capture slave page
+    if (doc.containsKey("current_page")) {
+        _slavePage = doc["current_page"].as<String>();
+    }
+
     // Parse events (if any) and push to intent queue
     if (doc.containsKey("events")) {
         JsonArray events = doc["events"];
@@ -164,8 +174,116 @@ void Rs485TouchScreen::processLine(const String& line) {
                 _intentQueue.push(UIIntent(UIAction::SET_VALUE, params));
             } else if (cmd == "menu_click") {
                 _intentQueue.push(UIIntent(UIAction::NAVIGATE_PATH, params));
+            } else if (cmd == "set_outlet") {
+                int index = ev["index"] | 0;
+                float min = ev["min"] | 0.0f;
+                float max = ev["max"] | 0.0f;
+                uint8_t mask = ev["mask"] | 0;
+                
+                if (index < NUM_OUTLETS) {
+                    sorter.setOutletMinDiameter(index, (int)(min + 0.05f)); 
+                    sorter.setOutletMaxDiameter(index, (int)(max + 0.05f));
+                    if (sorter.getOutlet(index)) {
+                        sorter.getOutlet(index)->setTargetLength(mask);
+                    }
+                    sorter.saveConfig();
+                    Serial.printf("[HMI] Applied Outlet #%d Config: Min=%.1f Max=%.1f Mask=%d\n", index+1, min, max, mask);
+                }
             }
         }
+    }
+}
+
+void Rs485TouchScreen::displayDiagnosticValues(const String& title, const String& value1, const String& value2) {
+    if (_state != STATE_IDLE) return;
+    
+    // 如果从机在编码器页面，发送完整的编码器诊断 JSON
+    if (_slavePage == "admin_encoder") {
+        Encoder* enc = Encoder::getInstance();
+        
+        StaticJsonDocument<512> doc;
+        doc["type"] = "admin_encoder";
+        JsonObject data = doc.createNestedObject("data");
+        
+        data["raw_val"]       = enc->getRawCount();
+        data["corrected_val"] = enc->getRawCount();
+        data["logic_val"]     = enc->getCurrentPosition();
+        data["zero_count"]    = enc->getZeroCrossCount();
+        data["zero_total"]    = enc->getZeroCrossCount();
+        data["zero_correct"]  = enc->getZeroCrossCount() - enc->getForcedZeroCount();
+        
+        data["pulse_count"]   = enc->getRawCount();
+        data["velocity"]      = 0.0f;
+        data["status"]        = 1;
+        
+        String jsonStr;
+        serializeJson(doc, jsonStr);
+        sendPayload(jsonStr);
+    } else if (_slavePage == "admin_outlets") {
+        StaticJsonDocument<1024> doc;
+        doc["type"] = "admin_outlets";
+        JsonArray data = doc.createNestedArray("data");
+        for (int i = 0; i < NUM_OUTLETS; i++) {
+            JsonObject obj = data.createNestedObject();
+            obj["min"] = (float)sorter.getOutletMinDiameter(i);
+            obj["max"] = (float)sorter.getOutletMaxDiameter(i);
+            obj["mask"] = (uint8_t)sorter.getOutlet(i)->getTargetLength();
+        }
+        String jsonStr;
+        serializeJson(doc, jsonStr);
+        sendPayload(jsonStr);
+    }
+}
+
+void Rs485TouchScreen::displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3, const String& line4, const String& line5) {
+    // 复用 displayDiagnosticValues 的逻辑，确保多行模式下也能同步编码器数据
+    displayDiagnosticValues(title, line1, line2);
+}
+
+void Rs485TouchScreen::displayScannerEncoderValues(const int* risingValues, const int* fallingValues) {
+    if (_state != STATE_IDLE) return;
+    
+    // 如果从机在激光扫描仪页面，发送完整的激光波形数据
+    if (_slavePage == "admin_laser") {
+        DiameterScanner* ds = DiameterScanner::getInstance();
+        StaticJsonDocument<1536> doc;
+        doc["type"] = "admin_laser";
+        JsonObject data = doc.createNestedObject("data");
+        
+        // 1. 当前电平状态位掩码 (Bit 0-NUM_SCAN_POINTS-1)
+        uint8_t states = 0;
+        for(int i=0; i<NUM_SCAN_POINTS; i++) {
+            if (digitalRead(PINS_SCANNER[i]) == HIGH) {
+                states |= (1 << i);
+            }
+        }
+        data["states"] = states;
+        
+        // 2. 5路历史数据 Hex 字符串 (200 bits = 25 bytes per channel)
+        const char* keys[] = {"history_p1", "history_p2", "history_p3", "history_p4"};
+        char hexBuf[51]; 
+        
+        for(int i=0; i<NUM_SCAN_POINTS; i++) {
+            memset(hexBuf, 0, sizeof(hexBuf));
+            for(int j=0; j<25; j++) {
+                uint8_t byteVal = 0;
+                for(int bit=0; bit<8; bit++) {
+                    int sampleIdx = j*8 + bit;
+                    // 如果采样数还不够，默认为 0
+                    if (sampleIdx < ds->getSampleCount()) {
+                        if (ds->getSample(i, sampleIdx) == 1) {
+                            byteVal |= (1 << (7 - bit));
+                        }
+                    }
+                }
+                sprintf(hexBuf + j*2, "%02X", byteVal);
+            }
+            data[keys[i]] = (const char*)hexBuf;
+        }
+        
+        String jsonStr;
+        serializeJson(doc, jsonStr);
+        sendPayload(jsonStr);
     }
 }
 

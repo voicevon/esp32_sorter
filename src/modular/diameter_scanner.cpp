@@ -7,7 +7,7 @@
 DiameterScanner::DiameterScanner() : 
     isScanning(false),
     nominalDiameter(0) {
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < NUM_SCAN_POINTS; i++) {
         scannerPins[i] = PINS_SCANNER[i];
         highLevelPulseCounts[i] = 0;
         objectCount[i] = 0;
@@ -21,7 +21,7 @@ DiameterScanner::DiameterScanner() :
 // DiameterScanner* DiameterScanner::getInstance() { ... }
 
 void DiameterScanner::initialize() {
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < NUM_SCAN_POINTS; i++) {
         pinMode(scannerPins[i], INPUT);
     }
     
@@ -35,7 +35,7 @@ void DiameterScanner::start() {
     isScanning = true;
     nominalDiameter = 0;
     sampleCount = 0;
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < NUM_SCAN_POINTS; i++) {
         highLevelPulseCounts[i] = 0;
         objectCount[i] = 0;
         lastSensorStates[i] = false;
@@ -67,7 +67,7 @@ void DiameterScanner::sample(int phase) {
     
     // 仅通过数组记录采样点的原始高低电平状态，极大地降低中断开销
     if (sampleCount < MAX_SAMPLES) {
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < NUM_SCAN_POINTS; i++) {
             sensorBuffers[i][sampleCount] = (digitalRead(scannerPins[i]) == HIGH) ? 1 : 0;
         }
         sampleCount++;
@@ -80,7 +80,7 @@ int DiameterScanner::getDiameterAndStop() {
     stop(); 
     
     // 初始化计算状态变量，清零旧数据
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < NUM_SCAN_POINTS; i++) {
         highLevelPulseCounts[i] = 0;
         objectCount[i] = 0;
         lastSensorStates[i] = false;
@@ -89,7 +89,7 @@ int DiameterScanner::getDiameterAndStop() {
 
     // 后期处理：遍历缓存区，回放采样历史，计算有效高电平脉冲计数
     for (int idx = 0; idx < sampleCount; idx++) {
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < NUM_SCAN_POINTS; i++) {
             bool currentState = (sensorBuffers[i][idx] == 1);
             
             if (currentState) {
@@ -163,7 +163,7 @@ int DiameterScanner::getLengthLevel() {
 }
 
 int DiameterScanner::getObjectCount(int index) const {
-    if (index >= 0 && index < 4) {
+    if (index >= 0 && index < NUM_SCAN_POINTS) {
         return objectCount[index];
     }
     return 0;
@@ -171,18 +171,18 @@ int DiameterScanner::getObjectCount(int index) const {
 
 int DiameterScanner::getTotalObjectCount() const {
     int total = 0;
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < NUM_SCAN_POINTS; i++) {
         total += objectCount[i];
     }
     return total;
 }
 
 bool* DiameterScanner::getIOStatusArray() {
-    static bool currentStates[4];
+    static bool currentStates[NUM_SCAN_POINTS];
     bool stateChanged = false;
     
-    // 读取所有4个传感器的当前状态
-    for (int i = 0; i < 4; i++) {
+    // 读取所有5个传感器的当前状态
+    for (int i = 0; i < NUM_SCAN_POINTS; i++) {
         currentStates[i] = (digitalRead(scannerPins[i]) == HIGH);
         
         // 检查状态是否变化
@@ -193,7 +193,7 @@ bool* DiameterScanner::getIOStatusArray() {
     
     // 更新最后状态
     if (stateChanged) {
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < NUM_SCAN_POINTS; i++) {
             lastSensorStates[i] = currentStates[i];
         }
     }
@@ -202,14 +202,14 @@ bool* DiameterScanner::getIOStatusArray() {
 }
 
 int DiameterScanner::getHighLevelPulseCount(int index) const {
-    if (index >= 0 && index < 4) {
+    if (index >= 0 && index < NUM_SCAN_POINTS) {
         return highLevelPulseCounts[index];
     }
     return 0;
 }
 
 float DiameterScanner::getSensorWeight(int index) const {
-    if (index >= 0 && index < 4) {
+    if (index >= 0 && index < NUM_SCAN_POINTS) {
         return SCANNER_WEIGHTS[index];
     }
     return 0.0f;

@@ -33,12 +33,11 @@ constexpr int PIN_HMI_BTN   = 14;
 // Power Monitor (Voltage Divider Input)
 constexpr int PIN_POWER_MONITOR = 32;
 
-// Scanner (5 Points Array)
+// Scanner (4 Points Array)
 constexpr int PIN_SCANNER_1 = 36;
 constexpr int PIN_SCANNER_2 = 39;
 constexpr int PIN_SCANNER_3 = 34;
 constexpr int PIN_SCANNER_4 = 35;
-constexpr int PIN_SCANNER_5 = 15;
 
 // Main Encoder
 constexpr int PIN_ENCODER_A = 19;
@@ -62,8 +61,8 @@ constexpr uint8_t  HMI_MODBUS_SLAVE_ID = 1;
 constexpr long     HMI_MODBUS_BAUD     = 9600;
 
 
-constexpr int PINS_SCANNER[5] = {
-    PIN_SCANNER_1, PIN_SCANNER_2, PIN_SCANNER_3, PIN_SCANNER_4, PIN_SCANNER_5
+constexpr int PINS_SCANNER[4] = {
+    PIN_SCANNER_1, PIN_SCANNER_2, PIN_SCANNER_3, PIN_SCANNER_4
 };
 
 // ==========================================
