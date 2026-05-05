@@ -223,6 +223,11 @@ void vUITask(void* pvParameters) {
         bool btnPressed = (intent.action == UIAction::ACTIVATE);
         bool backPressed = (intent.action == UIAction::BACK);
         
+        // --- 核心同步：处理导航路径意图 (如来自从机切页) ---
+        if (intent.action == UIAction::NAVIGATE_PATH) {
+            switchToMode((SystemMode)intent.value);
+        }
+        
         uint32_t currentMs = millis();
         
         if (menuModeActive) {

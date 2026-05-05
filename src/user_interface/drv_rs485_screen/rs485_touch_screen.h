@@ -63,6 +63,7 @@ private:
     uint8_t calculateCRC8(const char* data, size_t len);
     void sendPayload(const String& jsonStr);
     String _slavePage; // Tracks current page on Slave
+    long _lastRawCount = 0;
 };
 
 #endif // RS485_TOUCH_SCREEN_H

@@ -3,6 +3,7 @@
 #include "../../modular/encoder.h"
 #include "../../modular/diameter_scanner.h"
 #include "../../modular/sorter.h"
+#include <EEPROM.h>
 
 extern Sorter sorter;
 
@@ -56,6 +57,9 @@ void Rs485TouchScreen::sendPayload(const String& jsonStr) {
     _txTimestamp = millis();
     _state = STATE_WAITING_ACK;
     _rxBuffer = ""; // clear buffer for ack
+
+    // Log the outgoing payload for debugging
+    Serial.printf("[Rs485TouchScreen] >> TX: %s", outStr.c_str());
 }
 
 void Rs485TouchScreen::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, int latestLengthLevel) {
@@ -80,7 +84,7 @@ void Rs485TouchScreen::displayDashboard(float sortingSpeedPerSecond, int sorting
 
 void Rs485TouchScreen::tick() {
     if (_state == STATE_WAITING_ACK) {
-        if (millis() - _txTimestamp > 100) { // 100ms timeout
+        if (millis() - _txTimestamp > 300) { // 300ms timeout
             Serial.println("[Rs485TouchScreen] RX Timeout (No response from slave)");
             _state = STATE_IDLE;
             _rxBuffer = "";
@@ -93,10 +97,21 @@ void Rs485TouchScreen::tick() {
                 processLine(_rxBuffer);
                 _rxBuffer = "";
                 _state = STATE_IDLE; // Received complete frame, go back to IDLE
+                
+                // --- 核心响应补丁：即刻反馈机制 ---
+                // 收到从机请求后，如果处于诊断或配置页面，立即推送最新数据
+                if (_slavePage == "diag_encoder") {
+                    displayDiagnosticValues("", "", ""); 
+                } else if (_slavePage == "diag_laser") {
+                    displayScannerEncoderValues(nullptr, nullptr);
+                } else if (_slavePage == "diag_outlets" || _slavePage == "config_outlets") {
+                    displayDiagnosticValues("", "", ""); 
+                }
+                
                 break; // Process one line per tick is enough
             } else {
                 _rxBuffer += c;
-                if (_rxBuffer.length() > 500) {
+                if (_rxBuffer.length() > 1024) {
                     _rxBuffer = "";
                 }
             }
@@ -133,7 +148,7 @@ void Rs485TouchScreen::processLine(const String& line) {
         return;
     }
 
-    StaticJsonDocument<512> doc;
+    StaticJsonDocument<1024> doc;
     DeserializationError error = deserializeJson(doc, jsonStr);
     if (error) {
         Serial.print(F("[Rs485TouchScreen] deserializeJson() failed: "));
@@ -158,9 +173,26 @@ void Rs485TouchScreen::processLine(const String& line) {
     }
 
 
-    // Capture slave page
+    // Capture slave page and sync mode
     if (doc.containsKey("page")) {
-        _slavePage = doc["page"].as<String>();
+        String newPage = doc["page"].as<String>();
+        if (newPage != _slavePage) {
+            _slavePage = newPage;
+            
+            // Map page string to SystemMode enum value
+            int targetMode = -1;
+            if (newPage == "dashboard") targetMode = 0; // MODE_NORMAL
+            else if (newPage == "diag_encoder") targetMode = 1; // MODE_DIAGNOSE_ENCODER
+            else if (newPage == "diag_laser") targetMode = 2; // MODE_DIAGNOSE_SCANNER
+            else if (newPage == "diag_outlets") targetMode = 3; // MODE_DIAGNOSE_OUTLET
+            else if (newPage == "config_outlets") targetMode = 4; // MODE_CONFIG_DIAMETER
+            else if (newPage == "about") targetMode = 5; // MODE_VERSION_INFO
+            
+            if (targetMode != -1) {
+                _intentQueue.push(UIIntent(UIAction::NAVIGATE_PATH, targetMode));
+                Serial.printf("[RS485] Remote Page Sync -> Mode %d (%s)\n", targetMode, newPage.c_str());
+            }
+        }
     }
 
     // Parse events (if any) and push to intent queue
@@ -189,13 +221,16 @@ void Rs485TouchScreen::processLine(const String& line) {
                     sorter.saveConfig();
                     Serial.printf("[HMI] Applied Outlet #%d Config: Min=%.1f Max=%.1f Mask=%d\n", index+1, min, max, mask);
                 }
-            } else if (cmd == "diag_outlet") {
-                int index = ev["index"] | 0;
-                int targetState = ev["state"] | 0;
-                if (index < NUM_OUTLETS) {
-                    sorter.setOutletState(index, targetState == 1);
-                    Serial.printf("[HMI] Diagnostic Command Outlet #%d -> %s\n", index + 1, (targetState == 1) ? "OPEN" : "CLOSE");
-                }
+            } else if (cmd == "set_offset") {
+                int newOffset = ev["state"] | ev["params"] | 0; // Accept both for compatibility
+                Encoder::getInstance()->setPhaseOffset(newOffset);
+                
+                // 持久化到 EEPROM
+                EEPROM.write(EEPROM_ADDR_PHASE_OFFSET, 0xA5); // Magic byte
+                EEPROM.write(EEPROM_ADDR_PHASE_OFFSET + 1, (uint8_t)newOffset);
+                EEPROM.commit();
+                
+                Serial.printf("[HMI] Remote Offset Calibration -> %d (Saved to EEPROM)\n", newOffset);
             }
         }
     }
@@ -213,15 +248,18 @@ void Rs485TouchScreen::displayDiagnosticValues(const String& title, const String
         JsonObject data = doc.createNestedObject("data");
         
         data["raw_val"]       = enc->getRawCount();
-        data["corrected_val"] = enc->getRawCount();
+        data["corrected_val"] = enc->getZeroCrossRawCount(); // 上次 Z 信号触发时的值
         data["logic_val"]     = enc->getCurrentPosition();
+        data["offset"]        = enc->getPhaseOffset();  // <-- 新增：推送当前零位偏移
         data["zero_count"]    = enc->getZeroCrossCount();
-        data["zero_total"]    = enc->getZeroCrossCount();
-        data["zero_correct"]  = enc->getZeroCrossCount() - enc->getForcedZeroCount();
+        data["zero_total"]    = enc->getZeroCrossCount() + enc->getForcedZeroCount();
+        data["zero_correct"]  = enc->getZeroCrossCount();
         
         data["pulse_count"]   = enc->getRawCount();
-        data["velocity"]      = 0.0f;
+        data["velocity"]      = (float)abs(enc->getRawCount() - _lastRawCount) * 10.0f; // 估算速度 (假设 100ms 频率)
         data["status"]        = 1;
+        
+        _lastRawCount = enc->getRawCount();
         
         String jsonStr;
         serializeJson(doc, jsonStr);
