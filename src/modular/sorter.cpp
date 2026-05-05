@@ -196,6 +196,7 @@ void Sorter::run() {
 
 // 出口控制公共方法实现
 void Sorter::setOutletState(uint8_t outletIndex, bool open) {
+    if (outletIndex >= NUM_OUTLETS) return;
     outlets[outletIndex].setReadyToOpen(open);
     outlets[outletIndex].execute();
 }

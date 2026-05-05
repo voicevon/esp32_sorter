@@ -189,6 +189,13 @@ void Rs485TouchScreen::processLine(const String& line) {
                     sorter.saveConfig();
                     Serial.printf("[HMI] Applied Outlet #%d Config: Min=%.1f Max=%.1f Mask=%d\n", index+1, min, max, mask);
                 }
+            } else if (cmd == "diag_outlet") {
+                int index = ev["index"] | 0;
+                int targetState = ev["state"] | 0;
+                if (index < NUM_OUTLETS) {
+                    sorter.setOutletState(index, targetState == 1);
+                    Serial.printf("[HMI] Diagnostic Command Outlet #%d -> %s\n", index + 1, (targetState == 1) ? "OPEN" : "CLOSE");
+                }
             }
         }
     }
@@ -198,11 +205,11 @@ void Rs485TouchScreen::displayDiagnosticValues(const String& title, const String
     if (_state != STATE_IDLE) return;
     
     // 如果从机在编码器页面，发送完整的编码器诊断 JSON
-    if (_slavePage == "admin_encoder") {
+    if (_slavePage == "diag_encoder") {
         Encoder* enc = Encoder::getInstance();
         
         StaticJsonDocument<512> doc;
-        doc["type"] = "admin_encoder";
+        doc["type"] = "diag_encoder";
         JsonObject data = doc.createNestedObject("data");
         
         data["raw_val"]       = enc->getRawCount();
@@ -219,15 +226,19 @@ void Rs485TouchScreen::displayDiagnosticValues(const String& title, const String
         String jsonStr;
         serializeJson(doc, jsonStr);
         sendPayload(jsonStr);
-    } else if (_slavePage == "admin_outlets") {
+    } else if (_slavePage == "diag_outlets" || _slavePage == "config_outlets") {
         StaticJsonDocument<1024> doc;
-        doc["type"] = "admin_outlets";
+        doc["type"] = _slavePage; // Echo back the requested type
         JsonArray data = doc.createNestedArray("data");
         for (int i = 0; i < NUM_OUTLETS; i++) {
             JsonObject obj = data.createNestedObject();
             obj["min"] = (float)sorter.getOutletMinDiameter(i);
             obj["max"] = (float)sorter.getOutletMaxDiameter(i);
             obj["mask"] = (uint8_t)sorter.getOutlet(i)->getTargetLength();
+            // 如果是诊断页，额外包含实时状态
+            if (_slavePage == "diag_outlets") {
+                obj["state"] = sorter.getOutlet(i)->isPositionOpen() ? 1 : 0;
+            }
         }
         String jsonStr;
         serializeJson(doc, jsonStr);
@@ -244,10 +255,10 @@ void Rs485TouchScreen::displayScannerEncoderValues(const int* risingValues, cons
     if (_state != STATE_IDLE) return;
     
     // 如果从机在激光扫描仪页面，发送完整的激光波形数据
-    if (_slavePage == "admin_laser") {
+    if (_slavePage == "diag_laser") {
         DiameterScanner* ds = DiameterScanner::getInstance();
         StaticJsonDocument<1536> doc;
-        doc["type"] = "admin_laser";
+        doc["type"] = "diag_laser";
         JsonObject data = doc.createNestedObject("data");
         
         // 1. 当前电平状态位掩码 (Bit 0-NUM_SCAN_POINTS-1)
