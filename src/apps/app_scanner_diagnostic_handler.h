@@ -1,12 +1,12 @@
-#ifndef SCANNER_DIAGNOSTIC_HANDLER_H
-#define SCANNER_DIAGNOSTIC_HANDLER_H
+#ifndef APP_SCANNER_DIAG_H
+#define APP_SCANNER_DIAG_H
 #include "../modular/diameter_scanner.h"
 #include "../main.h"
 #include "../user_interface/user_interface.h"
 #include "../modular/encoder.h"
-#include "base_diagnostic_handler.h"
+#include "app_base_diagnostic_handler.h"
 
-class ScannerDiagnosticHandler : public BaseDiagnosticHandler {
+class AppScannerDiag : public AppBase {
 private:
     DiameterScanner* scanner;
     Encoder* encoder;
@@ -41,7 +41,7 @@ public:
     /**
      * 构造函数
      */
-    ScannerDiagnosticHandler();
+    AppScannerDiag();
     
     /**
      * 显示原始直径
@@ -70,4 +70,4 @@ public:
     int getCurrentSubMode() const;
     void captureSnapshot(DisplaySnapshot& snapshot) override;
 };
-#endif // SCANNER_DIAGNOSTIC_HANDLER_H
+#endif // APP_SCANNER_DIAG_H

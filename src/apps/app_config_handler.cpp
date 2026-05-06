@@ -1,19 +1,19 @@
-#include "config_handler.h"
+#include "app_config_handler.h"
 #include "../user_interface/common/display_types.h"
 
 
 // =========================
-// DiameterConfigHandler实现
+// AppConfigDiameter实现
 // =========================
 
-void DiameterConfigHandler::initializeMode() {
+void AppConfigDiameter::initializeMode() {
   currentSubMode = 0; 
   uiState = STATE_SELECTOR;
   encoderAccumulator = 0; // 初始化分频累加器
   refreshDisplay();
 }
 
-void DiameterConfigHandler::update(uint32_t currentMs, bool btnPressed) {
+void AppConfigDiameter::update(uint32_t currentMs, bool btnPressed) {
     // 1. 处理旋钮输入 (2:1 平和分频)
     int rawDelta = userInterface->getRawEncoderDelta();
     if (rawDelta != 0) {
@@ -57,7 +57,7 @@ void DiameterConfigHandler::update(uint32_t currentMs, bool btnPressed) {
     }
 }
 
-void DiameterConfigHandler::refreshDisplay() {
+void AppConfigDiameter::refreshDisplay() {
   // 3-bit: S(bit0), M(bit1), L(bit2). 0: invalid, 1-7: valid combinations.
   
   if (uiState == STATE_SELECTOR) {
@@ -119,7 +119,7 @@ void DiameterConfigHandler::refreshDisplay() {
 }
 
 
-void DiameterConfigHandler::handleValueChange(int delta) {
+void AppConfigDiameter::handleValueChange(int delta) {
   // 定义循环序列：S -> M -> S+M -> L -> S+L -> M+L -> ALL
   const uint8_t cycleSeq[] = {LEN_S, LEN_M, (LEN_S|LEN_M), LEN_L, (LEN_S|LEN_L), (LEN_M|LEN_L), LEN_ALL};
   const int seqCount = 7;
@@ -153,13 +153,13 @@ void DiameterConfigHandler::handleValueChange(int delta) {
 // Deleted as per request.
 
 // =========================
-// PhaseOffsetConfigHandler 实现
+// AppConfigPhaseOffset 实现
 // =========================
 
 #include "../modular/encoder.h"
 #include "../config.h"
 
-void PhaseOffsetConfigHandler::initializeMode() {
+void AppConfigPhaseOffset::initializeMode() {
   // 从 Encoder 读取当前生效的偏移值作为编辑起点
   editingOffset = Encoder::getInstance()->getPhaseOffset();
   encoderAccumulator = 0;
@@ -168,7 +168,7 @@ void PhaseOffsetConfigHandler::initializeMode() {
   refreshDisplay();
 }
 
-void PhaseOffsetConfigHandler::update(uint32_t currentMs, bool btnPressed) {
+void AppConfigPhaseOffset::update(uint32_t currentMs, bool btnPressed) {
   // 旋钮输入：1:1 灵敏度
   int rawDelta = userInterface->getRawEncoderDelta();
   if (rawDelta != 0) {
@@ -198,19 +198,19 @@ void PhaseOffsetConfigHandler::update(uint32_t currentMs, bool btnPressed) {
   }
 }
 
-void PhaseOffsetConfigHandler::handleValueChange(int delta) {
+void AppConfigPhaseOffset::handleValueChange(int delta) {
   editingOffset = (editingOffset + delta + ENCODER_MAX_PHASE) % ENCODER_MAX_PHASE;
   refreshDisplay();
 }
 
-void PhaseOffsetConfigHandler::refreshDisplay() {
+void AppConfigPhaseOffset::refreshDisplay() {
   String body = "";
   body += "Offset: [" + String(editingOffset) + "]\n\n";
   body += "Rotate: adjust\n";
   // OLED显示已由 snapshot 统一托管
 }
 
-void DiameterConfigHandler::captureSnapshot(DisplaySnapshot& snapshot) {
+void AppConfigDiameter::captureSnapshot(DisplaySnapshot& snapshot) {
     snapshot.currentMode = MODE_CONFIG_DIAMETER;
     strcpy(snapshot.activePage, "config_outlets");
     
@@ -232,7 +232,7 @@ void DiameterConfigHandler::captureSnapshot(DisplaySnapshot& snapshot) {
     snapshot.data.outlet.cycleCount = 0;
 }
 
-void PhaseOffsetConfigHandler::captureSnapshot(DisplaySnapshot& snapshot) {
+void AppConfigPhaseOffset::captureSnapshot(DisplaySnapshot& snapshot) {
     snapshot.currentMode = MODE_CONFIG_PHASE_OFFSET;
     strcpy(snapshot.activePage, "config_phase_offset");
     

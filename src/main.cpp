@@ -12,11 +12,12 @@
 #include "user_interface/drv_mcgs/mcgs_display.h"
 #include "modular/encoder.h"
 #include "modular/sorter.h"
-#include "handlers/scanner_diagnostic_handler.h"
-#include "handlers/outlet_diagnostic_handler.h"
-#include "handlers/encoder_diagnostic_handler.h"
-#include "handlers/config_handler.h"
-#include "handlers/hmi_diagnostic_handler.h"
+#include "apps/app_scanner_diagnostic_handler.h"
+#include "apps/app_outlet_diagnostic_handler.h"
+#include "apps/app_encoder_diagnostic_handler.h"
+#include "apps/app_config_handler.h"
+#include "apps/app_hmi_diagnostic_handler.h"
+#include "apps/app_production.h"
 
 #include "user_interface/common/menu_config.h"
 #include "system/system_manager.h"
@@ -31,12 +32,13 @@ TraySystem* traySystem = TraySystem::getInstance();
 Sorter sorter;
 
 // 诊断处理器
-ScannerDiagnosticHandler scannerDiagnosticHandler;
-OutletDiagnosticHandler outletDiagnosticHandler;
-EncoderDiagnosticHandler encoderDiagnosticHandler;
-HMIDiagnosticHandler hmiDiagnosticHandler(UserInterface::getInstance());
-DiameterConfigHandler diameterConfigHandler(userInterface, &sorter);
-PhaseOffsetConfigHandler phaseOffsetConfigHandler(userInterface, &sorter);
+AppProduction appProduction;
+AppScannerDiag appScannerDiag;
+AppOutletDiag appOutletDiag;
+AppEncoderDiag appEncoderDiag;
+AppHmiDiag appHmiDiag(UserInterface::getInstance());
+AppConfigDiameter appConfigDiameter(userInterface, &sorter);
+AppConfigPhaseOffset appConfigPhaseOffset(userInterface, &sorter);
 
 int normalModeSubmode = 0;
 bool hasVersionInfoDisplayed = false;
@@ -153,12 +155,12 @@ void setupModules() {
     diameterScanner->initialize();
     
     // 初始化诊断处理器（注入 UI 引用）
-    outletDiagnosticHandler.initialize(userInterface);
-    encoderDiagnosticHandler.initialize(userInterface);
+    appOutletDiag.initialize(userInterface);
+    appEncoderDiag.initialize(userInterface);
     
     // 为诊断处理器绑定出口引用
     for (uint8_t i = 0; i < NUM_OUTLETS; i++) {
-        outletDiagnosticHandler.setOutlet(i, sorter.getOutlet(i));
+        appOutletDiag.setOutlet(i, sorter.getOutlet(i));
     }
 }
 
@@ -267,26 +269,18 @@ void vUITask(void* pvParameters) {
             handleModeChange(); // 强制模式状态检查
 
             // 处理工作模式逻辑 (主要由 Handler 更新显示)
-            if (activeHandler) {
-                activeHandler->update(currentMs, btnPressed);
+            if (activeApp) {
+                activeApp->update(currentMs, btnPressed);
                 
                 // 模式特定的附加补丁
                 if (currentMode == MODE_DIAGNOSE_OUTLET) {
                     if (delta != 0) {
-                        outletDiagnosticHandler.handleEncoderInput(delta);
+                        appOutletDiag.handleEncoderInput(delta);
                     }
                 }
             } else {
                 if (btnPressed || backPressed) {
                     handleReturnToMenu();
-                } else {
-                    switch (currentMode) {
-                        case MODE_NORMAL:
-                            if (delta != 0) normalModeSubmode = (normalModeSubmode + 1) % 2;
-                            break;
-                        default:
-                            break;
-                    }
                 }
             }
 
@@ -298,20 +292,10 @@ void vUITask(void* pvParameters) {
                 DisplaySnapshot snapshot;
                 snapshot.currentMode = currentMode;
                 
-                if (activeHandler) {
-                    activeHandler->captureSnapshot(snapshot);
+                if (activeApp) {
+                    activeApp->captureSnapshot(snapshot);
                 } else {
-                    if (currentMode == MODE_NORMAL) {
-                        strcpy(snapshot.activePage, "Dashboard");
-                        float speed = sorter.getConveyorSpeedPerSecond();
-                        snapshot.data.dashboard.sortingSpeedPerSecond = speed;
-                        snapshot.data.dashboard.sortingSpeedPerMinute = (int)(speed * 60.0f);
-                        snapshot.data.dashboard.sortingSpeedPerHour = (int)(speed * 3600.0f);
-                        snapshot.data.dashboard.identifiedCount = traySystem->getTotalIdentifiedItems();
-                        snapshot.data.dashboard.transportedTrayCount = traySystem->getTransportedTrayCount();
-                        snapshot.data.dashboard.latestDiameter = sorter.getLatestDiameter();
-                        snapshot.data.dashboard.latestScanCount = traySystem->getTrayScanCount(0);
-                    } else if (currentMode == MODE_VERSION_INFO) {
+                    if (currentMode == MODE_VERSION_INFO) {
                         strcpy(snapshot.activePage, "About");
                     }
                 }

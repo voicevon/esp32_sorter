@@ -8,9 +8,9 @@
 class UserInterface;
 class Sorter;
 
-#include "base_diagnostic_handler.h"
+#include "app_base_diagnostic_handler.h"
 
-class OutletDiagnosticHandler : public BaseDiagnosticHandler {
+class AppOutletDiag : public AppBase {
 private:
     Outlet* outlets[NUM_OUTLETS];
     
@@ -34,7 +34,7 @@ public:
     /**
      * 构造函数
      */
-    OutletDiagnosticHandler();
+    AppOutletDiag();
     
     /**
      * 初始化出口诊断模式

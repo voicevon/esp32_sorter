@@ -1,9 +1,9 @@
-#include "outlet_diagnostic_handler.h"
+#include "app_outlet_diagnostic_handler.h"
 #include "config.h"
 #include "../user_interface/common/display_types.h"
 
 
-OutletDiagnosticHandler::OutletDiagnosticHandler() : 
+AppOutletDiag::AppOutletDiag() : 
     modeStartTime(0), 
     lastOutletTime(0), 
     outletState(false), 
@@ -19,12 +19,12 @@ OutletDiagnosticHandler::OutletDiagnosticHandler() :
     }
 }
 
-void OutletDiagnosticHandler::begin() {
+void AppOutletDiag::begin() {
     Serial.println("[DIAGNOSTIC] Outlet Diagnostic Started");
     modeStartTime = 0; // Trigger initialization in update()
 }
 
-void OutletDiagnosticHandler::end() {
+void AppOutletDiag::end() {
     Serial.println("[DIAGNOSTIC] Outlet Diagnostic Ended");
     // Ensure all outlets are closed on exit
     for (int i = 0; i < NUM_OUTLETS; i++) {
@@ -35,7 +35,7 @@ void OutletDiagnosticHandler::end() {
     }
 }
 
-void OutletDiagnosticHandler::initialize(UserInterface* ui) {
+void AppOutletDiag::initialize(UserInterface* ui) {
     // 由于不同模式不会同时运行，这里不再重复初始化硬件资源
     // 出口电磁铁已在Sorter类的initialize方法中初始化
     
@@ -43,13 +43,13 @@ void OutletDiagnosticHandler::initialize(UserInterface* ui) {
     userInterface = ui;
 }
 
-void OutletDiagnosticHandler::setOutlet(uint8_t index, Outlet* outlet) {
+void AppOutletDiag::setOutlet(uint8_t index, Outlet* outlet) {
     if (index < NUM_OUTLETS) {
         outlets[index] = outlet;
     }
 }
 
-void OutletDiagnosticHandler::setSubMode(int mode) {
+void AppOutletDiag::setSubMode(int mode) {
     currentSubMode = mode;
     lastSubMode = -1; // 强制触发一次显示刷新
     cycleCount = 0;
@@ -65,7 +65,7 @@ void OutletDiagnosticHandler::setSubMode(int mode) {
     Serial.println("[DIAGNOSTIC] Outlet Mode explicitly set to: " + subModeName);
 }
 
-void OutletDiagnosticHandler::update(uint32_t currentMs, bool btnPressed) {
+void AppOutletDiag::update(uint32_t currentMs, bool btnPressed) {
     if (btnPressed) {
         handleReturnToMenu();
         return;
@@ -188,7 +188,7 @@ void OutletDiagnosticHandler::update(uint32_t currentMs, bool btnPressed) {
  * - 添加新子模式时，只需在switch语句中添加新case，设置合适的interval和testType
  * - 无需修改此函数即可支持新的子模式行为
  */
-void OutletDiagnosticHandler::processCycleOperation(uint32_t currentTime, uint32_t interval, const String& testType) {
+void AppOutletDiag::processCycleOperation(uint32_t currentTime, uint32_t interval, const String& testType) {
     // 检查是否达到状态切换时间间隔
     if (currentTime - lastOutletTime >= interval) {
         // 更新时间戳
@@ -214,7 +214,7 @@ void OutletDiagnosticHandler::processCycleOperation(uint32_t currentTime, uint32
     }
 }
 
-void OutletDiagnosticHandler::initializeDiagnosticMode(uint32_t currentTime) {
+void AppOutletDiag::initializeDiagnosticMode(uint32_t currentTime) {
     // 模式开始时初始化
     modeStartTime = currentTime;
     lastOutletTime = currentTime;
@@ -267,7 +267,7 @@ void OutletDiagnosticHandler::initializeDiagnosticMode(uint32_t currentTime) {
 }
 
 // 增加处理编码器输入的函数
-void OutletDiagnosticHandler::handleEncoderInput(int delta) {
+void AppOutletDiag::handleEncoderInput(int delta) {
     if (currentSubMode == 1) { // 仅在 Single Outlet Test 模式下生效
         if (delta != 0) {
             // 改变当前选中的出口，处理向下溢出和向上溢出的安全包裹
@@ -294,7 +294,7 @@ void OutletDiagnosticHandler::handleEncoderInput(int delta) {
     }
 }
 
-void OutletDiagnosticHandler::captureSnapshot(DisplaySnapshot& snapshot) {
+void AppOutletDiag::captureSnapshot(DisplaySnapshot& snapshot) {
     snapshot.currentMode = MODE_DIAGNOSE_OUTLET;
     strcpy(snapshot.activePage, "diag_outlets");
     

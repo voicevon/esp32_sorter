@@ -1,13 +1,13 @@
-#ifndef CONFIG_HANDLER_H
-#define CONFIG_HANDLER_H
+#ifndef APP_CONFIG_H
+#define APP_CONFIG_H
 
 #include "../user_interface/user_interface.h"
 #include "../modular/sorter.h"
-#include "base_diagnostic_handler.h"
+#include "app_base_diagnostic_handler.h"
 #include <EEPROM.h>
 
 // 配置处理基类
-class ConfigHandler : public BaseDiagnosticHandler {
+class AppConfig : public AppBase {
 protected:
   UserInterface* userInterface;
   Sorter* sorter;
@@ -16,10 +16,10 @@ protected:
   int currentSubMode;
   
 public:
-  ConfigHandler(UserInterface* ui, Sorter* s) : userInterface(ui), sorter(s), modeInitialized(false), currentSubMode(0) {}
-  virtual ~ConfigHandler() {}
+  AppConfig(UserInterface* ui, Sorter* s) : userInterface(ui), sorter(s), modeInitialized(false), currentSubMode(0) {}
+  virtual ~AppConfig() {}
   
-  // 初始化配置模式 (覆盖 BaseDiagnosticHandler)
+  // 初始化配置模式 (覆盖 AppBase)
   virtual void begin() override {
     modeInitialized = true;
     initializeMode();
@@ -43,7 +43,7 @@ protected:
 };
 
 // 直径配置处理类 (高级多状态交互版)
-class DiameterConfigHandler : public ConfigHandler {
+class AppConfigDiameter : public AppConfig {
 public:
   enum DiameterUIState {
       STATE_SELECTOR, // 列表滚动选择出口
@@ -52,11 +52,11 @@ public:
       STATE_EDIT_LENGTH // 修改长度级别 (ANY,S,M,L)
   };
 
-  DiameterConfigHandler(UserInterface* ui, Sorter* s) : ConfigHandler(ui, s), uiState(STATE_SELECTOR) {}
+  AppConfigDiameter(UserInterface* ui, Sorter* s) : AppConfig(ui, s), uiState(STATE_SELECTOR) {}
   
   // 重置状态
   void reset() {
-    ConfigHandler::reset();
+    AppConfig::reset();
     uiState = STATE_SELECTOR;
   }
 
@@ -73,13 +73,13 @@ protected:
 };
 
 // 编码器零位偏移配置处理类
-class PhaseOffsetConfigHandler : public ConfigHandler {
+class AppConfigPhaseOffset : public AppConfig {
 public:
-  PhaseOffsetConfigHandler(UserInterface* ui, Sorter* s)
-    : ConfigHandler(ui, s), editingOffset(0), encoderAccumulator(0) {}
+  AppConfigPhaseOffset(UserInterface* ui, Sorter* s)
+    : AppConfig(ui, s), editingOffset(0), encoderAccumulator(0) {}
 
   void reset() {
-    ConfigHandler::reset();
+    AppConfig::reset();
     encoderAccumulator = 0;
   }
 
@@ -96,4 +96,4 @@ protected:
 
 
 
-#endif // CONFIG_HANDLER_H
+#endif // APP_CONFIG_H

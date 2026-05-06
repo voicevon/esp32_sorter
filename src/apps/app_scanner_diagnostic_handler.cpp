@@ -1,9 +1,9 @@
-#include "scanner_diagnostic_handler.h"
+#include "app_scanner_diagnostic_handler.h"
 #include "../user_interface/drv_oled_rotary/oled.h"
 #include "../user_interface/common/display_types.h"
 
 
-ScannerDiagnosticHandler::ScannerDiagnosticHandler() : 
+AppScannerDiag::AppScannerDiag() : 
     userInterface(UserInterface::getInstance()),
     currentSubMode(0),
     lastSubMode(-1),
@@ -31,7 +31,7 @@ ScannerDiagnosticHandler::ScannerDiagnosticHandler() :
     lastIOStatus = "";
 }
 
-void ScannerDiagnosticHandler::displayRawDiameters() {
+void AppScannerDiag::displayRawDiameters() {
     // 串口输出 - 窗口式显示
     // 检查是否是第一次显示（通过 lastRawDiameters 是否全是 -1 判断，或者直接通过标题打印）
     bool isFirst = true;
@@ -69,7 +69,7 @@ void ScannerDiagnosticHandler::displayRawDiameters() {
 
 }
 
-void ScannerDiagnosticHandler::handleIOStatusCheck() {
+void AppScannerDiag::handleIOStatusCheck() {
     // 子模式0：IO状态检查
     // 调用底层DiameterScanner实例获取IO状态数组
     bool* ioStates = scanner->getIOStatusArray();
@@ -132,7 +132,7 @@ void ScannerDiagnosticHandler::handleIOStatusCheck() {
     }
 }
 
-void ScannerDiagnosticHandler::handleEncoderValues() {
+void AppScannerDiag::handleEncoderValues() {
     // 子模式1：记录并显示传感器上升沿和下降沿的编码器值
     bool* currentStates = scanner->getIOStatusArray();
     
@@ -314,7 +314,7 @@ void ScannerDiagnosticHandler::handleEncoderValues() {
     }
 }
 
-void ScannerDiagnosticHandler::handleRawDiameterDisplay() {
+void AppScannerDiag::handleRawDiameterDisplay() {
     // 子模式2：显示原始直径
     bool diametersChanged = false;
     int currentDiameters[4];
@@ -334,12 +334,12 @@ void ScannerDiagnosticHandler::handleRawDiameterDisplay() {
     }
 }
 
-void ScannerDiagnosticHandler::handleWaveformDisplay() {
+void AppScannerDiag::handleWaveformDisplay() {
     // 总是实时刷新波形
     // OLED显示已由 snapshot 统一托管
 }
 
-void ScannerDiagnosticHandler::begin() {
+void AppScannerDiag::begin() {
     lastIOStatus = "";
     isFirstRun = true;
     // 不再重置 currentSubMode，以保留从菜单传进来的设置
@@ -353,7 +353,7 @@ void ScannerDiagnosticHandler::begin() {
     }
 }
 
-void ScannerDiagnosticHandler::update(uint32_t currentTime, bool btnPressed) {
+void AppScannerDiag::update(uint32_t currentTime, bool btnPressed) {
     if (btnPressed) {
         handleReturnToMenu();
         return;
@@ -377,7 +377,7 @@ void ScannerDiagnosticHandler::update(uint32_t currentTime, bool btnPressed) {
     }
 }
 
-void ScannerDiagnosticHandler::switchToNextSubMode() {
+void AppScannerDiag::switchToNextSubMode() {
     // 切换子模式（0 -> 1 -> 2 -> 3 -> 0）
     currentSubMode = (currentSubMode + 1) % 4;
     
@@ -391,7 +391,7 @@ void ScannerDiagnosticHandler::switchToNextSubMode() {
     }
 }
 
-void ScannerDiagnosticHandler::setSubMode(int mode) {
+void AppScannerDiag::setSubMode(int mode) {
     if (mode >= 0 && mode < 4) {
         currentSubMode = mode;
         if (currentSubMode == 0) {
@@ -404,11 +404,11 @@ void ScannerDiagnosticHandler::setSubMode(int mode) {
     }
 }
 
-int ScannerDiagnosticHandler::getCurrentSubMode() const {
+int AppScannerDiag::getCurrentSubMode() const {
     return currentSubMode;
 }
 
-void ScannerDiagnosticHandler::captureSnapshot(DisplaySnapshot& snapshot) {
+void AppScannerDiag::captureSnapshot(DisplaySnapshot& snapshot) {
     snapshot.currentMode = MODE_DIAGNOSE_SCANNER;
     strcpy(snapshot.activePage, "diag_laser");
     

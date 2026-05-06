@@ -1,30 +1,30 @@
-#include "encoder_diagnostic_handler.h"
+#include "app_encoder_diagnostic_handler.h"
 #include "../modular/encoder.h"
 #include "../user_interface/common/display_types.h"
 
 
-EncoderDiagnosticHandler::EncoderDiagnosticHandler() {
+AppEncoderDiag::AppEncoderDiag() {
     encoder = Encoder::getInstance();
     currentSubMode = 0;
     subModeInitialized = false;
     userInterface = nullptr;
 }
 
-void EncoderDiagnosticHandler::begin() {
+void AppEncoderDiag::begin() {
     Serial.println("[DIAGNOSTIC] Encoder Diagnostic Started");
     subModeInitialized = false;
     lastUIDisplayTime = 0;
 }
 
-void EncoderDiagnosticHandler::end() {
+void AppEncoderDiag::end() {
     Serial.println("[DIAGNOSTIC] Encoder Diagnostic Ended");
 }
 
-void EncoderDiagnosticHandler::initialize(UserInterface* ui) {
+void AppEncoderDiag::initialize(UserInterface* ui) {
     userInterface = ui;
 }
 
-void EncoderDiagnosticHandler::update(uint32_t currentMs, bool btnPressed) {
+void AppEncoderDiag::update(uint32_t currentMs, bool btnPressed) {
     if (btnPressed) {
         if (currentSubMode == 2) {
             handleReturnToMenu();
@@ -51,12 +51,12 @@ void EncoderDiagnosticHandler::update(uint32_t currentMs, bool btnPressed) {
     }
 }
 
-void EncoderDiagnosticHandler::switchToNextSubMode() {
+void AppEncoderDiag::switchToNextSubMode() {
     currentSubMode = (currentSubMode + 1) % 3;
     Serial.println("[DIAGNOSTIC] Encoder Submode: " + String(currentSubMode));
 }
 
-void EncoderDiagnosticHandler::captureSnapshot(DisplaySnapshot& snapshot) {
+void AppEncoderDiag::captureSnapshot(DisplaySnapshot& snapshot) {
     snapshot.currentMode = MODE_DIAGNOSE_ENCODER;
     strcpy(snapshot.activePage, "diag_encoder");
     

@@ -1,5 +1,5 @@
-#ifndef BASE_DIAGNOSTIC_HANDLER_H
-#define BASE_DIAGNOSTIC_HANDLER_H
+#ifndef APP_BASE_H
+#define APP_BASE_H
 
 #include <Arduino.h>
 
@@ -9,24 +9,24 @@ extern void handleReturnToMenu();
 struct DisplaySnapshot;
 
 /**
- * @brief 诊断处理器基类 
+ * @brief 应用程序基类 
  * 提供统一的生命周期管理接口：开始、更新、结束
  */
-class BaseDiagnosticHandler {
+class AppBase {
 public:
-    virtual ~BaseDiagnosticHandler() {}
+    virtual ~AppBase() {}
 
-    // 进入诊断模式时的初始化逻辑
+    // 进入应用时的初始化逻辑
     virtual void begin() {}
 
     // 定期更新接口，主逻辑
     virtual void update(uint32_t currentTime, bool btnPressed) = 0;
 
-    // 退出诊断模式时的清理逻辑
+    // 退出应用时的清理逻辑
     virtual void end() {}
 
     // 核心快照采集接口，各业务处理器将其数据组装进 DisplaySnapshot 中
     virtual void captureSnapshot(DisplaySnapshot& snapshot) {}
 };
 
-#endif // BASE_DIAGNOSTIC_HANDLER_H
+#endif // APP_BASE_H

@@ -1,16 +1,23 @@
 #include "system_manager.h"
 #include "../config.h"
 #include "modular/sorter.h"
-#include "handlers/scanner_diagnostic_handler.h"
-#include "handlers/outlet_diagnostic_handler.h"
-#include "handlers/encoder_diagnostic_handler.h"
-#include "handlers/config_handler.h"
-#include "handlers/hmi_diagnostic_handler.h"
-#include "handlers/base_diagnostic_handler.h"
+#include "apps/app_scanner_diagnostic_handler.h"
+#include "apps/app_outlet_diagnostic_handler.h"
+#include "apps/app_encoder_diagnostic_handler.h"
+#include "apps/app_config_handler.h"
+#include "apps/app_hmi_diagnostic_handler.h"
+#include "apps/app_base_diagnostic_handler.h"
+#include "apps/app_production.h"
 #include <EEPROM.h>
 
 // 前向声明
 String getSystemModeName(SystemMode mode);
+
+// 外部引用（由 main.cpp 或其他模块定义）
+extern class AppProduction appProduction;
+extern Sorter sorter;
+extern class AppConfigDiameter appConfigDiameter;
+extern class AppConfigPhaseOffset appConfigPhaseOffset;
 
 // 全局变量定义
 SystemMode currentMode = MODE_NORMAL;
@@ -18,16 +25,11 @@ SystemMode pendingMode = MODE_NORMAL;
 bool modeChangePending = false;
 unsigned long systemBootCount = 0;
 String firmwareVersion = "ver: 2601";
-BaseDiagnosticHandler* activeHandler = nullptr;
-
-// 外部引用（由 main.cpp 或其他模块定义）
-extern Sorter sorter;
-extern DiameterConfigHandler diameterConfigHandler;
-extern PhaseOffsetConfigHandler phaseOffsetConfigHandler;
-extern ScannerDiagnosticHandler scannerDiagnosticHandler;
-extern OutletDiagnosticHandler outletDiagnosticHandler;
-extern EncoderDiagnosticHandler encoderDiagnosticHandler;
-extern HMIDiagnosticHandler hmiDiagnosticHandler;
+AppBase* activeApp = &appProduction;
+extern class AppScannerDiag appScannerDiag;
+extern class AppOutletDiag appOutletDiag;
+extern class AppEncoderDiag appEncoderDiag;
+extern class AppHmiDiag appHmiDiag;
 extern bool hasVersionInfoDisplayed;
 
 void switchToMode(SystemMode mode) {
@@ -50,43 +52,46 @@ void handleModeChange() {
     currentMode = pendingMode;
     modeChangePending = false;
     
-    // 重置并设置新的 activeHandler
-    if (activeHandler) activeHandler->end();
-    activeHandler = nullptr;
+    // 重置并设置新的 activeApp
+    if (activeApp) activeApp->end();
+    activeApp = nullptr;
 
     switch (currentMode) {
+        case MODE_NORMAL:
+            activeApp = &appProduction;
+            break;
         case MODE_DIAGNOSE_ENCODER:
-            activeHandler = &encoderDiagnosticHandler;
+            activeApp = &appEncoderDiag;
             break;
         case MODE_DIAGNOSE_SCANNER:
-            activeHandler = &scannerDiagnosticHandler;
+            activeApp = &appScannerDiag;
             break;
         case MODE_DIAGNOSE_OUTLET:
-            activeHandler = &outletDiagnosticHandler;
+            activeApp = &appOutletDiag;
             break;
         case MODE_DIAGNOSE_HMI:
-            activeHandler = &hmiDiagnosticHandler;
+            activeApp = &appHmiDiag;
             break;
         case MODE_CONFIG_DIAMETER:
-            activeHandler = &diameterConfigHandler;
+            activeApp = &appConfigDiameter;
             break;
         case MODE_CONFIG_PHASE_OFFSET:
-            activeHandler = &phaseOffsetConfigHandler;
+            activeApp = &appConfigPhaseOffset;
             break;
         default:
-            activeHandler = nullptr;
+            activeApp = nullptr;
             break;
     }
 
-    if (activeHandler) {
-        activeHandler->begin();
+    if (activeApp) {
+        activeApp->begin();
     }
     
     if (oldMode == MODE_CONFIG_DIAMETER && currentMode != MODE_CONFIG_DIAMETER) {
-        diameterConfigHandler.reset();
+        appConfigDiameter.reset();
     }
     if (oldMode == MODE_CONFIG_PHASE_OFFSET && currentMode != MODE_CONFIG_PHASE_OFFSET) {
-        phaseOffsetConfigHandler.reset();
+        appConfigPhaseOffset.reset();
     }
     
     Serial.print("[DIAGNOSTIC] Mode switched to: ");

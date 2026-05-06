@@ -1,13 +1,13 @@
-#ifndef HMI_DIAGNOSTIC_HANDLER_H
-#define HMI_DIAGNOSTIC_HANDLER_H
+#ifndef APP_HMI_DIAG_H
+#define APP_HMI_DIAG_H
 
-#include "base_diagnostic_handler.h"
+#include "app_base_diagnostic_handler.h"
 #include "../user_interface/user_interface.h"
 #include "../user_interface/common/display_types.h"
 #include "../user_interface/drv_oled_rotary/RotaryInputSource.h"
 
 
-class HMIDiagnosticHandler : public BaseDiagnosticHandler {
+class AppHmiDiag : public AppBase {
 private:
     UserInterface* userInterface;
     long totalRawPulses;
@@ -16,7 +16,7 @@ private:
     int currentPulses;
     
 public:
-    HMIDiagnosticHandler(UserInterface* ui) : 
+    AppHmiDiag(UserInterface* ui) : 
         userInterface(ui), totalRawPulses(0), totalLogicalUnits(0), lastDisplayTime(0), currentPulses(0) {}
     
     void begin() override {
@@ -65,4 +65,4 @@ public:
     }
 };
 
-#endif
+#endif // APP_HMI_DIAG_H

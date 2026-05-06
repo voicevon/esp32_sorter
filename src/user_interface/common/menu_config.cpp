@@ -1,11 +1,11 @@
 #include "menu_config.h"
 #include "system/system_manager.h"
-#include "handlers/outlet_diagnostic_handler.h"
-#include "handlers/hmi_diagnostic_handler.h"
-#include "handlers/config_handler.h"
-#include "handlers/scanner_diagnostic_handler.h"
+#include "apps/app_outlet_diagnostic_handler.h"
+#include "apps/app_hmi_diagnostic_handler.h"
+#include "apps/app_config_handler.h"
+#include "apps/app_scanner_diagnostic_handler.h"
 
-extern PhaseOffsetConfigHandler phaseOffsetConfigHandler;
+extern class AppConfigPhaseOffset appConfigPhaseOffset;
 
 // 全局变量定义
 MenuSystem menuSystem(5);
@@ -21,9 +21,9 @@ MenuNode hardwareScannerMenu("Laser Scanner", &hardwareDiagMenu);
 MenuNode hardwareOutletMenu("Divert Outlet", &hardwareDiagMenu);
 
 // 外部引用
-extern ScannerDiagnosticHandler scannerDiagnosticHandler;
-extern OutletDiagnosticHandler outletDiagnosticHandler;
-extern HMIDiagnosticHandler hmiDiagnosticHandler;
+extern class AppScannerDiag appScannerDiag;
+extern class AppOutletDiag appOutletDiag;
+extern class AppHmiDiag appHmiDiag;
 
 void setupMenuTree() {
     menuSystem.setSensitivity(1); 
@@ -51,30 +51,30 @@ void setupMenuTree() {
 
     // 2.1 扫描仪诊断
     hardwareScannerMenu.addItem(MenuItem("IO Status", MENU_TYPE_ACTION, nullptr, [](){
-        scannerDiagnosticHandler.setSubMode(0);
+        appScannerDiag.setSubMode(0);
         switchToMode(MODE_DIAGNOSE_SCANNER);
     }));
     hardwareScannerMenu.addItem(MenuItem("Encoder Edge", MENU_TYPE_ACTION, nullptr, [](){
-        scannerDiagnosticHandler.setSubMode(1);
+        appScannerDiag.setSubMode(1);
         switchToMode(MODE_DIAGNOSE_SCANNER);
     }));
     hardwareScannerMenu.addItem(MenuItem("Waveform+Raw", MENU_TYPE_ACTION, nullptr, [](){
-        scannerDiagnosticHandler.setSubMode(2); // The new combined mode will be submode 2
+        appScannerDiag.setSubMode(2); // The new combined mode will be submode 2
         switchToMode(MODE_DIAGNOSE_SCANNER);
     }));
     hardwareScannerMenu.addItem(MenuItem("< Back", MENU_TYPE_BACK));
 
     // 2.2 出口动作诊断
     hardwareOutletMenu.addItem(MenuItem("Cycle Drop (NC)", MENU_TYPE_ACTION, nullptr, [](){
-        outletDiagnosticHandler.setSubMode(0);
+        appOutletDiag.setSubMode(0);
         switchToMode(MODE_DIAGNOSE_OUTLET);
     }));
     hardwareOutletMenu.addItem(MenuItem("Single Test", MENU_TYPE_ACTION, nullptr, [](){
-        outletDiagnosticHandler.setSubMode(1);
+        appOutletDiag.setSubMode(1);
         switchToMode(MODE_DIAGNOSE_OUTLET);
     }));
     hardwareOutletMenu.addItem(MenuItem("Lifetime Test", MENU_TYPE_ACTION, nullptr, [](){
-        outletDiagnosticHandler.setSubMode(2);
+        appOutletDiag.setSubMode(2);
         switchToMode(MODE_DIAGNOSE_OUTLET);
     }));
     hardwareOutletMenu.addItem(MenuItem("< Back", MENU_TYPE_BACK));
