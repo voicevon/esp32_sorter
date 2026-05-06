@@ -31,7 +31,7 @@ void AppProduction::end() {
 }
 
 void AppProduction::captureSnapshot(DisplaySnapshot& snapshot) {
-    snapshot.currentMode = MODE_NORMAL;
+    snapshot.currentMode = APP_PRODUCTION;
     strcpy(snapshot.activePage, "Dashboard");
     
     float speed = sorter.getConveyorSpeedPerSecond();

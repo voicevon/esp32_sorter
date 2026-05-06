@@ -156,14 +156,14 @@ void McgsDisplay::refresh(const DisplaySnapshot& snapshot) {
     _modbus.asyncWrite(_slaveId, HMI_REG_SYS_MODE, (uint16_t)snapshot.currentMode, nullptr);
 
     // 2. 根据不同模式更新对应的寄存器
-    if (snapshot.currentMode == MODE_NORMAL) {
+    if (snapshot.currentMode == APP_PRODUCTION) {
         pushProductionData(
             (uint16_t)snapshot.data.dashboard.latestDiameter,
             (uint16_t)snapshot.data.dashboard.sortingSpeedPerHour,
             0,
             (uint32_t)snapshot.data.dashboard.identifiedCount
         );
-    } else if (snapshot.currentMode == MODE_DIAGNOSE_ENCODER) {
+    } else if (snapshot.currentMode == APP_DIAG_ENCODER) {
         _modbus.asyncWrite(_slaveId, HMI_REG_DIAG_VAL1, (uint16_t)snapshot.data.encoder.raw, nullptr);
     }
 }

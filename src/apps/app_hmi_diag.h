@@ -52,7 +52,7 @@ public:
     }
 
     void captureSnapshot(DisplaySnapshot& snapshot) override {
-        snapshot.currentMode = MODE_DIAGNOSE_HMI;
+        snapshot.currentMode = APP_DIAG_HMI;
         strcpy(snapshot.activePage, "diag_hmi");
         
         snapshot.data.encoder.raw = totalRawPulses;

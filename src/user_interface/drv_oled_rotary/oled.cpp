@@ -57,15 +57,15 @@ void OLED::refresh(const DisplaySnapshot& snapshot) {
     display.setCursor(0, 12);
     
     switch (snapshot.currentMode) {
-        case MODE_NORMAL:
+        case APP_PRODUCTION:
             display.printf("Spd: %.1f/s\n", snapshot.data.dashboard.sortingSpeedPerSecond);
             display.printf("Ident: %d\n", snapshot.data.dashboard.identifiedCount);
             display.printf("Trays: %d\n", snapshot.data.dashboard.transportedTrayCount);
             display.printf("LastDia: %d mm\n", snapshot.data.dashboard.latestDiameter);
             break;
             
-        case MODE_DIAGNOSE_ENCODER:
-        case MODE_DIAGNOSE_HMI:
+        case APP_DIAG_ENCODER:
+        case APP_DIAG_HMI:
             display.printf("Raw: %d\n", snapshot.data.encoder.raw);
             display.printf("Logic: %d\n", snapshot.data.encoder.logic);
             display.printf("Z Correct: %d\n", snapshot.data.encoder.zeroCount);
@@ -73,7 +73,7 @@ void OLED::refresh(const DisplaySnapshot& snapshot) {
             display.printf("Offset: %d\n", snapshot.data.encoder.offset);
             break;
             
-        case MODE_DIAGNOSE_SCANNER:
+        case APP_DIAG_SCANNER:
             display.printf("Laser States: 0x%02X\n", snapshot.data.scanner.states);
             display.printf("Samples: %d\n\n", snapshot.data.scanner.sampleCount);
             for (int i = 0; i < 4; i++) {
@@ -88,8 +88,8 @@ void OLED::refresh(const DisplaySnapshot& snapshot) {
             }
             break;
             
-        case MODE_DIAGNOSE_OUTLET:
-        case MODE_CONFIG_DIAMETER:
+        case APP_DIAG_OUTLET:
+        case APP_CONFIG_DIAMETER:
             display.printf("Active Outlet: O%d\n", snapshot.data.outlet.activeOutletIndex + 1);
             display.printf("SubMode: %d\n", snapshot.data.outlet.subMode);
             display.printf("Cycles: %u\n", snapshot.data.outlet.cycleCount);

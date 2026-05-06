@@ -65,7 +65,7 @@ struct OutletDiagSnapshot {
  * @brief 全局显示快照顶级包装
  */
 struct DisplaySnapshot {
-    SystemMode currentMode;
+    AppType currentMode;
     char activePage[32];      // 当前激活的HMI页面名称 (如 "dashboard", "diag_encoder" 等，避免使用 String 产生非平凡析构导致 union 无法编译)
     
     union {

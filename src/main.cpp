@@ -218,7 +218,7 @@ void vControlTask(void* pvParameters) {
     for (;;) {
         // 分拣逻辑消费执行
         // 只有在 Normal 模式或特定的分拣诊断模式下才运行逻辑处理槽
-        if (currentMode == MODE_NORMAL || currentMode == MODE_DIAGNOSE_OUTLET || currentMode == MODE_DIAGNOSE_SCANNER) {
+        if (currentAppType == APP_PRODUCTION || currentAppType == APP_DIAG_OUTLET || currentAppType == APP_DIAG_SCANNER) {
             sorter.run();
         }
         
@@ -242,7 +242,7 @@ void vUITask(void* pvParameters) {
         
         // --- 核心同步：处理导航路径意图 (如来自从机切页) ---
         if (intent.action == UIAction::NAVIGATE_PATH) {
-            switchToMode((SystemMode)intent.value);
+            switchToAppType((AppType)intent.value);
         }
         
         uint32_t currentMs = millis();
@@ -266,14 +266,14 @@ void vUITask(void* pvParameters) {
                 userInterface->renderMenu(menuSystem.getCurrentNode(), menuSystem.getCursorIndex(), menuSystem.getScrollOffset());
             }
         } else {
-            handleModeChange(); // 强制模式状态检查
+            handleAppTypeChange(); // 强制应用程序状态检查
 
             // 处理工作模式逻辑 (主要由 Handler 更新显示)
             if (activeApp) {
                 activeApp->update(currentMs, btnPressed);
                 
                 // 模式特定的附加补丁
-                if (currentMode == MODE_DIAGNOSE_OUTLET) {
+                if (currentAppType == APP_DIAG_OUTLET) {
                     if (delta != 0) {
                         appOutletDiag.handleEncoderInput(delta);
                     }
@@ -290,12 +290,12 @@ void vUITask(void* pvParameters) {
 
                 // ── 渲染与刷新快照 (中央 Broker 广播机制) ──
                 DisplaySnapshot snapshot;
-                snapshot.currentMode = currentMode;
+                snapshot.currentMode = currentAppType;
                 
                 if (activeApp) {
                     activeApp->captureSnapshot(snapshot);
                 } else {
-                    if (currentMode == MODE_VERSION_INFO) {
+                    if (currentAppType == APP_VERSION_INFO) {
                         strcpy(snapshot.activePage, "About");
                     }
                 }
@@ -318,7 +318,7 @@ void loop() {
 }
 
 void handleReturnToMenu() {
-    switchToMode(MODE_NORMAL);
+    switchToAppType(APP_PRODUCTION);
     menuModeActive = true;
     hasVersionInfoDisplayed = false;
     

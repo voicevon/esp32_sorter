@@ -35,7 +35,7 @@ void Terminal::refresh(const DisplaySnapshot& snapshot) {
 
     Serial.printf("\n[TERMINAL DISPLAY] Mode: %d | Page: %s\n", snapshot.currentMode, snapshot.activePage);
     switch (snapshot.currentMode) {
-        case MODE_NORMAL:
+        case APP_PRODUCTION:
             Serial.printf("Dashboard: Speed=%.1f/s, %d/min, %d/h | Ident=%d, Trays=%d | Last=%d mm\n",
                 snapshot.data.dashboard.sortingSpeedPerSecond,
                 snapshot.data.dashboard.sortingSpeedPerMinute,
@@ -44,7 +44,7 @@ void Terminal::refresh(const DisplaySnapshot& snapshot) {
                 snapshot.data.dashboard.transportedTrayCount,
                 snapshot.data.dashboard.latestDiameter);
             break;
-        case MODE_DIAGNOSE_ENCODER:
+        case APP_DIAG_ENCODER:
             Serial.printf("Encoder: Raw=%d, Corrected=%d, Logic=%d | ZCorrect=%d, ZError=%d | Offset=%d\n",
                 snapshot.data.encoder.raw,
                 snapshot.data.encoder.corrected,
@@ -53,13 +53,13 @@ void Terminal::refresh(const DisplaySnapshot& snapshot) {
                 snapshot.data.encoder.zeroTotal,
                 snapshot.data.encoder.offset);
             break;
-        case MODE_DIAGNOSE_SCANNER:
+        case APP_DIAG_SCANNER:
             Serial.printf("Scanner: States=0x%02X | SampleCount=%d\n",
                 snapshot.data.scanner.states,
                 snapshot.data.scanner.sampleCount);
             break;
-        case MODE_DIAGNOSE_OUTLET:
-        case MODE_CONFIG_DIAMETER:
+        case APP_DIAG_OUTLET:
+        case APP_CONFIG_DIAMETER:
             Serial.printf("Outlets: ActiveOutlet=%d | SubMode=%d | Cycles=%d\n",
                 snapshot.data.outlet.activeOutletIndex,
                 snapshot.data.outlet.subMode,

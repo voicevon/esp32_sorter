@@ -409,7 +409,7 @@ int AppScannerDiag::getCurrentSubMode() const {
 }
 
 void AppScannerDiag::captureSnapshot(DisplaySnapshot& snapshot) {
-    snapshot.currentMode = MODE_DIAGNOSE_SCANNER;
+    snapshot.currentMode = APP_DIAG_SCANNER;
     strcpy(snapshot.activePage, "diag_laser");
     
     // 1. 实时挡光状态

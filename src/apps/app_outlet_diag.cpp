@@ -295,7 +295,7 @@ void AppOutletDiag::handleEncoderInput(int delta) {
 }
 
 void AppOutletDiag::captureSnapshot(DisplaySnapshot& snapshot) {
-    snapshot.currentMode = MODE_DIAGNOSE_OUTLET;
+    snapshot.currentMode = APP_DIAG_OUTLET;
     strcpy(snapshot.activePage, "diag_outlets");
     
     for (int i = 0; i < 8; i++) {

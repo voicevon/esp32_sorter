@@ -11,7 +11,7 @@
 #include <EEPROM.h>
 
 // 前向声明
-String getSystemModeName(SystemMode mode);
+String getAppTypeName(AppType appType);
 
 // 外部引用（由 main.cpp 或其他模块定义）
 extern class AppProduction appProduction;
@@ -20,9 +20,9 @@ extern class AppConfigDiameter appConfigDiameter;
 extern class AppConfigPhaseOffset appConfigPhaseOffset;
 
 // 全局变量定义
-SystemMode currentMode = MODE_NORMAL;
-SystemMode pendingMode = MODE_NORMAL;
-bool modeChangePending = false;
+AppType currentAppType = APP_PRODUCTION;
+AppType pendingAppType = APP_PRODUCTION;
+bool appTypeChangePending = false;
 unsigned long systemBootCount = 0;
 String firmwareVersion = "ver: 2601";
 AppBase* activeApp = &appProduction;
@@ -32,50 +32,50 @@ extern class AppEncoderDiag appEncoderDiag;
 extern class AppHmiDiag appHmiDiag;
 extern bool hasVersionInfoDisplayed;
 
-void switchToMode(SystemMode mode) {
-    pendingMode = mode;
-    modeChangePending = true;
+void switchToAppType(AppType appType) {
+    pendingAppType = appType;
+    appTypeChangePending = true;
 }
 
-void handleModeChange() {
-    if (!modeChangePending) return;
+void handleAppTypeChange() {
+    if (!appTypeChangePending) return;
 
-    if (currentMode == MODE_DIAGNOSE_SCANNER) {
+    if (currentAppType == APP_DIAG_SCANNER) {
         Serial.println("[DIAGNOSTIC] 已禁用扫描边缘校准模式");
     }
     
-    if (currentMode == MODE_CONFIG_DIAMETER) {
+    if (currentAppType == APP_CONFIG_DIAMETER) {
         sorter.saveConfig();
     }
     
-    SystemMode oldMode = currentMode;
-    currentMode = pendingMode;
-    modeChangePending = false;
+    AppType oldAppType = currentAppType;
+    currentAppType = pendingAppType;
+    appTypeChangePending = false;
     
     // 重置并设置新的 activeApp
     if (activeApp) activeApp->end();
     activeApp = nullptr;
 
-    switch (currentMode) {
-        case MODE_NORMAL:
+    switch (currentAppType) {
+        case APP_PRODUCTION:
             activeApp = &appProduction;
             break;
-        case MODE_DIAGNOSE_ENCODER:
+        case APP_DIAG_ENCODER:
             activeApp = &appEncoderDiag;
             break;
-        case MODE_DIAGNOSE_SCANNER:
+        case APP_DIAG_SCANNER:
             activeApp = &appScannerDiag;
             break;
-        case MODE_DIAGNOSE_OUTLET:
+        case APP_DIAG_OUTLET:
             activeApp = &appOutletDiag;
             break;
-        case MODE_DIAGNOSE_HMI:
+        case APP_DIAG_HMI:
             activeApp = &appHmiDiag;
             break;
-        case MODE_CONFIG_DIAMETER:
+        case APP_CONFIG_DIAMETER:
             activeApp = &appConfigDiameter;
             break;
-        case MODE_CONFIG_PHASE_OFFSET:
+        case APP_CONFIG_PHASE_OFFSET:
             activeApp = &appConfigPhaseOffset;
             break;
         default:
@@ -87,27 +87,27 @@ void handleModeChange() {
         activeApp->begin();
     }
     
-    if (oldMode == MODE_CONFIG_DIAMETER && currentMode != MODE_CONFIG_DIAMETER) {
+    if (oldAppType == APP_CONFIG_DIAMETER && currentAppType != APP_CONFIG_DIAMETER) {
         appConfigDiameter.reset();
     }
-    if (oldMode == MODE_CONFIG_PHASE_OFFSET && currentMode != MODE_CONFIG_PHASE_OFFSET) {
+    if (oldAppType == APP_CONFIG_PHASE_OFFSET && currentAppType != APP_CONFIG_PHASE_OFFSET) {
         appConfigPhaseOffset.reset();
     }
     
-    Serial.print("[DIAGNOSTIC] Mode switched to: ");
-    Serial.println(getSystemModeName(currentMode));
+    Serial.print("[DIAGNOSTIC] App type switched to: ");
+    Serial.println(getAppTypeName(currentAppType));
 }
 
-String getSystemModeName(SystemMode mode) {
-    switch (mode) {
-        case MODE_NORMAL: return "Normal Mode";
-        case MODE_DIAGNOSE_ENCODER: return "Encoder Diag";
-        case MODE_DIAGNOSE_SCANNER: return "Scanner Diag";
-        case MODE_DIAGNOSE_OUTLET: return "Outlet Diag";
-        case MODE_VERSION_INFO: return "Version Info";
-        case MODE_CONFIG_DIAMETER: return "Config Diameter";
-        case MODE_DIAGNOSE_HMI: return "HMI Encoder Diag";
-        case MODE_CONFIG_PHASE_OFFSET: return "Config Phase Offset";
+String getAppTypeName(AppType appType) {
+    switch (appType) {
+        case APP_PRODUCTION: return "Normal Mode";
+        case APP_DIAG_ENCODER: return "Encoder Diag";
+        case APP_DIAG_SCANNER: return "Scanner Diag";
+        case APP_DIAG_OUTLET: return "Outlet Diag";
+        case APP_VERSION_INFO: return "Version Info";
+        case APP_CONFIG_DIAMETER: return "Config Diameter";
+        case APP_DIAG_HMI: return "HMI Encoder Diag";
+        case APP_CONFIG_PHASE_OFFSET: return "Config Phase Offset";
         default: return "Unknown Mode";
     }
 }

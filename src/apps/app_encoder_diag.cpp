@@ -57,7 +57,7 @@ void AppEncoderDiag::switchToNextSubMode() {
 }
 
 void AppEncoderDiag::captureSnapshot(DisplaySnapshot& snapshot) {
-    snapshot.currentMode = MODE_DIAGNOSE_ENCODER;
+    snapshot.currentMode = APP_DIAG_ENCODER;
     strcpy(snapshot.activePage, "diag_encoder");
     
     snapshot.data.encoder.raw = encoder->getRawCount();

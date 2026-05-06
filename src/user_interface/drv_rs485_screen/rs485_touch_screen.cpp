@@ -71,7 +71,7 @@ void Rs485TouchScreen::refresh(const DisplaySnapshot& snapshot) {
     String jsonStr;
     bool hasData = false;
 
-    if (_slavePage == "dashboard" && snapshot.currentMode == MODE_NORMAL) {
+    if (_slavePage == "dashboard" && snapshot.currentMode == APP_PRODUCTION) {
         StaticJsonDocument<512> doc;
         doc["page"] = "dashboard";
         JsonObject data = doc.createNestedObject("data");
@@ -84,7 +84,7 @@ void Rs485TouchScreen::refresh(const DisplaySnapshot& snapshot) {
         serializeJson(doc, jsonStr);
         hasData = true;
     } 
-    else if (_slavePage == "diag_encoder" && (snapshot.currentMode == MODE_DIAGNOSE_ENCODER || snapshot.currentMode == MODE_DIAGNOSE_HMI || snapshot.currentMode == MODE_CONFIG_PHASE_OFFSET)) {
+    else if (_slavePage == "diag_encoder" && (snapshot.currentMode == APP_DIAG_ENCODER || snapshot.currentMode == APP_DIAG_HMI || snapshot.currentMode == APP_CONFIG_PHASE_OFFSET)) {
         StaticJsonDocument<512> doc;
         doc["page"] = "diag_encoder";
         JsonObject data = doc.createNestedObject("data");
@@ -106,7 +106,7 @@ void Rs485TouchScreen::refresh(const DisplaySnapshot& snapshot) {
         serializeJson(doc, jsonStr);
         hasData = true;
     } 
-    else if ((_slavePage == "diag_outlets" || _slavePage == "config_outlets") && (snapshot.currentMode == MODE_DIAGNOSE_OUTLET || snapshot.currentMode == MODE_CONFIG_DIAMETER)) {
+    else if ((_slavePage == "diag_outlets" || _slavePage == "config_outlets") && (snapshot.currentMode == APP_DIAG_OUTLET || snapshot.currentMode == APP_CONFIG_DIAMETER)) {
         StaticJsonDocument<1024> doc;
         doc["page"] = _slavePage;
         JsonArray data = doc.createNestedArray("data");
@@ -122,7 +122,7 @@ void Rs485TouchScreen::refresh(const DisplaySnapshot& snapshot) {
         serializeJson(doc, jsonStr);
         hasData = true;
     } 
-    else if (_slavePage == "diag_laser" && snapshot.currentMode == MODE_DIAGNOSE_SCANNER) {
+    else if (_slavePage == "diag_laser" && snapshot.currentMode == APP_DIAG_SCANNER) {
         StaticJsonDocument<1536> doc;
         doc["page"] = "diag_laser";
         JsonObject data = doc.createNestedObject("data");
@@ -268,12 +268,12 @@ void Rs485TouchScreen::processLine(const String& line) {
             
             // Map page string to SystemMode enum value
             int targetMode = -1;
-            if (newPage == "dashboard") targetMode = 0; // MODE_NORMAL
-            else if (newPage == "diag_encoder") targetMode = 1; // MODE_DIAGNOSE_ENCODER
-            else if (newPage == "diag_laser") targetMode = 2; // MODE_DIAGNOSE_SCANNER
-            else if (newPage == "diag_outlets") targetMode = 3; // MODE_DIAGNOSE_OUTLET
-            else if (newPage == "config_outlets") targetMode = 4; // MODE_CONFIG_DIAMETER
-            else if (newPage == "about") targetMode = 5; // MODE_VERSION_INFO
+            if (newPage == "dashboard") targetMode = 0; // APP_PRODUCTION
+            else if (newPage == "diag_encoder") targetMode = 1; // APP_DIAG_ENCODER
+            else if (newPage == "diag_laser") targetMode = 2; // APP_DIAG_SCANNER
+            else if (newPage == "diag_outlets") targetMode = 3; // APP_DIAG_OUTLET
+            else if (newPage == "config_outlets") targetMode = 4; // APP_CONFIG_DIAMETER
+            else if (newPage == "about") targetMode = 5; // APP_VERSION_INFO
             
             if (targetMode != -1) {
                 _intentQueue.push(UIIntent(UIAction::NAVIGATE_PATH, targetMode));

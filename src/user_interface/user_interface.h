@@ -13,8 +13,8 @@ class Terminal;
 class MenuNode;
 // #include "display_data.h"已移除，不再需要
 
-// 系统工作模式前向声明
-enum SystemMode;
+// 应用程序类型前向声明
+enum AppType;
 
 // 输出渠道枚举
 enum OutputChannel {

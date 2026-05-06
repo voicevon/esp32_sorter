@@ -211,7 +211,7 @@ void AppConfigPhaseOffset::refreshDisplay() {
 }
 
 void AppConfigDiameter::captureSnapshot(DisplaySnapshot& snapshot) {
-    snapshot.currentMode = MODE_CONFIG_DIAMETER;
+    snapshot.currentMode = APP_CONFIG_DIAMETER;
     strcpy(snapshot.activePage, "config_outlets");
     
     for (int i = 0; i < 8; i++) {
@@ -233,7 +233,7 @@ void AppConfigDiameter::captureSnapshot(DisplaySnapshot& snapshot) {
 }
 
 void AppConfigPhaseOffset::captureSnapshot(DisplaySnapshot& snapshot) {
-    snapshot.currentMode = MODE_CONFIG_PHASE_OFFSET;
+    snapshot.currentMode = APP_CONFIG_PHASE_OFFSET;
     strcpy(snapshot.activePage, "config_phase_offset");
     
     snapshot.data.encoder.raw = Encoder::getInstance()->getRawCount();

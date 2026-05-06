@@ -5,8 +5,8 @@
 #include "../../main.h"
 #include "../common/display.h"  // 包含Display抽象基类头文件
 
-// 系统工作模式前向声明
-enum SystemMode;
+// 应用程序类型前向声明
+enum AppType;
 
 /**
  * @class Terminal
@@ -44,7 +44,7 @@ private:
   const String STYLE_NOTIFICATION = "";  // 去掉转义
   
   // 存储上一次显示的数据，用于检测变化
-  SystemMode previousDisplayedMode;  // 上一次显示的模式
+  AppType previousDisplayedAppType;  // 上一次显示的应用程序类型
   int previousEncoderPosition;  // 上一次编码器位置
   float previousSortingSpeedPerSecond;  // 上一次显示的每秒速度
   int previousSortingSpeedPerMinute;  // 上一次显示的每分钟速度
