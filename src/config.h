@@ -10,10 +10,12 @@ constexpr const char* SYSTEM_NAME = "ESP32 Sorter";
 constexpr const char* FIRMWARE_VERSION = "2.0.0";
 
 // ==========================================
-// HMI Configuration (Factory Mode)
+// HMI Configuration (Coexistence Mode)
 // ==========================================
-// 0: NONE, 1: TERMINAL, 2: OLED_ROTARY, 3: MCGS, 4: LVGL_TOUCHSCREEN
-#define CURRENT_HMI_TYPE 4  // 切换为自研 LVGL RS485 触摸屏模式
+#define ENABLE_HMI_TERMINAL     0  // 0: OFF, 1: ON
+#define ENABLE_HMI_OLED_ROTARY  1  // 0: OFF, 1: ON (OLED Display + Rotary Knob)
+#define ENABLE_HMI_MCGS         0  // 0: OFF, 1: ON (MCGS Modbus Screen)
+#define ENABLE_HMI_RS485        1  // 0: OFF, 1: ON (Self-developed LVGL RS485 Screen)
 
 
 // ==========================================

@@ -59,14 +59,18 @@ void setupHmi() {
     userInterface->clearAllDisplayDevices();
     userInterface->clearAllInputSources();
 
-    #if CURRENT_HMI_TYPE == 1 // TERMINAL
+    bool anyHmi = false;
+
+    #if ENABLE_HMI_TERMINAL
         Terminal* term = Terminal::getInstance();
         term->initialize();
         userInterface->addDisplayDevice(term);
         userInterface->enableOutputChannel(OUTPUT_SERIAL);
-        Serial.println("[BOOT] HMI: TERMINAL");
+        Serial.println("[BOOT] HMI: TERMINAL Enabled");
+        anyHmi = true;
+    #endif
 
-    #elif CURRENT_HMI_TYPE == 2 // OLED_ROTARY
+    #if ENABLE_HMI_OLED_ROTARY
         OLED* oled = OLED::getInstance();
         oled->initialize();
         userInterface->addDisplayDevice(oled);
@@ -76,25 +80,37 @@ void setupHmi() {
         userInterface->addInputSource(rotary);
         
         userInterface->enableOutputChannel(OUTPUT_OLED);
-        Serial.println("[BOOT] HMI: OLED_ROTARY");
+        Serial.println("[BOOT] HMI: OLED_ROTARY Enabled");
+        anyHmi = true;
+    #endif
 
-    #elif CURRENT_HMI_TYPE == 3 // MCGS
+    #if ENABLE_HMI_MCGS
         static McgsDisplay mcgs;
         mcgs.initialize();
         userInterface->addDisplayDevice(&mcgs);
         userInterface->addInputSource(&mcgs);
-        Serial.println("[BOOT] HMI: MCGS");
+        Serial.println("[BOOT] HMI: MCGS Enabled");
+        anyHmi = true;
+    #endif
 
-    #elif CURRENT_HMI_TYPE == 4 // LVGL_TOUCHSCREEN
+    #if ENABLE_HMI_RS485
+        Serial.println("[BOOT] HMI: >> Initializing RS485_TOUCHSCREEN HMI...");
         Rs485TouchScreen* hmiScreen = Rs485TouchScreen::getInstance();
         hmiScreen->initialize();
-        userInterface->addDisplayDevice(hmiScreen);
-        userInterface->addInputSource(hmiScreen);
-        Serial.println("[BOOT] HMI: RS485_TOUCHSCREEN");
         
-    #else
-        Serial.println("[BOOT] HMI: NONE");
+        Serial.println("[BOOT] HMI: >> Injecting RS485_TOUCHSCREEN as Display Device...");
+        userInterface->addDisplayDevice(hmiScreen);
+        
+        Serial.println("[BOOT] HMI: >> Injecting RS485_TOUCHSCREEN as Input Source...");
+        userInterface->addInputSource(hmiScreen);
+        
+        Serial.println("[BOOT] HMI: RS485_TOUCHSCREEN successfully initialized and injected.");
+        anyHmi = true;
     #endif
+
+    if (!anyHmi) {
+        Serial.println("[BOOT] HMI: NONE");
+    }
 
     userInterface->initialize(); // 初始化 UI 逻辑状态
 }

@@ -12,6 +12,8 @@ OLED* OLED::getInstance() {
 }
 
 void OLED::initialize() {
+    Serial.printf("[OLED] Initializing Wire on SDA=%d, SCL=%d...\n", PIN_OLED_SDA, PIN_OLED_SCL);
+    Wire.begin(PIN_OLED_SDA, PIN_OLED_SCL);
     if (display.begin(SSD1306_SWITCHCAPVCC, OLED_I2C_ADDRESS)) {
         isDisplayAvailable = true;
         display.clearDisplay();
@@ -20,9 +22,10 @@ void OLED::initialize() {
         display.setCursor(0, 0);
         display.println("OLED Init Success");
         display.display();
+        Serial.println("[OLED] SSD1306 Init SUCCESS");
     } else {
         isDisplayAvailable = false;
-        Serial.println("OLED Init Failed");
+        Serial.println("[OLED] SSD1306 Init FAILED!");
     }
 }
 

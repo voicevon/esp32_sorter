@@ -12,14 +12,19 @@ Rs485TouchScreen* Rs485TouchScreen::getInstance() {
     return &instance;
 }
 
-Rs485TouchScreen::Rs485TouchScreen() : _serial(&Serial2), _state(STATE_IDLE), _txTimestamp(0) {}
+Rs485TouchScreen::Rs485TouchScreen() : _serial(&Serial2), _state(STATE_IDLE), _txTimestamp(0), _slavePage("dashboard") {}
 
 void Rs485TouchScreen::initialize() {
+    Serial.println("[Rs485TouchScreen] >> Initializing RS485 HMI Touch Screen driver...");
+    Serial.printf("[Rs485TouchScreen] Pin Config -> RX Pin: %d, TX Pin: %d, EN Pin: %d, Baudrate: %d\n", 
+                  PIN_HMI_485_RX, PIN_HMI_485_TX, PIN_HMI_485_EN, HMI_MODBUS_BAUD);
+    
     pinMode(PIN_HMI_485_EN, OUTPUT);
-    digitalWrite(PIN_HMI_485_EN, LOW); // Receive mode
+    digitalWrite(PIN_HMI_485_EN, LOW); // Set to RX mode by default
     _serial->begin(HMI_MODBUS_BAUD, SERIAL_8N2, PIN_HMI_485_RX, PIN_HMI_485_TX);
     _rxBuffer.reserve(512);
-    Serial.println("[Rs485TouchScreen] Initialized on Serial2");
+    
+    Serial.println("[Rs485TouchScreen] Serial2 initialized as SERIAL_8N2. Driver ready.");
 }
 
 uint8_t Rs485TouchScreen::calculateCRC8(const char* data, size_t len) {
@@ -59,7 +64,7 @@ void Rs485TouchScreen::sendPayload(const String& jsonStr) {
     _rxBuffer = ""; // clear buffer for ack
 
     // Log the outgoing payload for debugging
-    Serial.printf("[Rs485TouchScreen] >> TX: %s", outStr.c_str());
+    // Serial.printf("[Rs485TouchScreen] >> TX RAW: %s", outStr.c_str());
 }
 
 void Rs485TouchScreen::refresh(const DisplaySnapshot& snapshot) {
@@ -150,36 +155,53 @@ void Rs485TouchScreen::refresh(const DisplaySnapshot& snapshot) {
             _txQueue.pop(); // Drop oldest to avoid memory leaks
         }
         _txQueue.push(jsonStr);
+        
+        static uint32_t lastPushLogMs = 0;
+        if (millis() - lastPushLogMs >= 2000) {
+            lastPushLogMs = millis();
+            Serial.printf("[Rs485TouchScreen] Snapshot pushed to TX queue (Page: %s, Queue Size: %d)\n", _slavePage.c_str(), _txQueue.size());
+        }
     }
 }
 
 void Rs485TouchScreen::tick() {
-    if (_state == STATE_WAITING_ACK) {
-        if (millis() - _txTimestamp > 300) { // 300ms timeout
-            Serial.println("[Rs485TouchScreen] RX Timeout (No response from slave)");
-            _state = STATE_IDLE;
+    // 1. 始终轮询串口接收缓存，防止在 STATE_IDLE 时丢包或遗漏触摸屏的主动上报事件
+    while (_serial->available()) {
+        char c = _serial->read();
+        if (c == '\n') {
+            // Serial.printf("[Rs485TouchScreen] << RX Complete Line (length: %d), processing...\n", _rxBuffer.length());
+            processLine(_rxBuffer);
             _rxBuffer = "";
+            _state = STATE_IDLE; // 收到完整帧后重置为空闲，允许发送下一帧
         } else {
-            while (_serial->available()) {
-                char c = _serial->read();
-                if (c == '\n') {
-                    processLine(_rxBuffer);
-                    _rxBuffer = "";
-                    _state = STATE_IDLE; // Received complete frame, go back to IDLE
-                    break; // Process one line per tick is enough
-                } else {
-                    _rxBuffer += c;
-                    if (_rxBuffer.length() > 1024) {
-                        _rxBuffer = "";
-                    }
-                }
+            _rxBuffer += c;
+            if (_rxBuffer.length() > 1024) {
+                Serial.println("[Rs485TouchScreen] WARNING: RX Buffer overflow (>1024), clearing!");
+                _rxBuffer = "";
             }
         }
     }
 
+    // 2. 发送超时检测（仅在等待 ACK 状态下有效）
+    if (_state == STATE_WAITING_ACK) {
+        if (millis() - _txTimestamp > 300) { // 300ms 超时
+            Serial.printf("[Rs485TouchScreen] RX Timeout! No response from slave on page [%s] for >300ms\n", _slavePage.c_str());
+            _state = STATE_IDLE;
+            _rxBuffer = "";
+        }
+    }
+
+    // 3. 驱动队列发送
     if (_state == STATE_IDLE && !_txQueue.empty()) {
         String nextPayload = _txQueue.front();
         _txQueue.pop();
+        
+        static uint32_t lastTxLogMs = 0;
+        if (millis() - lastTxLogMs >= 2000) {
+            lastTxLogMs = millis();
+            Serial.printf("[Rs485TouchScreen] Driving queue send (Queue remaining: %d, State: STATE_IDLE)\n", _txQueue.size());
+        }
+        
         sendPayload(nextPayload);
     }
 }
@@ -217,8 +239,7 @@ void Rs485TouchScreen::processLine(const String& line) {
     StaticJsonDocument<1024> doc;
     DeserializationError error = deserializeJson(doc, jsonStr);
     if (error) {
-        Serial.print(F("[Rs485TouchScreen] deserializeJson() failed: "));
-        Serial.println(error.f_str());
+        Serial.printf("[Rs485TouchScreen] deserializeJson() failed: %s, Raw JsonStr: %s\n", error.c_str(), jsonStr.c_str());
         return;
     }
 
