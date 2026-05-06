@@ -8,6 +8,7 @@
 #include "apps/app_hmi_diag.h"
 #include "apps/app_base.h"
 #include "apps/app_production.h"
+#include "apps/app_about.h"
 #include <EEPROM.h>
 
 // 前向声明
@@ -18,6 +19,7 @@ extern class AppProduction appProduction;
 extern Sorter sorter;
 extern class AppConfigDiameter appConfigDiameter;
 extern class AppConfigPhaseOffset appConfigPhaseOffset;
+extern AppAbout appAbout;
 
 // 全局变量定义
 AppType currentAppType = APP_PRODUCTION;
@@ -77,6 +79,9 @@ void handleAppTypeChange() {
             break;
         case APP_CONFIG_PHASE_OFFSET:
             activeApp = &appConfigPhaseOffset;
+            break;
+        case APP_VERSION_INFO:
+            activeApp = &appAbout;
             break;
         default:
             activeApp = nullptr;

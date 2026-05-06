@@ -18,6 +18,7 @@
 #include "apps/app_config.h"
 #include "apps/app_hmi_diag.h"
 #include "apps/app_production.h"
+#include "apps/app_about.h"
 
 #include "user_interface/common/menu_config.h"
 #include "system/system_manager.h"
@@ -39,6 +40,7 @@ AppEncoderDiag appEncoderDiag;
 AppHmiDiag appHmiDiag(UserInterface::getInstance());
 AppConfigDiameter appConfigDiameter(userInterface, &sorter);
 AppConfigPhaseOffset appConfigPhaseOffset(userInterface, &sorter);
+AppAbout appAbout;
 
 int normalModeSubmode = 0;
 bool hasVersionInfoDisplayed = false;
@@ -278,10 +280,6 @@ void vUITask(void* pvParameters) {
                         appOutletDiag.handleEncoderInput(delta);
                     }
                 }
-            } else {
-                if (btnPressed || backPressed) {
-                    handleReturnToMenu();
-                }
             }
 
             static uint32_t lastSnapshotMs = 0;
@@ -294,10 +292,6 @@ void vUITask(void* pvParameters) {
                 
                 if (activeApp) {
                     activeApp->captureSnapshot(snapshot);
-                } else {
-                    if (currentAppType == APP_VERSION_INFO) {
-                        strcpy(snapshot.activePage, "About");
-                    }
                 }
                 userInterface->refreshAllDevices(snapshot);
             }
