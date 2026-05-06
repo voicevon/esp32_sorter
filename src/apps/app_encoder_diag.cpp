@@ -1,4 +1,4 @@
-#include "app_encoder_diagnostic_handler.h"
+#include "app_encoder_diag.h"
 #include "../modular/encoder.h"
 #include "../user_interface/common/display_types.h"
 

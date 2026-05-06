@@ -8,7 +8,7 @@
 class UserInterface;
 class Sorter;
 
-#include "app_base_diagnostic_handler.h"
+#include "app_base.h"
 
 class AppOutletDiag : public AppBase {
 private:

@@ -1,4 +1,4 @@
-#include "app_outlet_diagnostic_handler.h"
+#include "app_outlet_diag.h"
 #include "config.h"
 #include "../user_interface/common/display_types.h"
 

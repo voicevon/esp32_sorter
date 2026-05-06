@@ -1,4 +1,4 @@
-#include "app_config_handler.h"
+#include "app_config.h"
 #include "../user_interface/common/display_types.h"
 
 

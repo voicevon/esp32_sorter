@@ -1,12 +1,12 @@
 #include "system_manager.h"
 #include "../config.h"
 #include "modular/sorter.h"
-#include "apps/app_scanner_diagnostic_handler.h"
-#include "apps/app_outlet_diagnostic_handler.h"
-#include "apps/app_encoder_diagnostic_handler.h"
-#include "apps/app_config_handler.h"
-#include "apps/app_hmi_diagnostic_handler.h"
-#include "apps/app_base_diagnostic_handler.h"
+#include "apps/app_scanner_diag.h"
+#include "apps/app_outlet_diag.h"
+#include "apps/app_encoder_diag.h"
+#include "apps/app_config.h"
+#include "apps/app_hmi_diag.h"
+#include "apps/app_base.h"
 #include "apps/app_production.h"
 #include <EEPROM.h>
 

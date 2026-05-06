@@ -1,4 +1,4 @@
-#include "app_scanner_diagnostic_handler.h"
+#include "app_scanner_diag.h"
 #include "../user_interface/drv_oled_rotary/oled.h"
 #include "../user_interface/common/display_types.h"
 

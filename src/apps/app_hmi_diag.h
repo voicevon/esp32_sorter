@@ -1,7 +1,7 @@
 #ifndef APP_HMI_DIAG_H
 #define APP_HMI_DIAG_H
 
-#include "app_base_diagnostic_handler.h"
+#include "app_base.h"
 #include "../user_interface/user_interface.h"
 #include "../user_interface/common/display_types.h"
 #include "../user_interface/drv_oled_rotary/RotaryInputSource.h"

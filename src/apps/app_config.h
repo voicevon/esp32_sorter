@@ -3,7 +3,7 @@
 
 #include "../user_interface/user_interface.h"
 #include "../modular/sorter.h"
-#include "app_base_diagnostic_handler.h"
+#include "app_base.h"
 #include <EEPROM.h>
 
 // 配置处理基类

@@ -4,7 +4,7 @@
 #include "../main.h"
 #include "../user_interface/user_interface.h"
 #include "../modular/encoder.h"
-#include "app_base_diagnostic_handler.h"
+#include "app_base.h"
 
 class AppScannerDiag : public AppBase {
 private:

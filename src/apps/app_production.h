@@ -1,7 +1,7 @@
 #ifndef APP_PRODUCTION_H
 #define APP_PRODUCTION_H
 
-#include "app_base_diagnostic_handler.h"
+#include "app_base.h"
 #include "../user_interface/common/display_types.h"
 
 class AppProduction : public AppBase {

@@ -1,9 +1,9 @@
 #include "menu_config.h"
 #include "system/system_manager.h"
-#include "apps/app_outlet_diagnostic_handler.h"
-#include "apps/app_hmi_diagnostic_handler.h"
-#include "apps/app_config_handler.h"
-#include "apps/app_scanner_diagnostic_handler.h"
+#include "apps/app_outlet_diag.h"
+#include "apps/app_hmi_diag.h"
+#include "apps/app_config.h"
+#include "apps/app_scanner_diag.h"
 
 extern class AppConfigPhaseOffset appConfigPhaseOffset;
 
