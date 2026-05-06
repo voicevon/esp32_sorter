@@ -18,9 +18,6 @@ extern BaseDiagnosticHandler* activeHandler;
 // 切换模式辅助
 void switchToMode(SystemMode mode);
 
-// 处理返回主菜单
-void handleReturnToMenu();
-
 // 处理模式切换
 void handleModeChange();
 

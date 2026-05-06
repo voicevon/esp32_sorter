@@ -77,168 +77,18 @@ void UserInterface::addInputSource(InputSource* source) {
     ui->inputSources[ui->inputSourceCount++] = source;
 }
 
-// 更新显示内容 - 已移除，改用功能专用方法
-
-// 显示模式变化信息
-void UserInterface::displayModeChange(SystemMode newMode) {
-    // 遍历所有显示设备
+void UserInterface::refreshAllDevices(const DisplaySnapshot& snapshot) {
     for (int i = 0; i < displayDeviceCount; i++) {
-        displayDevices[i]->displayModeChange(newMode);
+        displayDevices[i]->refresh(snapshot);
     }
 }
 
-// 显示出口状态变化
-void UserInterface::displayOutletStatus(uint8_t outletIndex, bool isOpen) {
-    // 遍历所有显示设备
-    for (int i = 0; i < displayDeviceCount; i++) {
-        displayDevices[i]->displayOutletStatus(outletIndex, isOpen);
-    }
-}
-
-void UserInterface::displayDiagnosticInfo(const String& title, const String& info) {
-    // 遍历所有显示设备
-    for (int i = 0; i < displayDeviceCount; i++) {
-        displayDevices[i]->displayDiagnosticInfo(title, info);
-    }
-}
-
-// 显示配置详情（带针对长度选择的反色显示）
-void UserInterface::displayConfigEdit(const String& title, int maxV, int minV, uint8_t targetMode, int activeField) {
-    // 遍历所有显示设备
-    for (int i = 0; i < displayDeviceCount; i++) {
-        displayDevices[i]->displayConfigEdit(title, maxV, minV, targetMode, activeField);
-    }
-}
-
-// 显示出口测试模式图形
-void UserInterface::displayOutletTestGraphic(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen, int subMode) {
-    // 遍历所有显示设备
-    for (int i = 0; i < displayDeviceCount; i++) {
-        displayDevices[i]->displayOutletTestGraphic(outletCount, selectedOutlet, isOpen, subMode);
-    }
-}
-
-// 专门用于寿命测试的显示方法
-void UserInterface::displayOutletLifetimeGraphic(uint8_t outletCount, uint32_t cycleCount, bool outletState, int subMode) {
-    // 遍历所有显示设备
-    for (int i = 0; i < displayDeviceCount; i++) {
-        // 调用寿命测试专用的显示方法，直接传递完整的循环次数
-        displayDevices[i]->displayOutletLifetimeTestGraphic(outletCount, cycleCount, outletState, subMode);
-    }
-}
-
-// 显示扫描仪编码器值 - 诊断模式不建议使用统一速率限制，以便观察快速变化
-void UserInterface::displayScannerEncoderValues(const int* risingValues, const int* fallingValues) {
-    // 直接遍历所有显示设备并更新
-    for (int i = 0; i < displayDeviceCount; i++) {
-        displayDevices[i]->displayScannerEncoderValues(risingValues, fallingValues);
-    }
-}
-
-// 显示系统仪表盘 - 仅在强制刷新（如相位触发）时更新，移除定时刷新以保持界面稳定
-void UserInterface::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, int latestLengthLevel, bool forceRefresh) {
-    if (forceRefresh) {
-        // 遍历所有显示设备
-        for (int i = 0; i < displayDeviceCount; i++) {
-            displayDevices[i]->displayDashboard(sortingSpeedPerSecond, sortingSpeedPerMinute, sortingSpeedPerHour, identifiedCount, transportedTrayCount, latestDiameter, latestScanCount, latestLengthLevel);
-        }
-        updateLastUpdateTime();
-    }
-}
-
-// 显示直径信息 - 仅在测量结束触发时更新
-void UserInterface::displayDiameter(int latestDiameter, bool forceRefresh) {
-    if (forceRefresh) {
-        // 遍历所有显示设备
-        for (int i = 0; i < displayDeviceCount; i++) {
-            displayDevices[i]->displayNormalModeDiameter(latestDiameter);
-        }
-        updateLastUpdateTime();
-    }
-}
-
-// 显示正常模式直径信息（兼容旧接口）
-void UserInterface::displayNormalModeDiameter(int latestDiameter, bool forceRefresh) {
-    // 调用新的功能专用方法
-    displayDiameter(latestDiameter, forceRefresh);
-}
-
-// 代理菜单渲染
 void UserInterface::renderMenu(MenuNode* node, int cursorIndex, int scrollOffset) {
-    // 遍历所有显示设备
     for (int i = 0; i < displayDeviceCount; i++) {
         displayDevices[i]->renderMenu(node, cursorIndex, scrollOffset);
     }
 }
 
-// 通用显示方法实现
-void UserInterface::displaySpeedStats(int speedPerSecond, int speedPerMinute, int speedPerHour, int itemCount, int trayCount) {
-    // 检查是否可以更新显示
-    if (isUpdateReady()) {
-        // 遍历所有显示设备
-        for (int i = 0; i < displayDeviceCount; i++) {
-            displayDevices[i]->displaySpeedStats(speedPerSecond, speedPerMinute, speedPerHour, itemCount, trayCount);
-        }
-        
-        // 更新上次更新时间
-        updateLastUpdateTime();
-    }
-}
-
-void UserInterface::displaySingleValue(const String& label, int value, const String& unit) {
-    // 检查是否可以更新显示
-    if (isUpdateReady()) {
-        // 遍历所有显示设备
-        for (int i = 0; i < displayDeviceCount; i++) {
-            displayDevices[i]->displaySingleValue(label, value, unit);
-        }
-        
-        // 更新上次更新时间
-        updateLastUpdateTime();
-    }
-}
-
-void UserInterface::displayPositionInfo(const String& title, int position, bool showOnlyOnChange) {
-    // 检查是否可以更新显示
-    if (isUpdateReady() || showOnlyOnChange) {
-        // 遍历所有显示设备
-        for (int i = 0; i < displayDeviceCount; i++) {
-            displayDevices[i]->displayPositionInfo(title, position, showOnlyOnChange);
-        }
-        
-        // 更新上次更新时间
-        updateLastUpdateTime();
-    }
-}
-
-void UserInterface::displayDiagnosticValues(const String& title, const String& value1, const String& value2) {
-    // 遍历所有显示设备
-    for (int i = 0; i < displayDeviceCount; i++) {
-        displayDevices[i]->displayDiagnosticValues(title, value1, value2);
-    }
-}
-
-void UserInterface::displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3, const String& line4, const String& line5) {
-    // 遍历所有显示设备
-    for (int i = 0; i < displayDeviceCount; i++) {
-        displayDevices[i]->displayMultiLineText(title, line1, line2, line3, line4, line5);
-    }
-}
-
-// 更新的模式变化显示方法
-void UserInterface::displayModeChange(const String& newModeName) {
-    // 遍历所有显示设备
-    for (int i = 0; i < displayDeviceCount; i++) {
-        displayDevices[i]->displayModeChange(newModeName);
-    }
-}
-
-void UserInterface::resetDiagnosticMode() {
-    // 遍历所有显示设备
-    for (int i = 0; i < displayDeviceCount; i++) {
-        displayDevices[i]->resetDiagnosticMode();
-    }
-}
 
 // 检查显示器是否可用
 bool UserInterface::isDisplayAvailable() const {

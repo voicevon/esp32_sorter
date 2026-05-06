@@ -3,7 +3,9 @@
 
 #include "base_diagnostic_handler.h"
 #include "../user_interface/user_interface.h"
+#include "../user_interface/common/display_types.h"
 #include "../user_interface/drv_oled_rotary/RotaryInputSource.h"
+
 
 class HMIDiagnosticHandler : public BaseDiagnosticHandler {
 private:
@@ -45,15 +47,21 @@ public:
 
         if (currentTime - lastDisplayTime >= 100) {
             lastDisplayTime = currentTime;
-            
-            String line1 = ""; // Spacer
-            String line2 = "Raw Pol: " + String(totalRawPulses);
-            String line3 = "Log 1:4: " + String(totalRawPulses / 4);
-            String line4 = "Log 1:2: " + String(totalRawPulses / 2);
-            String line5 = "Errors:  " + String(hmi->getIllegalTransitionCount());
-            
-            userInterface->displayMultiLineText("HMI Encoder", line1, line2, line3, line4, line5);
+            // OLED显示已由 snapshot 统一托管
         }
+    }
+
+    void captureSnapshot(DisplaySnapshot& snapshot) override {
+        snapshot.currentMode = MODE_DIAGNOSE_HMI;
+        strcpy(snapshot.activePage, "diag_hmi");
+        
+        snapshot.data.encoder.raw = totalRawPulses;
+        snapshot.data.encoder.corrected = RotaryInputSource::getInstance()->getIllegalTransitionCount(); // abuse corrected for error transitions
+        snapshot.data.encoder.logic = totalRawPulses / 4;
+        snapshot.data.encoder.zeroCount = 0;
+        snapshot.data.encoder.zeroCorrect = 0;
+        snapshot.data.encoder.zeroTotal = 0;
+        snapshot.data.encoder.offset = 0;
     }
 };
 

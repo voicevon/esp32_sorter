@@ -69,6 +69,7 @@ protected:
   void refreshDisplay() override;
   // 覆盖按钮逻辑，实现状态跳转
   void update(uint32_t currentMs, bool btnPressed) override;
+  void captureSnapshot(DisplaySnapshot& snapshot) override;
 };
 
 // 编码器零位偏移配置处理类
@@ -90,7 +91,9 @@ protected:
   void handleValueChange(int delta) override;
   void refreshDisplay() override;
   void update(uint32_t currentMs, bool btnPressed) override;
+  void captureSnapshot(DisplaySnapshot& snapshot) override;
 };
+
 
 
 #endif // CONFIG_HANDLER_H

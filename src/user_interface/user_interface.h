@@ -4,6 +4,8 @@
 #include <Arduino.h>
 #include "common/input_source.h"
 #include "common/display.h"  // 包含Display抽象基类
+#include "common/display_types.h"
+
 
 // 前向声明，不需要包含具体实现的头文件
 class OLED;
@@ -82,44 +84,15 @@ public:
   // 添加输入源的静态方法
   static void addInputSource(InputSource* source);
     
-    // 显示相关方法 - updateDisplay已移除，改用功能专用方法
-    void displayModeChange(SystemMode newMode);
-    void displayOutletStatus(uint8_t outletIndex, bool isOpen);
-    void displayDiagnosticInfo(const String& title, const String& info);
-    
-    // 显示配置详情（带针对长度选择的反色显示）
-    void displayConfigEdit(const String& title, int maxV, int minV, uint8_t targetMode, int activeField);
-
-    // 显示出口测试模式图形
-    void displayOutletTestGraphic(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen, int subMode);
-    
-    // 专门用于寿命测试的显示方法 (更名以避免重载歧义)
-    void displayOutletLifetimeGraphic(uint8_t outletCount, uint32_t cycleCount, bool outletState, int subMode);
-    void displayScannerEncoderValues(const int* risingValues, const int* fallingValues);
-    
-    // 显示系统仪表盘
-    void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, int latestLengthLevel = 0, bool forceRefresh = false);
-    void displayNormalModeDiameter(int latestDiameter, bool forceRefresh = false);
+    // 核心快照刷新接口：广播至所有注册的显示器
+    void refreshAllDevices(const DisplaySnapshot& snapshot);
     
     // 统一菜单显示代理
     void renderMenu(MenuNode* node, int cursorIndex, int scrollOffset);
     
-    // 通用显示方法（替代旧的updateDisplay）
-  void displaySpeedStats(int speedPerSecond, int speedPerMinute, int speedPerHour, int itemCount, int trayCount);
-  void displayDiameter(int latestDiameter, bool forceRefresh = false);
-  void displaySingleValue(const String& label, int value, const String& unit);
-  void displayPositionInfo(const String& title, int position, bool showOnlyOnChange);
-  void displayDiagnosticValues(const String& title, const String& value1, const String& value2);
-  void displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3 = "", const String& line4 = "", const String& line5 = "");
-  
-
-    
-    // 更新的模式变化显示方法
-    void displayModeChange(const String& newModeName);
-    
-    void resetDiagnosticMode();
-    bool isDisplayAvailable() const;
     void clearDisplay(); // 新增：清理所有显示设备的屏幕
+    bool isDisplayAvailable() const; // 新增：检查显示器是否可用
+
     
     // 意图驱动的输入方法
     UIIntent getNextIntent();

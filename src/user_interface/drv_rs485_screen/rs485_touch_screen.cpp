@@ -62,24 +62,95 @@ void Rs485TouchScreen::sendPayload(const String& jsonStr) {
     Serial.printf("[Rs485TouchScreen] >> TX: %s", outStr.c_str());
 }
 
-void Rs485TouchScreen::displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, int latestLengthLevel) {
-    if (_state != STATE_IDLE) {
-        return; 
+void Rs485TouchScreen::refresh(const DisplaySnapshot& snapshot) {
+    String jsonStr;
+    bool hasData = false;
+
+    if (_slavePage == "dashboard" && snapshot.currentMode == MODE_NORMAL) {
+        StaticJsonDocument<512> doc;
+        doc["page"] = "dashboard";
+        JsonObject data = doc.createNestedObject("data");
+        data["frame_counter"] = _frameCounter++; 
+        data["speed"] = snapshot.data.dashboard.sortingSpeedPerSecond;
+        data["yield"] = snapshot.data.dashboard.identifiedCount;
+        data["capacity"] = snapshot.data.dashboard.sortingSpeedPerHour;
+        data["diameter"] = snapshot.data.dashboard.latestDiameter;
+
+        serializeJson(doc, jsonStr);
+        hasData = true;
+    } 
+    else if (_slavePage == "diag_encoder" && (snapshot.currentMode == MODE_DIAGNOSE_ENCODER || snapshot.currentMode == MODE_DIAGNOSE_HMI || snapshot.currentMode == MODE_CONFIG_PHASE_OFFSET)) {
+        StaticJsonDocument<512> doc;
+        doc["page"] = "diag_encoder";
+        JsonObject data = doc.createNestedObject("data");
+        
+        data["raw_val"]       = snapshot.data.encoder.raw;
+        data["corrected_val"] = snapshot.data.encoder.corrected;
+        data["logic_val"]     = snapshot.data.encoder.logic;
+        data["offset"]        = snapshot.data.encoder.offset;
+        data["zero_count"]    = snapshot.data.encoder.zeroCount;
+        data["zero_total"]    = snapshot.data.encoder.zeroTotal;
+        data["zero_correct"]  = snapshot.data.encoder.zeroCorrect;
+        
+        data["pulse_count"]   = snapshot.data.encoder.raw;
+        data["velocity"]      = (float)abs(snapshot.data.encoder.raw - _lastRawCount) * 10.0f;
+        data["status"]        = 1;
+        
+        _lastRawCount = snapshot.data.encoder.raw;
+        
+        serializeJson(doc, jsonStr);
+        hasData = true;
+    } 
+    else if ((_slavePage == "diag_outlets" || _slavePage == "config_outlets") && (snapshot.currentMode == MODE_DIAGNOSE_OUTLET || snapshot.currentMode == MODE_CONFIG_DIAMETER)) {
+        StaticJsonDocument<1024> doc;
+        doc["page"] = _slavePage;
+        JsonArray data = doc.createNestedArray("data");
+        for (int i = 0; i < NUM_OUTLETS; i++) {
+            JsonObject obj = data.createNestedObject();
+            obj["min"] = (float)snapshot.data.outlet.outlets[i].min;
+            obj["max"] = (float)snapshot.data.outlet.outlets[i].max;
+            obj["mask"] = (uint8_t)snapshot.data.outlet.outlets[i].mask;
+            if (_slavePage == "diag_outlets") {
+                obj["state"] = snapshot.data.outlet.outlets[i].isOpen ? 1 : 0;
+            }
+        }
+        serializeJson(doc, jsonStr);
+        hasData = true;
+    } 
+    else if (_slavePage == "diag_laser" && snapshot.currentMode == MODE_DIAGNOSE_SCANNER) {
+        StaticJsonDocument<1536> doc;
+        doc["page"] = "diag_laser";
+        JsonObject data = doc.createNestedObject("data");
+        
+        data["states"] = snapshot.data.scanner.states;
+        
+        const char* keys[] = {"history_p1", "history_p2", "history_p3", "history_p4"};
+        int samples = snapshot.data.scanner.sampleCount;
+        if (samples > 200) samples = 200;
+        int numBytes = (samples + 7) / 8;
+        
+        char* hexBuf = (char*)malloc(numBytes * 2 + 1); 
+        
+        for(int i=0; i<NUM_SCAN_POINTS; i++) {
+            memset(hexBuf, 0, numBytes * 2 + 1);
+            for(int j=0; j<numBytes; j++) {
+                uint8_t byteVal = snapshot.data.scanner.history[i][j];
+                sprintf(hexBuf + j*2, "%02X", byteVal);
+            }
+            data[keys[i]] = (const char*)hexBuf;
+        }
+        free(hexBuf);
+        
+        serializeJson(doc, jsonStr);
+        hasData = true;
     }
 
-    StaticJsonDocument<512> doc;
-    doc["page"] = "dashboard";
-    JsonObject data = doc.createNestedObject("data");
-    data["frame_counter"] = _frameCounter++; 
-    data["speed"] = sortingSpeedPerSecond;
-    data["yield"] = identifiedCount;
-    data["capacity"] = sortingSpeedPerHour;
-    data["diameter"] = latestDiameter;
-
-    String jsonStr;
-    serializeJson(doc, jsonStr);
-    
-    sendPayload(jsonStr);
+    if (hasData) {
+        while (_txQueue.size() >= 5) {
+            _txQueue.pop(); // Drop oldest to avoid memory leaks
+        }
+        _txQueue.push(jsonStr);
+    }
 }
 
 void Rs485TouchScreen::tick() {
@@ -88,36 +159,31 @@ void Rs485TouchScreen::tick() {
             Serial.println("[Rs485TouchScreen] RX Timeout (No response from slave)");
             _state = STATE_IDLE;
             _rxBuffer = "";
-            return;
-        }
-        
-        while (_serial->available()) {
-            char c = _serial->read();
-            if (c == '\n') {
-                processLine(_rxBuffer);
-                _rxBuffer = "";
-                _state = STATE_IDLE; // Received complete frame, go back to IDLE
-                
-                // --- 核心响应补丁：即刻反馈机制 ---
-                // 收到从机请求后，如果处于诊断或配置页面，立即推送最新数据
-                if (_slavePage == "diag_encoder") {
-                    displayDiagnosticValues("", "", ""); 
-                } else if (_slavePage == "diag_laser") {
-                    displayScannerEncoderValues(nullptr, nullptr);
-                } else if (_slavePage == "diag_outlets" || _slavePage == "config_outlets") {
-                    displayDiagnosticValues("", "", ""); 
-                }
-                
-                break; // Process one line per tick is enough
-            } else {
-                _rxBuffer += c;
-                if (_rxBuffer.length() > 1024) {
+        } else {
+            while (_serial->available()) {
+                char c = _serial->read();
+                if (c == '\n') {
+                    processLine(_rxBuffer);
                     _rxBuffer = "";
+                    _state = STATE_IDLE; // Received complete frame, go back to IDLE
+                    break; // Process one line per tick is enough
+                } else {
+                    _rxBuffer += c;
+                    if (_rxBuffer.length() > 1024) {
+                        _rxBuffer = "";
+                    }
                 }
             }
         }
     }
+
+    if (_state == STATE_IDLE && !_txQueue.empty()) {
+        String nextPayload = _txQueue.front();
+        _txQueue.pop();
+        sendPayload(nextPayload);
+    }
 }
+
 
 void Rs485TouchScreen::processLine(const String& line) {
     
@@ -236,105 +302,6 @@ void Rs485TouchScreen::processLine(const String& line) {
     }
 }
 
-void Rs485TouchScreen::displayDiagnosticValues(const String& title, const String& value1, const String& value2) {
-    if (_state != STATE_IDLE) return;
-    
-    // 如果从机在编码器页面，发送完整的编码器诊断 JSON
-    if (_slavePage == "diag_encoder") {
-        Encoder* enc = Encoder::getInstance();
-        
-        StaticJsonDocument<512> doc;
-        doc["page"] = "diag_encoder";
-        JsonObject data = doc.createNestedObject("data");
-        
-        data["raw_val"]       = enc->getRawCount();
-        data["corrected_val"] = enc->getZeroCrossRawCount(); // 上次 Z 信号触发时的值
-        data["logic_val"]     = enc->getCurrentPosition();
-        data["offset"]        = enc->getPhaseOffset();  // <-- 新增：推送当前零位偏移
-        data["zero_count"]    = enc->getZeroCrossCount();
-        data["zero_total"]    = enc->getZeroCrossCount() + enc->getForcedZeroCount();
-        data["zero_correct"]  = enc->getZeroCrossCount();
-        
-        data["pulse_count"]   = enc->getRawCount();
-        data["velocity"]      = (float)abs(enc->getRawCount() - _lastRawCount) * 10.0f; // 估算速度 (假设 100ms 频率)
-        data["status"]        = 1;
-        
-        _lastRawCount = enc->getRawCount();
-        
-        String jsonStr;
-        serializeJson(doc, jsonStr);
-        sendPayload(jsonStr);
-    } else if (_slavePage == "diag_outlets" || _slavePage == "config_outlets") {
-        StaticJsonDocument<1024> doc;
-        doc["page"] = _slavePage; // Echo back the requested page
-        JsonArray data = doc.createNestedArray("data");
-        for (int i = 0; i < NUM_OUTLETS; i++) {
-            JsonObject obj = data.createNestedObject();
-            obj["min"] = (float)sorter.getOutletMinDiameter(i);
-            obj["max"] = (float)sorter.getOutletMaxDiameter(i);
-            obj["mask"] = (uint8_t)sorter.getOutlet(i)->getTargetLength();
-            // 如果是诊断页，额外包含实时状态
-            if (_slavePage == "diag_outlets") {
-                obj["state"] = sorter.getOutlet(i)->isPositionOpen() ? 1 : 0;
-            }
-        }
-        String jsonStr;
-        serializeJson(doc, jsonStr);
-        sendPayload(jsonStr);
-    }
-}
-
-void Rs485TouchScreen::displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3, const String& line4, const String& line5) {
-    // 复用 displayDiagnosticValues 的逻辑，确保多行模式下也能同步编码器数据
-    displayDiagnosticValues(title, line1, line2);
-}
-
-void Rs485TouchScreen::displayScannerEncoderValues(const int* risingValues, const int* fallingValues) {
-    if (_state != STATE_IDLE) return;
-    
-    // 如果从机在激光扫描仪页面，发送完整的激光波形数据
-    if (_slavePage == "diag_laser") {
-        DiameterScanner* ds = DiameterScanner::getInstance();
-        StaticJsonDocument<1536> doc;
-        doc["page"] = "diag_laser";
-        JsonObject data = doc.createNestedObject("data");
-        
-        // 1. 当前电平状态位掩码 (Bit 0-NUM_SCAN_POINTS-1)
-        uint8_t states = 0;
-        for(int i=0; i<NUM_SCAN_POINTS; i++) {
-            if (digitalRead(PINS_SCANNER[i]) == HIGH) {
-                states |= (1 << i);
-            }
-        }
-        data["states"] = states;
-        
-        // 2. 5路历史数据 Hex 字符串 (200 bits = 25 bytes per channel)
-        const char* keys[] = {"history_p1", "history_p2", "history_p3", "history_p4"};
-        char hexBuf[51]; 
-        
-        for(int i=0; i<NUM_SCAN_POINTS; i++) {
-            memset(hexBuf, 0, sizeof(hexBuf));
-            for(int j=0; j<25; j++) {
-                uint8_t byteVal = 0;
-                for(int bit=0; bit<8; bit++) {
-                    int sampleIdx = j*8 + bit;
-                    // 如果采样数还不够，默认为 0
-                    if (sampleIdx < ds->getSampleCount()) {
-                        if (ds->getSample(i, sampleIdx) == 1) {
-                            byteVal |= (1 << (7 - bit));
-                        }
-                    }
-                }
-                sprintf(hexBuf + j*2, "%02X", byteVal);
-            }
-            data[keys[i]] = (const char*)hexBuf;
-        }
-        
-        String jsonStr;
-        serializeJson(doc, jsonStr);
-        sendPayload(jsonStr);
-    }
-}
 
 bool Rs485TouchScreen::hasIntent() {
     return !_intentQueue.empty();

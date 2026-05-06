@@ -1,7 +1,5 @@
 #include "system_manager.h"
-#include "menu_config.h"
 #include "../config.h"
-#include "user_interface/user_interface.h"
 #include "modular/sorter.h"
 #include "handlers/scanner_diagnostic_handler.h"
 #include "handlers/outlet_diagnostic_handler.h"
@@ -10,6 +8,9 @@
 #include "handlers/hmi_diagnostic_handler.h"
 #include "handlers/base_diagnostic_handler.h"
 #include <EEPROM.h>
+
+// 前向声明
+String getSystemModeName(SystemMode mode);
 
 // 全局变量定义
 SystemMode currentMode = MODE_NORMAL;
@@ -20,8 +21,6 @@ String firmwareVersion = "ver: 2601";
 BaseDiagnosticHandler* activeHandler = nullptr;
 
 // 外部引用（由 main.cpp 或其他模块定义）
-extern MenuSystem menuSystem;
-extern bool menuModeActive;
 extern Sorter sorter;
 extern DiameterConfigHandler diameterConfigHandler;
 extern PhaseOffsetConfigHandler phaseOffsetConfigHandler;
@@ -34,28 +33,12 @@ extern bool hasVersionInfoDisplayed;
 void switchToMode(SystemMode mode) {
     pendingMode = mode;
     modeChangePending = true;
-    menuModeActive = false;
-}
-
-void handleReturnToMenu() {
-    if (activeHandler) {
-        activeHandler->end();
-        activeHandler = nullptr;
-    }
-    menuModeActive = true;
-    hasVersionInfoDisplayed = false;
-    UserInterface::getInstance()->resetDiagnosticMode();
-    
-    Serial.println("[MENU] Returned to Main Menu");
-    UserInterface::getInstance()->clearDisplay();
-    UserInterface::getInstance()->renderMenu(menuSystem.getCurrentNode(), menuSystem.getCursorIndex(), menuSystem.getScrollOffset());
 }
 
 void handleModeChange() {
     if (!modeChangePending) return;
 
     if (currentMode == MODE_DIAGNOSE_SCANNER) {
-        UserInterface::getInstance()->resetDiagnosticMode();
         Serial.println("[DIAGNOSTIC] 已禁用扫描边缘校准模式");
     }
     
@@ -106,10 +89,22 @@ void handleModeChange() {
         phaseOffsetConfigHandler.reset();
     }
     
-    // 获取模式名称的逻辑移动到 mode_processors
-    extern String getSystemModeName(SystemMode mode);
     Serial.print("[DIAGNOSTIC] Mode switched to: ");
     Serial.println(getSystemModeName(currentMode));
+}
+
+String getSystemModeName(SystemMode mode) {
+    switch (mode) {
+        case MODE_NORMAL: return "Normal Mode";
+        case MODE_DIAGNOSE_ENCODER: return "Encoder Diag";
+        case MODE_DIAGNOSE_SCANNER: return "Scanner Diag";
+        case MODE_DIAGNOSE_OUTLET: return "Outlet Diag";
+        case MODE_VERSION_INFO: return "Version Info";
+        case MODE_CONFIG_DIAMETER: return "Config Diameter";
+        case MODE_DIAGNOSE_HMI: return "HMI Encoder Diag";
+        case MODE_CONFIG_PHASE_OFFSET: return "Config Phase Offset";
+        default: return "Unknown Mode";
+    }
 }
 
 void checkPowerLoss() {

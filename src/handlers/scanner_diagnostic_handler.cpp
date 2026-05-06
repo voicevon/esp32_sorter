@@ -1,5 +1,7 @@
 #include "scanner_diagnostic_handler.h"
 #include "../user_interface/drv_oled_rotary/oled.h"
+#include "../user_interface/common/display_types.h"
+
 
 ScannerDiagnosticHandler::ScannerDiagnosticHandler() : 
     userInterface(UserInterface::getInstance()),
@@ -63,12 +65,8 @@ void ScannerDiagnosticHandler::displayRawDiameters() {
         Serial.println("\033[44m\033[37m" + line + "\033[0m");
     }
     
-    // OLED显示
-    String line1 = "S1:" + String(scanner->getHighLevelPulseCount(0));
-    String line2 = "S2:" + String(scanner->getHighLevelPulseCount(1));
-    String line3 = "S3:" + String(scanner->getHighLevelPulseCount(2));
-    String line4 = "S4:" + String(scanner->getHighLevelPulseCount(3));
-    userInterface->displayMultiLineText("Scanner Puls", line1, line2, line3, line4);
+    // OLED显示已由 snapshot 统一托管
+
 }
 
 void ScannerDiagnosticHandler::handleIOStatusCheck() {
@@ -126,8 +124,8 @@ void ScannerDiagnosticHandler::handleIOStatusCheck() {
             Serial.println("\033[44m\033[37m" + countLine + "                      \033[0m");
         }
         
-        // OLED显示 - 无论是否有串口变化，如果是刚进入模式也需要刷新
-        userInterface->displayMultiLineText("Scanner IO Status", statusLine, countLine);
+        // OLED显示已由 snapshot 统一托管
+
         
         // 更新上一次状态
         lastIOStatus = combinedStatus;
@@ -311,8 +309,7 @@ void ScannerDiagnosticHandler::handleEncoderValues() {
                 line4 += maxFallingStr + " ";
             }
             
-            // 使用displayMultiLineText方法，显示所有四行数据
-            userInterface->displayMultiLineText(encoderInfo, line1, line2, line3, line4);
+            // OLED显示已由 snapshot 统一托管
         // }
     }
 }
@@ -339,10 +336,7 @@ void ScannerDiagnosticHandler::handleRawDiameterDisplay() {
 
 void ScannerDiagnosticHandler::handleWaveformDisplay() {
     // 总是实时刷新波形
-    OLED* oled = OLED::getInstance();
-    if (oled->isAvailable()) {
-        oled->displayScannerWaveform(scanner);
-    }
+    // OLED显示已由 snapshot 统一托管
 }
 
 void ScannerDiagnosticHandler::begin() {
@@ -378,7 +372,7 @@ void ScannerDiagnosticHandler::update(uint32_t currentTime, bool btnPressed) {
             break;
         case 3:
             // 退出提示界面
-            userInterface->displayDiagnosticInfo("Scanner Diag", "Status: Ready\nAction: EXIT\n\nClick to return...");
+            // OLED显示已由 snapshot 统一托管
             break;
     }
 }
@@ -413,3 +407,34 @@ void ScannerDiagnosticHandler::setSubMode(int mode) {
 int ScannerDiagnosticHandler::getCurrentSubMode() const {
     return currentSubMode;
 }
+
+void ScannerDiagnosticHandler::captureSnapshot(DisplaySnapshot& snapshot) {
+    snapshot.currentMode = MODE_DIAGNOSE_SCANNER;
+    strcpy(snapshot.activePage, "diag_laser");
+    
+    // 1. 实时挡光状态
+    bool* ioStates = scanner->getIOStatusArray();
+    uint8_t states = 0;
+    for (int i = 0; i < 4; i++) {
+        if (ioStates[i]) {
+            states |= (1 << i);
+        }
+    }
+    snapshot.data.scanner.states = states;
+    snapshot.data.scanner.sampleCount = scanner->getSampleCount();
+    
+    // 2. 拷贝历史波形
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 25; j++) {
+            uint8_t byteVal = 0;
+            for (int bit = 0; bit < 8; bit++) {
+                int sampleIdx = j * 8 + bit;
+                if (sampleIdx < snapshot.data.scanner.sampleCount && scanner->getSample(i, sampleIdx)) {
+                    byteVal |= (1 << (7 - bit));
+                }
+            }
+            snapshot.data.scanner.history[i][j] = byteVal;
+        }
+    }
+}
+

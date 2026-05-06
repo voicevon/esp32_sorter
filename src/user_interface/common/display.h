@@ -4,88 +4,32 @@
 #include <Arduino.h>
 #include "../../main.h"  // 相对路径
 #include "../../config.h"
-class MenuNode;
+#include "display_types.h"
 
-// 系统工作模式前向声明
-enum SystemMode;
+class MenuNode;
 
 /**
  * @class Display
  * @brief 显示设备抽象基类
- * 
- * 该类定义了所有显示设备必须实现的接口方法
- * OLED和Terminal类将继承自这个抽象基类
  */
 class Display {
 public:
-    // 虚析构函数，确保子类能够正确析构
     virtual ~Display() = default;
-    
-    // 渲染菜单系统
-    virtual void renderMenu(MenuNode* node, int cursorIndex, int scrollOffset) = 0;
     
     // 初始化显示设备
     virtual void initialize() = 0;
     
     // 检查显示设备是否可用
     virtual bool isAvailable() const = 0;
-    
-    // 显示模式变化信息（使用SystemMode枚举）
-    virtual void displayModeChange(SystemMode newMode) = 0;
-    
-    // 显示模式变化信息（使用字符串）
-    virtual void displayModeChange(const String& newModeName) = 0;
-    
-    // 显示出口状态变化
-    virtual void displayOutletStatus(uint8_t outletIndex, bool isOpen) = 0;
-    
-    // 显示诊断信息
-    virtual void displayDiagnosticInfo(const String& title, const String& info) = 0;
-    
-    // 显示出口测试模式图形
-    virtual void displayOutletTestGraphic(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen, int subMode) = 0;
-    
-    // 显示出口寿命测试专用图形
-    virtual void displayOutletLifetimeTestGraphic(uint8_t outletCount, uint32_t cycleCount, bool outletState, int subMode) = 0;
-    
-    // 显示扫描仪编码器值
-    virtual void displayScannerEncoderValues(const int* risingValues, const int* fallingValues) = 0;
-    /**
-     * 显示主仪表盘 (运行模式)
-     */
-    virtual void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, int latestLengthLevel = 0) = 0;
-    
-    // 显示直径信息（功能专用方法）
-    virtual void displayDiameter(int latestDiameter) = 0;
-    
-    // 显示正常模式直径信息（兼容旧方法）
-    virtual void displayNormalModeDiameter(int latestDiameter) = 0;
-    
-    // 显示正常模式统计信息（兼容旧方法）
-    virtual void displayNormalModeStats(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount) = 0;
-    
-    // 显示速度统计信息
-    virtual void displaySpeedStats(int speedPerSecond, int speedPerMinute, int speedPerHour, int itemCount, int trayCount) = 0;
-    
-    // 显示单个值
-    virtual void displaySingleValue(const String& label, int value, const String& unit) = 0;
-    
-    // 显示位置信息
-    virtual void displayPositionInfo(const String& title, int position, bool showOnlyOnChange) = 0;
-    
-    // 显示诊断值
-    virtual void displayDiagnosticValues(const String& title, const String& value1, const String& value2) = 0;
-    
-    // 显示多行文本
-    virtual void displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3 = "", const String& line4 = "", const String& line5 = "") = 0;
-    
-    // 显示配置编辑详情 (支持长度选择的反白效果)
-    virtual void displayConfigEdit(const String& title, int maxV, int minV, uint8_t targetMode, int activeField) = 0;
 
-    // 重置诊断模式
-    virtual void resetDiagnosticMode() = 0;
-  // 清理屏幕
-  virtual void clearDisplay() = 0;
+    // 核心接口：刷新系统快照数据
+    virtual void refresh(const DisplaySnapshot& snapshot) = 0;
+    
+    // 渲染菜单系统 (保留以维持主菜单基础绘制)
+    virtual void renderMenu(MenuNode* node, int cursorIndex, int scrollOffset) = 0;
+    
+    // 清理屏幕
+    virtual void clearDisplay() = 0;
 };
 
 #endif // DISPLAY_H

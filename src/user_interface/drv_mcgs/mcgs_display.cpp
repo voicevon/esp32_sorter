@@ -148,56 +148,26 @@ UIIntent McgsDisplay::pollIntent() {
     return intent;
 }
 
-// ── Display 接口：有意义的实现 ───────────────────────────────────────────────
-void McgsDisplay::displayModeChange(SystemMode newMode) {
+// ── Display 接口实现 ───────────────────────────────────────────────
+void McgsDisplay::refresh(const DisplaySnapshot& snapshot) {
     if (!_isAvailable) return;
-    _modbus.asyncWrite(_slaveId, HMI_REG_SYS_MODE, (uint16_t)newMode, nullptr);
-}
 
-void McgsDisplay::displayModeChange(const String& newModeName) {
-    // 字符串版本：尝试映射到 SysMode 数值，未知模式写 0
-    (void)newModeName;
-    // 当前不做字符串解析，以 displayModeChange(SystemMode) 为主
-}
+    // 1. 同步系统模式
+    _modbus.asyncWrite(_slaveId, HMI_REG_SYS_MODE, (uint16_t)snapshot.currentMode, nullptr);
 
-void McgsDisplay::displayOutletStatus(uint8_t outletIndex, bool isOpen) {
-    if (!_isAvailable || outletIndex >= 16) return;
-    if (isOpen) {
-        _ledBitmap |=  (1u << outletIndex);
-    } else {
-        _ledBitmap &= ~(1u << outletIndex);
+    // 2. 根据不同模式更新对应的寄存器
+    if (snapshot.currentMode == MODE_NORMAL) {
+        pushProductionData(
+            (uint16_t)snapshot.data.dashboard.latestDiameter,
+            (uint16_t)snapshot.data.dashboard.sortingSpeedPerHour,
+            0,
+            (uint32_t)snapshot.data.dashboard.identifiedCount
+        );
+    } else if (snapshot.currentMode == MODE_DIAGNOSE_ENCODER) {
+        _modbus.asyncWrite(_slaveId, HMI_REG_DIAG_VAL1, (uint16_t)snapshot.data.encoder.raw, nullptr);
     }
-    _modbus.asyncWrite(_slaveId, HMI_REG_LED_BITMAP, _ledBitmap, nullptr);
 }
 
-void McgsDisplay::displayDiagnosticInfo(const String& title, const String& info) {
-    if (!_isAvailable) return;
-    // title → 从中提取模式值（暂以 atoi 粗解析），info 写 DiagValue1
-    uint16_t diagVal = (uint16_t)info.toInt();
-    _modbus.asyncWrite(_slaveId, HMI_REG_DIAG_VAL1, diagVal, nullptr);
-}
-
-void McgsDisplay::displayDashboard(float /*sortingSpeedPerSecond*/,
-                                   int  /*sortingSpeedPerMinute*/,
-                                   int    sortingSpeedPerHour,
-                                   int    identifiedCount,
-                                   int  /*transportedTrayCount*/,
-                                   int    latestDiameter,
-                                   int  /*latestScanCount*/,
-                                   int  /*latestLengthLevel*/) {
-    // 委托给 pushProductionData
-    pushProductionData(
-        (uint16_t)latestDiameter,       // 已是 ×100 单位
-        (uint16_t)sortingSpeedPerHour,
-        0,                               // totalCount 暂不从此接口传
-        (uint32_t)identifiedCount
-    );
-}
-
-void McgsDisplay::displayDiameter(int latestDiameter) {
-    if (!_isAvailable) return;
-    _modbus.asyncWrite(_slaveId, HMI_REG_DIAMETER, (uint16_t)latestDiameter, nullptr);
-}
 
 // ── 内部辅助 ──────────────────────────────────────────────────────────────────
 void McgsDisplay::handleCmdCode(uint16_t cmd) {

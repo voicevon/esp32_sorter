@@ -77,44 +77,12 @@ public:
     String getName() const override { return "McgsDisplay"; }
 
     // 以下方法由 UserInterface 统一调度，McgsDisplay 实现有意义的子集，
-    // 其余以空实现占位（OLED/Terminal 专用的绘图指令在屏幕侧无对应控件）。
-
     void renderMenu(MenuNode* node, int cursorIndex, int scrollOffset) override {}
 
-    /** 模式变化 → 写 HMI_REG_SYS_MODE */
-    void displayModeChange(SystemMode newMode) override;
-    void displayModeChange(const String& newModeName) override;
+    // 核心快照刷新接口
+    void refresh(const DisplaySnapshot& snapshot) override;
 
-    /** 出口状态变化 → 更新 LedBitmap 对应 bit */
-    void displayOutletStatus(uint8_t outletIndex, bool isOpen) override;
-
-    /** 诊断信息 → 写 DiagValue1 (title 用于 SysMode 更新, info 写 DiagValue1) */
-    void displayDiagnosticInfo(const String& title, const String& info) override;
-
-    /** 仪表盘 → 委托 pushProductionData() */
-    void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute,
-                          int sortingSpeedPerHour, int identifiedCount,
-                          int transportedTrayCount, int latestDiameter,
-                          int latestScanCount, int latestLengthLevel = 0) override;
-
-    /** 实时直径 → 写 HMI_REG_DIAMETER */
-    void displayDiameter(int latestDiameter) override;
-
-    // 以下方法为 OLED/Terminal 专属，McgsDisplay 以空实现占位
-    void displayNormalModeDiameter(int latestDiameter) override {}
-    void displayNormalModeStats(float, int, int, int, int, int, int) override {}
-    void displaySpeedStats(int, int, int, int, int) override {}
-    void displaySingleValue(const String&, int, const String&) override {}
-    void displayPositionInfo(const String&, int, bool) override {}
-    void displayDiagnosticValues(const String&, const String&, const String&) override {}
-    void displayMultiLineText(const String&, const String&, const String&,
-                              const String& = "", const String& = "",
-                              const String& = "") override {}
-    void displayConfigEdit(const String&, int, int, uint8_t, int) override {}
-    void displayOutletTestGraphic(uint8_t, uint8_t, bool, int) override {}
-    void displayOutletLifetimeTestGraphic(uint8_t, uint32_t, bool, int) override {}
-    void displayScannerEncoderValues(const int*, const int*) override {}
-    void resetDiagnosticMode() override {}
+    // 清理屏幕
     void clearDisplay() override {}
 
 private:

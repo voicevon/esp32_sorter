@@ -26,6 +26,7 @@ public:
     void begin() override;
     void update(uint32_t currentTime, bool btnPressed) override;
     void end() override;
+    void captureSnapshot(DisplaySnapshot& snapshot) override;
     void switchToNextSubMode();
 };
 #endif // ENCODER_DIAGNOSTIC_HANDLER_H

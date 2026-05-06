@@ -6,6 +6,8 @@
 // 全局模式返回辅助
 extern void handleReturnToMenu();
 
+struct DisplaySnapshot;
+
 /**
  * @brief 诊断处理器基类 
  * 提供统一的生命周期管理接口：开始、更新、结束
@@ -22,6 +24,9 @@ public:
 
     // 退出诊断模式时的清理逻辑
     virtual void end() {}
+
+    // 核心快照采集接口，各业务处理器将其数据组装进 DisplaySnapshot 中
+    virtual void captureSnapshot(DisplaySnapshot& snapshot) {}
 };
 
 #endif // BASE_DIAGNOSTIC_HANDLER_H

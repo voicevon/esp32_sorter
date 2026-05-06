@@ -1,5 +1,7 @@
 #include "outlet_diagnostic_handler.h"
 #include "config.h"
+#include "../user_interface/common/display_types.h"
+
 
 OutletDiagnosticHandler::OutletDiagnosticHandler() : 
     modeStartTime(0), 
@@ -121,7 +123,7 @@ void OutletDiagnosticHandler::update(uint32_t currentMs, bool btnPressed) {
                     outlets[i]->execute();
                 }
                 
-                userInterface->displayOutletTestGraphic(NUM_OUTLETS, currentOutlet, outletState, currentSubMode);
+                // OLED显示已由 snapshot 统一托管
             }
             break;
         }
@@ -144,7 +146,7 @@ void OutletDiagnosticHandler::update(uint32_t currentMs, bool btnPressed) {
                 if (outletState) {
                     cycleCount++;
                     if (cycleCount % 8 == 0) {  // 每8次更新一次显示
-                        userInterface->displayOutletLifetimeGraphic(NUM_OUTLETS, cycleCount, outletState, currentSubMode);
+                        // OLED显示已由 snapshot 统一托管
                     }
                 } else {
                     // 当关闭时，准备切换到下一个出口
@@ -208,8 +210,7 @@ void OutletDiagnosticHandler::processCycleOperation(uint32_t currentTime, uint32
         outlets[currentOutlet]->setReadyToOpen(outletState);
         outlets[currentOutlet]->execute();
         
-        // 更新显示屏内容，指示当前测试状态
-        userInterface->displayOutletTestGraphic(NUM_OUTLETS, currentOutlet, outletState, currentSubMode);
+        // OLED显示已由 snapshot 统一托管
     }
 }
 
@@ -232,8 +233,7 @@ void OutletDiagnosticHandler::initializeDiagnosticMode(uint32_t currentTime) {
         outlets[currentOutlet]->setReadyToOpen(outletState);
         outlets[currentOutlet]->execute();
         
-        // 更新显示内容
-        userInterface->displayOutletTestGraphic(NUM_OUTLETS, currentOutlet, outletState, currentSubMode);
+        // OLED显示已由 snapshot 统一托管
         
         // 输出诊断信息到串口
         Serial.print("[DIAGNOSTIC] Initial outlet state normally closed: ");
@@ -286,10 +286,33 @@ void OutletDiagnosticHandler::handleEncoderInput(int delta) {
                 outlets[i]->execute();
             }
             
-            userInterface->displayOutletTestGraphic(NUM_OUTLETS, currentOutlet, false, currentSubMode);
+            // OLED显示已由 snapshot 统一托管
             
             Serial.print("[DIAGNOSTIC] Selected outlet changed to: ");
             Serial.println(currentOutlet);
         }
     }
 }
+
+void OutletDiagnosticHandler::captureSnapshot(DisplaySnapshot& snapshot) {
+    snapshot.currentMode = MODE_DIAGNOSE_OUTLET;
+    strcpy(snapshot.activePage, "diag_outlets");
+    
+    for (int i = 0; i < 8; i++) {
+        if (i < NUM_OUTLETS && outlets[i]) {
+            snapshot.data.outlet.outlets[i].isOpen = outlets[i]->isPositionOpen(); // Or isReadyToOpen
+            snapshot.data.outlet.outlets[i].min = 0; // We can set this or read from config if needed
+            snapshot.data.outlet.outlets[i].max = 0;
+            snapshot.data.outlet.outlets[i].mask = outlets[i]->getTargetLength();
+        } else {
+            snapshot.data.outlet.outlets[i].isOpen = false;
+            snapshot.data.outlet.outlets[i].min = 0;
+            snapshot.data.outlet.outlets[i].max = 0;
+            snapshot.data.outlet.outlets[i].mask = 0;
+        }
+    }
+    snapshot.data.outlet.activeOutletIndex = currentOutlet;
+    snapshot.data.outlet.subMode = currentSubMode;
+    snapshot.data.outlet.cycleCount = cycleCount;
+}
+

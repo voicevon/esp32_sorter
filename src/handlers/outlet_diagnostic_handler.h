@@ -70,6 +70,8 @@ public:
     void begin() override;
     void update(uint32_t currentTime, bool btnPressed) override;
     void end() override;
+    void captureSnapshot(DisplaySnapshot& snapshot) override;
+
     
 private:
     // UserInterface指针，用于显示诊断信息

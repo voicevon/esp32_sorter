@@ -18,9 +18,8 @@
 #include "handlers/config_handler.h"
 #include "handlers/hmi_diagnostic_handler.h"
 
-#include "system/menu_config.h"
+#include "user_interface/common/menu_config.h"
 #include "system/system_manager.h"
-#include "system/mode_processors.h"
 
 // =========================
 // 单例实例
@@ -268,15 +267,39 @@ void vUITask(void* pvParameters) {
                     switch (currentMode) {
                         case MODE_NORMAL:
                             if (delta != 0) normalModeSubmode = (normalModeSubmode + 1) % 2;
-                            processNormalMode();
-                            break;
-                        case MODE_VERSION_INFO:
-                            processVersionInfoMode();
                             break;
                         default:
                             break;
                     }
                 }
+            }
+
+            static uint32_t lastSnapshotMs = 0;
+            if (currentMs - lastSnapshotMs >= 100) {
+                lastSnapshotMs = currentMs;
+
+                // ── 渲染与刷新快照 (中央 Broker 广播机制) ──
+                DisplaySnapshot snapshot;
+                snapshot.currentMode = currentMode;
+                
+                if (activeHandler) {
+                    activeHandler->captureSnapshot(snapshot);
+                } else {
+                    if (currentMode == MODE_NORMAL) {
+                        strcpy(snapshot.activePage, "Dashboard");
+                        float speed = sorter.getConveyorSpeedPerSecond();
+                        snapshot.data.dashboard.sortingSpeedPerSecond = speed;
+                        snapshot.data.dashboard.sortingSpeedPerMinute = (int)(speed * 60.0f);
+                        snapshot.data.dashboard.sortingSpeedPerHour = (int)(speed * 3600.0f);
+                        snapshot.data.dashboard.identifiedCount = traySystem->getTotalIdentifiedItems();
+                        snapshot.data.dashboard.transportedTrayCount = traySystem->getTransportedTrayCount();
+                        snapshot.data.dashboard.latestDiameter = sorter.getLatestDiameter();
+                        snapshot.data.dashboard.latestScanCount = traySystem->getTrayScanCount(0);
+                    } else if (currentMode == MODE_VERSION_INFO) {
+                        strcpy(snapshot.activePage, "About");
+                    }
+                }
+                userInterface->refreshAllDevices(snapshot);
             }
         }
         
@@ -292,6 +315,16 @@ void loop() {
     // 原始 loop() 在双核模式下已废弃，任务由 vControlTask 和 vUITask 承载
     // 我们直接删除这个默认创建的 IDLE 任务以节省资源
     vTaskDelete(NULL);
+}
+
+void handleReturnToMenu() {
+    switchToMode(MODE_NORMAL);
+    menuModeActive = true;
+    hasVersionInfoDisplayed = false;
+    
+    Serial.println("[MENU] Returned to Main Menu");
+    userInterface->clearDisplay();
+    userInterface->renderMenu(menuSystem.getCurrentNode(), menuSystem.getCursorIndex(), menuSystem.getScrollOffset());
 }
 
 

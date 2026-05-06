@@ -1,5 +1,7 @@
 #include "encoder_diagnostic_handler.h"
 #include "../modular/encoder.h"
+#include "../user_interface/common/display_types.h"
+
 
 EncoderDiagnosticHandler::EncoderDiagnosticHandler() {
     encoder = Encoder::getInstance();
@@ -43,28 +45,9 @@ void EncoderDiagnosticHandler::update(uint32_t currentMs, bool btnPressed) {
         
         int logicalPos = encoder->getCurrentPosition();
         
-        switch (currentSubMode) {
-            case 0:
-                // 基础状态：实时逻辑位置与原始脉冲
-                userInterface->displayDiagnosticValues(
-                    "Enc Position", 
-                    "Logical: " + String(logicalPos),
-                    "Raw: " + String(rawCount)
-                );
-                break;
-            case 1:
-                // Z相健康度报告：分析同步准确度
-                {
-                    String line1 = "Correct: " + String(correctZ);
-                    String line2 = "Errors : " + String(errorZ);
-                    String line3 = "LastZRaw:" + String(lastZRaw);
-                    userInterface->displayMultiLineText("Encoder Report", line1, line2, line3, "Z-Signal OK");
-                }
-                break;
-            case 2:
-                userInterface->displayDiagnosticInfo("Encoder Diag", "Status: Ready\nAction: EXIT\n\nClick to return...");
-                break;
-        }
+        // OLED显示已由 snapshot 统一托管
+        (void)rawCount; (void)totalZ; (void)errorZ; (void)lastZRaw; (void)correctZ; (void)logicalPos;
+
     }
 }
 
@@ -72,3 +55,17 @@ void EncoderDiagnosticHandler::switchToNextSubMode() {
     currentSubMode = (currentSubMode + 1) % 3;
     Serial.println("[DIAGNOSTIC] Encoder Submode: " + String(currentSubMode));
 }
+
+void EncoderDiagnosticHandler::captureSnapshot(DisplaySnapshot& snapshot) {
+    snapshot.currentMode = MODE_DIAGNOSE_ENCODER;
+    strcpy(snapshot.activePage, "diag_encoder");
+    
+    snapshot.data.encoder.raw = encoder->getRawCount();
+    snapshot.data.encoder.corrected = encoder->getZeroCrossRawCount();
+    snapshot.data.encoder.logic = encoder->getCurrentPosition();
+    snapshot.data.encoder.zeroCount = encoder->getZeroCrossCount() - encoder->getForcedZeroCount(); // correctZ
+    snapshot.data.encoder.zeroCorrect = encoder->getZeroCrossCount(); // totalZ
+    snapshot.data.encoder.zeroTotal = encoder->getForcedZeroCount(); // errorZ
+    snapshot.data.encoder.offset = encoder->getPhaseOffset();
+}
+

@@ -1,4 +1,6 @@
 #include "config_handler.h"
+#include "../user_interface/common/display_types.h"
+
 
 // =========================
 // DiameterConfigHandler实现
@@ -103,9 +105,8 @@ void DiameterConfigHandler::refreshDisplay() {
           } else {
               listContent += "[ SAVE & EXIT ]\n";
           }
-      }
-      userInterface->displayDiagnosticInfo("DIAMETER/LEN CONFIG", listContent);
-      
+       }
+       // OLED显示已由 snapshot 统一托管
   } else {
       int outletIdx = currentSubMode - 1;
       String title = "OUTLET " + String(outletIdx + 1) + " SETUP";
@@ -113,10 +114,7 @@ void DiameterConfigHandler::refreshDisplay() {
       int maxV = sorter->getOutletMaxDiameter(outletIdx);
       uint8_t targetL = sorter->getOutlet(outletIdx)->getTargetLength();
       
-      int activeField = (uiState == STATE_EDIT_MAX) ? 0 : 
-                        (uiState == STATE_EDIT_MIN) ? 1 : 2;
-      
-      userInterface->displayConfigEdit(title, maxV, minV, targetL, activeField);
+      // OLED显示已由 snapshot 统一托管
   }
 }
 
@@ -209,6 +207,41 @@ void PhaseOffsetConfigHandler::refreshDisplay() {
   String body = "";
   body += "Offset: [" + String(editingOffset) + "]\n\n";
   body += "Rotate: adjust\n";
-  body += "Press : save & exit";
-  userInterface->displayDiagnosticInfo("PHASE OFFSET CFG", body);
+  // OLED显示已由 snapshot 统一托管
 }
+
+void DiameterConfigHandler::captureSnapshot(DisplaySnapshot& snapshot) {
+    snapshot.currentMode = MODE_CONFIG_DIAMETER;
+    strcpy(snapshot.activePage, "config_outlets");
+    
+    for (int i = 0; i < 8; i++) {
+        if (i < NUM_OUTLETS) {
+            snapshot.data.outlet.outlets[i].min = sorter->getOutletMinDiameter(i);
+            snapshot.data.outlet.outlets[i].max = sorter->getOutletMaxDiameter(i);
+            snapshot.data.outlet.outlets[i].mask = sorter->getOutlet(i)->getTargetLength();
+            snapshot.data.outlet.outlets[i].isOpen = sorter->getOutlet(i)->isPositionOpen();
+        } else {
+            snapshot.data.outlet.outlets[i].min = 0;
+            snapshot.data.outlet.outlets[i].max = 0;
+            snapshot.data.outlet.outlets[i].mask = 0;
+            snapshot.data.outlet.outlets[i].isOpen = false;
+        }
+    }
+    snapshot.data.outlet.activeOutletIndex = currentSubMode - 1;
+    snapshot.data.outlet.subMode = (int)uiState;
+    snapshot.data.outlet.cycleCount = 0;
+}
+
+void PhaseOffsetConfigHandler::captureSnapshot(DisplaySnapshot& snapshot) {
+    snapshot.currentMode = MODE_CONFIG_PHASE_OFFSET;
+    strcpy(snapshot.activePage, "config_phase_offset");
+    
+    snapshot.data.encoder.raw = Encoder::getInstance()->getRawCount();
+    snapshot.data.encoder.corrected = Encoder::getInstance()->getZeroCrossRawCount();
+    snapshot.data.encoder.logic = Encoder::getInstance()->getCurrentPosition();
+    snapshot.data.encoder.zeroCount = Encoder::getInstance()->getZeroCrossCount() - Encoder::getInstance()->getForcedZeroCount();
+    snapshot.data.encoder.zeroCorrect = Encoder::getInstance()->getZeroCrossCount();
+    snapshot.data.encoder.zeroTotal = Encoder::getInstance()->getForcedZeroCount();
+    snapshot.data.encoder.offset = editingOffset;
+}
+

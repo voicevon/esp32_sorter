@@ -68,5 +68,6 @@ public:
      * 获取当前子模式
      */
     int getCurrentSubMode() const;
+    void captureSnapshot(DisplaySnapshot& snapshot) override;
 };
 #endif // SCANNER_DIAGNOSTIC_HANDLER_H

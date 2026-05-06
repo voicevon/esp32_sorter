@@ -68,59 +68,11 @@ public:
   // 检查终端是否可用
   bool isAvailable() const override { return true; }  // 串口始终可用
   
-  // 显示模式变化信息
-  void displayModeChange(SystemMode newMode) override;
-  void displayModeChange(const String& newModeName) override;
-  
-  // 显示出口状态变化
-  void displayOutletStatus(uint8_t outletIndex, bool isOpen) override;
-  
-  // 显示诊断信息
-  void displayDiagnosticInfo(const String& title, const String& info) override;
-  
-  // 显示出口测试模式图形
-  void displayOutletTestGraphic(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen, int subMode) override;
-  
-  // 显示出口寿命测试专用图形
-  void displayOutletLifetimeTestGraphic(uint8_t outletCount, uint32_t cycleCount, bool outletState, int subMode) override;
-  
-  // 显示扫描仪编码器值
-  void displayScannerEncoderValues(const int* risingValues, const int* fallingValues) override;
+  // 核心接口：刷新快照
+  void refresh(const DisplaySnapshot& snapshot) override;
 
   // 菜单渲染代理
   void renderMenu(MenuNode* node, int cursorIndex, int scrollOffset) override;
-  
-  // 显示系统仪表盘
-  void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, int latestLengthLevel = 0) override;
-  
-  // 显示直径信息（功能专用方法）
-  void displayDiameter(int latestDiameter) override;
-  
-  // 显示正常模式直径信息（兼容旧接口）
-  void displayNormalModeDiameter(int latestDiameter) override;
-  
-  // 显示正常模式统计信息（兼容旧接口）
-  void displayNormalModeStats(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount) override;
-  
-  // 显示速度统计信息
-  void displaySpeedStats(int speedPerSecond, int speedPerMinute, int speedPerHour, int itemCount, int trayCount) override;
-  
-  // 显示单个值
-  void displaySingleValue(const String& label, int value, const String& unit) override;
-  
-  // 显示位置信息
-  void displayPositionInfo(const String& title, int position, bool showOnlyOnChange) override;
-  
-  // 显示诊断值
-  void displayDiagnosticValues(const String& title, const String& value1, const String& value2) override;
-    // 显示多行文本
-    void displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3 = "", const String& line4 = "", const String& line5 = "") override;
-    
-    // 显示配置编辑详情
-    void displayConfigEdit(const String& title, int maxV, int minV, uint8_t targetMode, int activeField) override;
-
-    // 重置诊断模式
-  void resetDiagnosticMode() override;
   
   // 清理屏幕 (Terminal可以用换行或清屏指令)
   void clearDisplay() override;

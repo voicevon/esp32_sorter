@@ -7,145 +7,37 @@
 #include <Adafruit_SSD1306.h>
 #include "../../config.h"
 #include "../../main.h"
-#include "../common/display.h"  // 包含Display抽象基类头文件
+#include "../common/display.h"
 #include "menu_system.h"
 
-// SSD1306 I2C显示器引脚定义
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
-
-// I2C地址定义（SSD1306默认地址）
 #define OLED_I2C_ADDRESS 0x3C
-
-// 系统工作模式前向声明
-enum SystemMode;
-
-// 扫描仪前向声明
-class DiameterScanner;
 
 /**
  * @class OLED
  * @brief SSD1306 I2C显示器管理类
- * 
- * 该类使用单例模式实现，负责管理SSD1306 OLED显示器的初始化和显示功能
- * 显示系统状态、模式信息、出口状态、编码器数据和扫描仪数据等
  */
 class OLED : public Display {
 private:
-  // 单例模式的私有构造函数
   OLED();
-  
-  // 静态实例指针
   static OLED* instance;
-  
-  // SSD1306显示器对象
   Adafruit_SSD1306 display;
-  
-  // 显示器是否可用的标识
   bool isDisplayAvailable;
-  
-  // 最后更新时间
   uint32_t lastUpdateTime;
-  
-  // 显示更新间隔（毫秒）
-  const uint32_t UPDATE_INTERVAL = 500;
-  
-  // 临时显示状态管理
-  bool isTemporaryDisplayActive;  // 是否正在显示临时信息
-  uint32_t temporaryDisplayStartTime;  // 临时显示开始时间
-  uint32_t temporaryDisplayDuration;  // 临时显示持续时间
-  
-  // 诊断模式显示状态管理
-  bool isDiagnosticModeActive;  // 是否处于诊断模式显示状态
-  
-  // 扫描仪编码器值显示状态管理
-  int lastRisingValues[4];  // 存储上一次显示的上升沿编码器值
-  int lastFallingValues[4];  // 存储上一次显示的下降沿编码器值
-  bool isFirstScannerDisplay;  // 指示是否是第一次显示扫描仪编码器值
-  
-  // 存储上一次显示的数据，用于检测变化
-  SystemMode lastDisplayedMode;  // 上一次显示的模式
-  int lastEncoderPosition;  // 上一次编码器位置
-  int lastSortingSpeedPerSecond;  // 上一次显示的每秒速度
-  int lastSortingSpeedPerMinute;  // 上一次显示的每分钟速度
-  int lastSortingSpeedPerHour;  // 上一次显示的每小时速度
-  int lastIdentifiedCount;  // 上一次显示的已识别数量
-  int lastTransportedTrayCount;  // 上一次显示的已输送托盘数量
-  int lastLatestDiameter;  // 上一次显示的最新直径
-  int lastLatestScanCount; // 上一次显示的最新根数
-  
-  // I2C 稳定性监测变量
-  uint32_t i2cErrorCount;    // 累计 I2C 错误次数
-  int lastI2CErrorCode;      // 最后一次错误码
-  bool i2cHealthy;           // 当前 I2C 是否健康
-  unsigned long lastRecoveryTime; // 上次尝试恢复的时间
-  
-  // 私有方法
-  void renderHeader();
-  bool safeDisplay();        // 安全显示方法，包含错误检测逻辑
-  void renderStatusBar(const String& modeName); // 新方法，不依赖SystemMode
-  void renderEncoderInfo(int encoderPosition);
-  void renderOutletInfo(uint8_t outletCount);
-  void checkTemporaryDisplayEnd();  // 检查临时显示是否结束
-  
-  // 出口测试模式的子模式专用显示方法
-  void displayOutletTestNormalOpen(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen);
-  void displayOutletTestNormalClosed(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen);
-  void displayOutletTestLifetime(uint8_t outletCount, uint8_t cycleCount);
-  
+  const uint32_t UPDATE_INTERVAL = 100;
+
 public:
-  // 单例模式的获取实例方法
   static OLED* getInstance();
   
-  // 检查显示器是否可用
   bool isAvailable() const override { return isDisplayAvailable; }
-  
-  // 初始化OLED显示器
   void initialize() override;
   
-  // 显示模式变化信息
-  void displayModeChange(SystemMode newMode) override;
-  void displayModeChange(const String& newModeName) override;
+  // 核心刷新接口
+  void refresh(const DisplaySnapshot& snapshot) override;
   
-  // 显示出口状态变化
-  void displayOutletStatus(uint8_t outletIndex, bool isOpen) override;
-  
-  // 显示诊断信息
-  void displayDiagnosticInfo(const String& title, const String& info) override;
-  
-  // 显示配置编辑详情 (支持长度选择的反白效果)
-  void displayConfigEdit(const String& title, int maxV, int minV, uint8_t targetMode, int activeField) override;
-
-  // 显示出口测试模式图形
-  void displayOutletTestGraphic(uint8_t outletCount, uint8_t selectedOutlet, bool isOpen, int subMode) override;
-  
-  // 显示出口寿命测试专用图形
-  void displayOutletLifetimeTestGraphic(uint8_t outletCount, uint32_t cycleCount, bool outletState, int subMode) override;
-  
-  // 显示扫描仪编码器值
-  void displayScannerEncoderValues(const int* risingValues, const int* fallingValues) override;
-  
-  // 显示扫描仪波形图 (点划线)
-  void displayScannerWaveform(DiameterScanner* scanner);
-  
-  // 通用显示方法 - 替代模式专用方法
+  // 菜单渲染代理
   void renderMenu(MenuNode* node, int cursorIndex, int scrollOffset) override;
-  void displayDashboard(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount, int latestLengthLevel = 0) override;
-  void displayDiameter(int latestDiameter) override;
-  
-  // 实现Display抽象基类的方法（兼容旧接口）
-  void displayNormalModeStats(float sortingSpeedPerSecond, int sortingSpeedPerMinute, int sortingSpeedPerHour, int identifiedCount, int transportedTrayCount, int latestDiameter, int latestScanCount) override;
-  void displayNormalModeDiameter(int latestDiameter) override;
-  
-  // 新增功能专用显示方法
-  void displaySpeedStats(int speedPerSecond, int speedPerMinute, int speedPerHour, int itemCount, int trayCount) override;
-  void displaySingleValue(const String& label, int value, const String& unit) override;
-  void displayPositionInfo(const String& title, int position, bool showOnlyOnChange) override;
-  void displayDiagnosticValues(const String& title, const String& value1, const String& value2) override;
-  void displayMultiLineText(const String& title, const String& line1, const String& line2, const String& line3 = "", const String& line4 = "", const String& line5 = "") override;
-  
-  // 重置诊断模式显示标志（用于切换出MODE_DIAGNOSE_SCANNER模式时）
-  void resetDiagnosticMode() override;
   
   // 清理屏幕
   void clearDisplay() override;

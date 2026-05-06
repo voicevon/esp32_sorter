@@ -1,9 +1,9 @@
 #include "menu_config.h"
-#include "system_manager.h"
-#include "../handlers/outlet_diagnostic_handler.h"
-#include "../handlers/hmi_diagnostic_handler.h"
-#include "../handlers/config_handler.h"
-#include "../handlers/scanner_diagnostic_handler.h"
+#include "system/system_manager.h"
+#include "handlers/outlet_diagnostic_handler.h"
+#include "handlers/hmi_diagnostic_handler.h"
+#include "handlers/config_handler.h"
+#include "handlers/scanner_diagnostic_handler.h"
 
 extern PhaseOffsetConfigHandler phaseOffsetConfigHandler;
 
